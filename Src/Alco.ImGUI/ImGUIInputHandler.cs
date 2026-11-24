@@ -16,6 +16,10 @@ public sealed unsafe class ImGUIInputHandler : AutoDisposable
     {
         get
         {
+            if (ImGui.GetCurrentContext() == IntPtr.Zero)
+            {
+                return false;
+            }
             ImGuiIOPtr io = ImGui.GetIO();
             return io.WantCaptureMouse;
         }

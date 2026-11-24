@@ -13,14 +13,16 @@ public static class RenderingSystemGUIExtension
     /// <param name="defaultFont">Default font asset used by child text nodes.</param>
     /// <param name="size">Optional initial canvas logical dimensions.</param>
     /// <param name="glyphCache">Optional shared SDF glyph cache; when <see langword="null"/>, the canvas creates and owns a private instance.</param>
+    /// <param name="shaders">Optional shader system override used to resolve UI materials; defaults to <see cref="RenderingSystem.Shaders"/>.</param>
     /// <returns>The created <see cref="Canvas"/>.</returns>
     public static Canvas CreateCanvas(
         this RenderingSystem system,
         IUIInputTracker inputTracker,
         Font defaultFont,
         Vector2? size = null,
-        GlyphCache? glyphCache = null)
+        GlyphCache? glyphCache = null,
+        ShaderSystem? shaders = null)
     {
-        return new Canvas(system, inputTracker, defaultFont, size, glyphCache);
+        return new Canvas(system, inputTracker, defaultFont, size, glyphCache, shaders);
     }
 }

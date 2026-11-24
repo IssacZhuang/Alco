@@ -175,12 +175,12 @@ public unsafe class Game : GameEngine
             ReverseInfiniteDepth = false,
         };
 
-        _particles = new GpuParticleSystem3D(RenderingSystem, ShaderSystem, particleCapacity: 1 << 18, emitterSlots: 512)
+        _particles = new GpuParticleSystem3D(RenderingSystem, particleCapacity: 1 << 18, emitterSlots: 512)
         {
             DepthStencilState = DepthStencilState.Read,
         };
 
-        Shader propsShader = ShaderSystem.GetShaderFromSource(
+        Shader propsShader = RenderingSystem.Shaders.GetShaderFromSource(
             "SandboxPropsCube3D", "SandboxPropsCube3D.slang", PropsShaderSource, ShaderKind.Graphics);
         _propsMaterial = propsShader.CreateMaterial("SandboxProps");
         _propsMaterial.Blend = BlendState.Opaque;
@@ -280,7 +280,7 @@ public unsafe class Game : GameEngine
     {
         foreach (IAssetLoader loader in base.CreateDefaultAssetLoaders())
             yield return loader;
-        yield return new AssetLoaderParticleEffect(AssetSystem, ShaderSystem);
+        yield return new AssetLoaderParticleEffect(AssetSystem, RenderingSystem.Shaders);
     }
 
     private InstanceEntry Spawn(string effectName, Vector3 position, int seed)

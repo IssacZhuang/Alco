@@ -114,7 +114,7 @@ public class TestParticlePoolLifecycle
     [Test]
     public void CreateInstanceRollsBackOnFailure()
     {
-        using var system = new GpuParticleSystem2D(_engine.RenderingSystem, _engine.ShaderSystem, particleCapacity: 512, emitterSlots: 16);
+        using var system = new GpuParticleSystem2D(_engine.RenderingSystem, _engine.RenderingSystem.Shaders, particleCapacity: 512, emitterSlots: 16);
         Image white = new(_engine.RenderingSystem.TextureWhite, ownsResource: false);
 
         var failingEffect = new ParticleEffect2D
@@ -159,7 +159,7 @@ public class TestParticlePoolLifecycle
     [Test]
     public void PoolGrowthBetweenRecordSimulationAndRenderUsesSnapshot()
     {
-        using var system = new GpuParticleSystem2D(_engine.RenderingSystem, _engine.ShaderSystem, particleCapacity: 128, emitterSlots: 2);
+        using var system = new GpuParticleSystem2D(_engine.RenderingSystem, _engine.RenderingSystem.Shaders, particleCapacity: 128, emitterSlots: 2);
         var effect = new ParticleEffect2D
         {
             Name = "snapshot-growth",
@@ -314,7 +314,7 @@ public class TestParticlePoolLifecycle
     [Test]
     public void SpriteWithoutSampledUsageThrows_AndTrimUnusedCachesCleansUp()
     {
-        using var system = new GpuParticleSystem2D(_engine.RenderingSystem, _engine.ShaderSystem, particleCapacity: 256, emitterSlots: 8);
+        using var system = new GpuParticleSystem2D(_engine.RenderingSystem, _engine.RenderingSystem.Shaders, particleCapacity: 256, emitterSlots: 8);
 
         Texture nonSampledTex = _engine.RenderingSystem.CreateTexture(new TextureDesc
         {
@@ -354,10 +354,10 @@ public class TestParticlePoolLifecycle
     [Test]
     public void RenderGraphNodesHandleHeadlessAndDepthWriteAndSteadyZeroAlloc()
     {
-        using var particles2D = new GpuParticleSystem2D(_engine.RenderingSystem, _engine.ShaderSystem, particleCapacity: 512, emitterSlots: 16);
-        using var particles3D = new GpuParticleSystem3D(_engine.RenderingSystem, _engine.ShaderSystem, particleCapacity: 512, emitterSlots: 16);
-        using var trails2D = new GpuTrailSystem2D(_engine.RenderingSystem, _engine.ShaderSystem, pointCapacity: 256, trailSlots: 8);
-        using var trails3D = new GpuTrailSystem3D(_engine.RenderingSystem, _engine.ShaderSystem, pointCapacity: 256, trailSlots: 8);
+        using var particles2D = new GpuParticleSystem2D(_engine.RenderingSystem, _engine.RenderingSystem.Shaders, particleCapacity: 512, emitterSlots: 16);
+        using var particles3D = new GpuParticleSystem3D(_engine.RenderingSystem, _engine.RenderingSystem.Shaders, particleCapacity: 512, emitterSlots: 16);
+        using var trails2D = new GpuTrailSystem2D(_engine.RenderingSystem, _engine.RenderingSystem.Shaders, pointCapacity: 256, trailSlots: 8);
+        using var trails3D = new GpuTrailSystem3D(_engine.RenderingSystem, _engine.RenderingSystem.Shaders, pointCapacity: 256, trailSlots: 8);
 
         var effect2D = new ParticleEffect2D
         {
@@ -449,7 +449,7 @@ public class TestParticlePoolLifecycle
     [Test]
     public void AdvanceFrameHotPathAllocatesNothing()
     {
-        using var system = new GpuParticleSystem2D(_engine.RenderingSystem, _engine.ShaderSystem, particleCapacity: 1024, emitterSlots: 16);
+        using var system = new GpuParticleSystem2D(_engine.RenderingSystem, _engine.RenderingSystem.Shaders, particleCapacity: 1024, emitterSlots: 16);
         var effect = new ParticleEffect2D
         {
             Name = "hotpath",

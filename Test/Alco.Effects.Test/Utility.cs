@@ -11,8 +11,6 @@ namespace Alco.Effects.Test;
 /// </summary>
 internal sealed unsafe class EffectsTestHost : IDisposable
 {
-    private readonly bool _ownsShaders;
-
     /// <summary>Gets the backing GPU device.</summary>
     public GPUDevice Device { get; }
 
@@ -29,15 +27,14 @@ internal sealed unsafe class EffectsTestHost : IDisposable
         IReadOnlyList<string>? extraShaderDirectories = null)
     {
         Device = Gpu.CreateDevice(new DeviceDesc { Backend = backend, Headless = true });
+        ShaderCompilerOptions options = CreateCompilerOptions(extraShaderDirectories);
         RenderingSystem = new RenderingSystem(
             Device,
             textureHeapByteCount: 16UL * 1024 * 1024,
             bufferHeapByteCount: 16UL * 1024 * 1024,
-            uploadStagingByteCount: 4UL * 1024 * 1024);
-
-        ShaderCompilerOptions options = CreateCompilerOptions(extraShaderDirectories);
-        Shaders = RenderingSystem.CreateShaderSystem(options);
-        _ownsShaders = true;
+            uploadStagingByteCount: 4UL * 1024 * 1024,
+            shaderOptions: options);
+        Shaders = RenderingSystem.Shaders;
 
         if (includeEffectsBuiltIns)
             AlcoEffectsShaders.EnsureBuiltInModulesLoaded(Shaders);
@@ -194,8 +191,6 @@ internal sealed unsafe class EffectsTestHost : IDisposable
     public void Dispose()
     {
         Device.WaitIdle();
-        if (_ownsShaders)
-            Shaders.Dispose();
         RenderingSystem.Destroy();
         Device.Destroy();
     }

@@ -32,11 +32,13 @@ public sealed class SvgRenderer : AutoDisposable
 
     /// <summary>Creates a bindless GPU SVG rasterizer tied to <paramref name="system"/>.</summary>
     /// <param name="system">The rendering system owning shaders, textures, and transient buffers.</param>
-    public SvgRenderer(RenderingSystem system)
+    /// <param name="shaders">Optional shader system override; defaults to <see cref="RenderingSystem.Shaders"/>.</param>
+    public SvgRenderer(RenderingSystem system, ShaderSystem? shaders = null)
     {
         _system = system ?? throw new ArgumentNullException(nameof(system));
         string source = LoadEmbeddedShaderSource("SvgRasterize.slang");
-        _shader = system.Shaders.GetShaderFromSource("SvgRasterize", "SvgRasterize.slang", source, ShaderKind.Compute);
+        ShaderSystem resolvedShaders = shaders ?? system.Shaders;
+        _shader = resolvedShaders.GetShaderFromSource("SvgRasterize", "SvgRasterize.slang", source, ShaderKind.Compute);
         _material = _shader.CreateMaterial("SvgRasterize");
     }
 

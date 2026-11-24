@@ -15,7 +15,7 @@ public sealed class ShaderSystem : IDisposable
     /// <summary>Creates a shader system targeting <paramref name="system"/>'s device with optional compiler configuration.</summary>
     /// <param name="system">The rendering system owning the GPU device.</param>
     /// <param name="options">Optional compiler search paths, defines, virtual file resolver, and cache settings.</param>
-    public ShaderSystem(RenderingSystem system, ShaderCompilerOptions? options = null)
+    internal ShaderSystem(RenderingSystem system, ShaderCompilerOptions? options = null)
     {
         _system = system ?? throw new ArgumentNullException(nameof(system));
         _compiler = new ShaderCompiler(system.Device, options);

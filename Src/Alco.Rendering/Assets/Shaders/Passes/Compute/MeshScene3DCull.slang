@@ -24,6 +24,8 @@ public struct MeshScene3DCullRoot
     public uint RequiredCullMask;
     public uint PlaneCount;
     public uint Pad0;
+    public float3 OriginOffset;
+    public uint Pad1;
 };
 
 bool isAabbOutsidePlane(float3 center, float3 extent, float4 plane, float margin)
@@ -67,7 +69,7 @@ public void mainCS(uint3 dispatchId : SV_DispatchThreadID)
     MeshScene3DBucketMeta meta = gpu_load<MeshScene3DBucketMeta>(root.BucketMeta, bucket);
     if (root.PlaneCount > 0u)
     {
-        float3 center = meshScene3DTransformPosition(inst, meta.LocalCenter);
+        float3 center = meshScene3DTransformPositionRelative(inst, meta.LocalCenter, root.OriginOffset);
         float3 extent = float3(
             dot(meta.LocalExtent, abs(inst.World0.xyz)),
             dot(meta.LocalExtent, abs(inst.World1.xyz)),

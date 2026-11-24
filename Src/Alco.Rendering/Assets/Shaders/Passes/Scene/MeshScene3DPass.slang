@@ -17,6 +17,9 @@ public MeshScene3DVsOut vsMain<T : IMeshScene3DSurface>(uint vertexId : SV_Verte
     MeshScene3DPassRoot<T> root = gpu_load_root<MeshScene3DPassRoot<T>>();
     uint slot = meshScene3DLoadSlot(root.Pass.VisibleSlots, instanceId);
     MeshScene3DInstance inst = meshScene3DLoadInstance(root.Pass.Pool, slot);
+    inst.World0.w -= root.Pass.OriginOffset.x;
+    inst.World1.w -= root.Pass.OriginOffset.y;
+    inst.World2.w -= root.Pass.OriginOffset.z;
     MeshScene3DVertex vert = meshScene3DLoadVertex(root.Pass.Vertices, vertexId);
 
     MeshScene3DVertexInput vertexInput;

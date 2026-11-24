@@ -110,8 +110,8 @@ public sealed class Image : AutoDisposable
         SlicePadding = resolved.SlicePadding;
         _contentPresent = isContentLoaded ? 1 : 0;
 
-        _defaultSprite = new Sprite("default", texture, Rect.One, SlicePadding, FilterMode, IsPremultiplied);
-        _sprites = BuildSprites(texture, Width, Height, SlicePadding, FilterMode, IsPremultiplied, sprites);
+        _defaultSprite = new Sprite("default", texture, Rect.One, SlicePadding, FilterMode, IsPremultiplied, owner: this);
+        _sprites = BuildSprites(texture, Width, Height, SlicePadding, FilterMode, IsPremultiplied, sprites, owner: this);
     }
 
     internal void SetContentUpload(Task upload)
@@ -157,7 +157,8 @@ public sealed class Image : AutoDisposable
         Padding slicePadding,
         Filter filterMode,
         bool isPremultiplied,
-        IReadOnlyDictionary<string, RectInt>? sprites)
+        IReadOnlyDictionary<string, RectInt>? sprites,
+        Image owner)
     {
         if (sprites is not { Count: > 0 } || width == 0 || height == 0)
         {
@@ -168,7 +169,7 @@ public sealed class Image : AutoDisposable
         foreach (var (spriteName, pixelRect) in sprites)
         {
             Rect uvRect = pixelRect.Normalize(width, height);
-            built[spriteName] = new Sprite(spriteName, texture, uvRect, slicePadding, filterMode, isPremultiplied);
+            built[spriteName] = new Sprite(spriteName, texture, uvRect, slicePadding, filterMode, isPremultiplied, owner: owner);
         }
         return built.ToFrozenDictionary(StringComparer.Ordinal);
     }

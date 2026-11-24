@@ -130,7 +130,7 @@ public class TestShaderModuleResolver
             FileResolver = CreateResolverWithSource("VirtualTestModule.slang", source),
             SearchPaths = [],
         };
-        using ShaderSystem shaders = new(host.RenderingSystem, options);
+        using ShaderSystem shaders = host.RenderingSystem.CreateShaderSystem(options);
 
         Shader resolved = shaders.GetShader("VirtualTestModule");
         Assert.That(resolved.Name, Is.EqualTo("VirtualTestModule"));

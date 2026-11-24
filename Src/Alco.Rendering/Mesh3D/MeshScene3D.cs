@@ -66,6 +66,8 @@ public sealed unsafe class MeshScene3D : AutoDisposable
         public uint RequiredCullMask;
         public uint PlaneCount;
         public uint Pad0;
+        public Vector3 OriginOffset;
+        public uint Pad1;
     }
 
     private readonly RenderingSystem _system;
@@ -430,6 +432,7 @@ public sealed unsafe class MeshScene3D : AutoDisposable
     /// <param name="cullOutput">Optional cull output to source indirect arguments and visible slots from; defaults to <see cref="DefaultCullOutput"/>.</param>
     /// <param name="materialOverride">Optional material overriding each bucket's default material (must declare <see cref="MeshScene3DPassHeader"/> at root offset 0).</param>
     /// <param name="depthStencilOverride">Optional depth-stencil state overriding each bucket's default state.</param>
+    /// <param name="originOffset">Origin offset subtracted from instance translations prior to vertex transformation.</param>
     /// <returns>The number of indexed indirect draw calls submitted for this tier.</returns>
     public int RenderTier(
         RenderContext context,
@@ -441,7 +444,8 @@ public sealed unsafe class MeshScene3D : AutoDisposable
         uint passFlags = 0u,
         MeshScene3DCullOutput? cullOutput = null,
         Material? materialOverride = null,
-        DepthStencilState? depthStencilOverride = null)
+        DepthStencilState? depthStencilOverride = null,
+        Vector3 originOffset = default)
     {
         ArgumentNullException.ThrowIfNull(camera);
         Matrix4x4 vp = camera.ViewProjectionMatrix;
@@ -455,20 +459,22 @@ public sealed unsafe class MeshScene3D : AutoDisposable
             passFlags,
             cullOutput,
             materialOverride,
-            depthStencilOverride);
+            depthStencilOverride,
+            originOffset);
     }
 
     /// <summary>Records indexed indirect draws for all non-empty buckets in <paramref name="tier"/>.</summary>
     /// <param name="context">Active recording context.</param>
     /// <param name="render">Open render pass scope.</param>
     /// <param name="tier">Tier identifier matching <see cref="MeshScene3DBucketDesc.Tier"/>.</param>
-    /// <param name="viewProjection">Row-major view-projection matrix.</param>
+    /// <param name="viewProjection">Row-major view-projection matrix (origin-relative when <paramref name="originOffset"/> is non-zero).</param>
     /// <param name="time">Elapsed world time in seconds.</param>
     /// <param name="userParams">Optional vector forwarded to shaders via <see cref="MeshScene3DPassHeader.UserParams"/>.</param>
     /// <param name="passFlags">Optional caller flag bits forwarded via <see cref="MeshScene3DPassHeader.PassFlags"/>.</param>
     /// <param name="cullOutput">Optional cull output to source indirect arguments and visible slots from; defaults to <see cref="DefaultCullOutput"/>.</param>
     /// <param name="materialOverride">Optional material overriding each bucket's default material (must declare <see cref="MeshScene3DPassHeader"/> at root offset 0).</param>
     /// <param name="depthStencilOverride">Optional depth-stencil state overriding each bucket's default state.</param>
+    /// <param name="originOffset">Origin offset subtracted from instance translations prior to vertex transformation.</param>
     /// <returns>The number of indexed indirect draw calls submitted for this tier.</returns>
     public int RenderTier(
         RenderContext context,
@@ -480,7 +486,8 @@ public sealed unsafe class MeshScene3D : AutoDisposable
         uint passFlags = 0u,
         MeshScene3DCullOutput? cullOutput = null,
         Material? materialOverride = null,
-        DepthStencilState? depthStencilOverride = null)
+        DepthStencilState? depthStencilOverride = null,
+        Vector3 originOffset = default)
     {
         ArgumentNullException.ThrowIfNull(context);
         ObjectDisposedException.ThrowIf(IsDisposed, this);
@@ -529,6 +536,7 @@ public sealed unsafe class MeshScene3D : AutoDisposable
                 BucketTag = bucket.Desc.BucketTag,
                 HasMaterialParams = matParams != null ? 1u : 0u,
                 PassFlags = passFlags,
+                OriginOffset = originOffset,
             };
 
             uint rootSize = material.Root.SizeBytes;
@@ -652,6 +660,7 @@ public sealed unsafe class MeshScene3D : AutoDisposable
                 CullMargin = view.CullMargin,
                 RequiredCullMask = view.RequiredCullMask,
                 PlaneCount = view.EnableFrustumCulling ? 6u : 0u,
+                OriginOffset = view.OriginOffset,
             });
             compute.Dispatch(_cullShader, cullRoot, new Extent3D((uint)((_pool.TotalSlots + 63) / 64), 1u, 1u));
         }

@@ -300,4 +300,43 @@ public class CanvasMaterialTests
             gpuTex.Destroy();
         }
     }
+
+    /// <summary>Verifies CreateCanvas(..., shaders) resolves custom IUISurface modules registered only on the custom ShaderSystem.</summary>
+    [Test]
+    public void CustomShaderSystem_ResolvesSurfaceModule()
+    {
+        using UITestHost host = new(GraphicsBackend.NoGPU);
+        using ShaderSystem customShaders = host.RenderingSystem.CreateShaderSystem(
+            new ShaderCompilerOptions
+            {
+                FileResolver = path => Path.GetFileNameWithoutExtension(path) == "CustomResolverSurface"
+                    ? CustomSurfaceSource.Replace("NoGpuTestSurface", "CustomResolverSurface", StringComparison.Ordinal)
+                    : null,
+            });
+        Font font = Font.Create(UITestHost.LoadDefaultFontBytes());
+        using Canvas canvas = host.RenderingSystem.CreateCanvas(
+            new TestInputTracker(), font, new Vector2(128, 128), shaders: customShaders);
+
+        Material mat = canvas.CreateCustomSurfaceMaterial("CustomResolverSurface", "ResolvedViaCustomShaderSystem");
+        Assert.That(mat, Is.Not.Null);
+        Assert.That(canvas.Shaders, Is.SameAs(customShaders));
+    }
+
+    /// <summary>Verifies Canvas.SvgRenderer forwards the Canvas custom ShaderSystem instead of falling back to RenderingSystem.Shaders.</summary>
+    [Test]
+    public void CustomShaderSystem_PropagatesToSvgRenderer()
+    {
+        using UITestHost host = new(GraphicsBackend.NoGPU);
+        using ShaderSystem customShaders = host.RenderingSystem.CreateShaderSystem(new ShaderCompilerOptions
+        {
+            SearchPaths = [],
+        });
+        Font font = Font.Create(UITestHost.LoadDefaultFontBytes());
+        using Canvas canvas = host.RenderingSystem.CreateCanvas(
+            new TestInputTracker(), font, new Vector2(128, 128), shaders: customShaders);
+
+        _ = canvas.SvgRenderer;
+        Shader cachedInCustom = customShaders.GetShader("SvgRasterize", ShaderKind.Compute);
+        Assert.That(cachedInCustom.IsDestroyed, Is.False);
+    }
 }

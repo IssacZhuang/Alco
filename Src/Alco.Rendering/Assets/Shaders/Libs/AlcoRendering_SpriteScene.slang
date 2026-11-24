@@ -4,7 +4,7 @@ module AlcoRendering_SpriteScene;
 import Core;
 import SharedSampler;
 
-public static const uint SPRITE_SCENE_MAX_BUCKETS = 64u;
+public static const uint SPRITE_SCENE_LOCAL_AGGREGATE_BUCKETS = 64u;
 
 public static const uint SPRITE_SCENE_SAMPLER_MASK = 3u;
 public static const uint SPRITE_SCENE_SAMPLER_LINEAR_REPEAT = 0u;
@@ -49,8 +49,7 @@ public struct SpriteScenePassHeader
     public float4 UserParams;
     public uint HasMaterialParams;
     public uint Pad0;
-    public uint Pad1;
-    public uint Pad2;
+    public float2 OriginOffset;
 };
 
 public struct EmptySpriteSceneParams

@@ -209,7 +209,7 @@ public struct MeshScene3DBucketMeta
     public uint Pad0;
 }
 
-/// <summary>Root header placed at offset 0 of every <see cref="MeshScene3D"/> graphics material (128 bytes).</summary>
+/// <summary>Root header placed at offset 0 of every <see cref="MeshScene3D"/> graphics material (144 bytes).</summary>
 [StructLayout(LayoutKind.Sequential)]
 public struct MeshScene3DPassHeader
 {
@@ -242,6 +242,12 @@ public struct MeshScene3DPassHeader
 
     /// <summary>Opaque caller-defined pass flag word forwarded in <see cref="RenderTier"/>.</summary>
     public uint PassFlags;
+
+    /// <summary>Origin offset subtracted from instance translations prior to transformation to preserve precision.</summary>
+    public Vector3 OriginOffset;
+
+    /// <summary>Padding to maintain 16-byte struct alignment.</summary>
+    public uint Pad0;
 }
 
 /// <summary>
@@ -257,7 +263,8 @@ public readonly record struct MeshScene3DCullView(
     Vector4 Plane5,
     float CullMargin = 0f,
     uint RequiredCullMask = 0u,
-    bool EnableFrustumCulling = true)
+    bool EnableFrustumCulling = true,
+    Vector3 OriginOffset = default)
 {
     private static readonly Vector4 AlwaysPassPlane = new(0f, 0f, 0f, 1e9f);
     private static readonly Vector4 AlwaysFailPlane = new(0f, 0f, 0f, -1e9f);
@@ -266,11 +273,13 @@ public readonly record struct MeshScene3DCullView(
     /// <param name="viewProjection">Combined view-projection matrix (or oblique/sheared projection * view-projection).</param>
     /// <param name="cullMargin">Extra world-space margin added around every tested AABB.</param>
     /// <param name="requiredCullMask">Optional bitmask tested against <see cref="MeshScene3DInstance.CullMask"/>; zero disables mask filtering.</param>
+    /// <param name="originOffset">Origin offset subtracted from instance translations before frustum plane testing.</param>
     /// <returns>The constructed cull view.</returns>
     public static MeshScene3DCullView FromViewProjection(
         in Matrix4x4 viewProjection,
         float cullMargin = 0f,
-        uint requiredCullMask = 0u)
+        uint requiredCullMask = 0u,
+        Vector3 originOffset = default)
     {
         Vector4 col0 = new(viewProjection.M11, viewProjection.M21, viewProjection.M31, viewProjection.M41);
         Vector4 col1 = new(viewProjection.M12, viewProjection.M22, viewProjection.M32, viewProjection.M42);
@@ -286,35 +295,40 @@ public readonly record struct MeshScene3DCullView(
             NormalizePlane(col3 - col2),
             cullMargin,
             requiredCullMask,
-            EnableFrustumCulling: true);
+            EnableFrustumCulling: true,
+            OriginOffset: originOffset);
     }
 
     /// <summary>Extracts a frustum cull view from <paramref name="camera"/>.</summary>
     /// <param name="camera">Camera providing a row-major view-projection matrix.</param>
     /// <param name="cullMargin">Extra world-space margin added around every tested AABB.</param>
     /// <param name="requiredCullMask">Optional bitmask tested against <see cref="MeshScene3DInstance.CullMask"/>.</param>
+    /// <param name="originOffset">Origin offset subtracted from instance translations before frustum plane testing.</param>
     /// <returns>The constructed cull view.</returns>
     public static MeshScene3DCullView FromCamera(
         ICamera camera,
         float cullMargin = 0f,
-        uint requiredCullMask = 0u)
+        uint requiredCullMask = 0u,
+        Vector3 originOffset = default)
     {
         ArgumentNullException.ThrowIfNull(camera);
         Matrix4x4 vp = camera.ViewProjectionMatrix;
-        return FromViewProjection(in vp, cullMargin, requiredCullMask);
+        return FromViewProjection(in vp, cullMargin, requiredCullMask, originOffset);
     }
 
     /// <summary>Constructs an axis-aligned 3D box cull volume from <paramref name="min"/> and <paramref name="max"/>.</summary>
-    /// <param name="min">Minimum world-space corner.</param>
-    /// <param name="max">Maximum world-space corner.</param>
+    /// <param name="min">Minimum box corner (in origin-relative space when <paramref name="originOffset"/> is non-zero).</param>
+    /// <param name="max">Maximum box corner (in origin-relative space when <paramref name="originOffset"/> is non-zero).</param>
     /// <param name="cullMargin">Extra world-space margin added around every tested AABB.</param>
     /// <param name="requiredCullMask">Optional bitmask tested against <see cref="MeshScene3DInstance.CullMask"/>.</param>
+    /// <param name="originOffset">Origin offset subtracted from instance translations before bounds testing.</param>
     /// <returns>The constructed cull view.</returns>
     public static MeshScene3DCullView FromBounds(
         Vector3 min,
         Vector3 max,
         float cullMargin = 0f,
-        uint requiredCullMask = 0u)
+        uint requiredCullMask = 0u,
+        Vector3 originOffset = default)
     {
         return new MeshScene3DCullView(
             new Vector4(1f, 0f, 0f, -min.X),
@@ -325,7 +339,8 @@ public readonly record struct MeshScene3DCullView(
             new Vector4(0f, 0f, -1f, max.Z),
             cullMargin,
             requiredCullMask,
-            EnableFrustumCulling: true);
+            EnableFrustumCulling: true,
+            OriginOffset: originOffset);
     }
 
     /// <summary>Creates a cull view that disables frustum plane testing while still skipping hidden slots and optionally filtering by <paramref name="requiredCullMask"/>.</summary>
@@ -356,7 +371,7 @@ public readonly record struct MeshScene3DCullView(
 /// <summary>Registration descriptor for one indexed draw bucket inside <see cref="MeshScene3D"/>.</summary>
 /// <param name="Tier">Caller-defined render tier key queried by <see cref="MeshScene3D.RenderTier"/>.</param>
 /// <param name="Geometry">GPU geometry supplying vertices, indices, and default local bounds.</param>
-/// <param name="Material">Graphics material whose root starts with <see cref="MeshScene3DPassHeader"/> (128 bytes).</param>
+/// <param name="Material">Graphics material whose root starts with <see cref="MeshScene3DPassHeader"/> (144 bytes).</param>
 /// <param name="DepthStencil">Default depth-stencil state applied when drawing this bucket.</param>
 /// <param name="BucketTag">Opaque caller-defined identifier forwarded to vertex and pixel stages.</param>
 /// <param name="MaterialParamsBuffer">Optional shared parameter table indexed by <see cref="MeshScene3DInstance.MaterialParamId"/>.</param>

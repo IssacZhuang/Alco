@@ -113,7 +113,7 @@ public class TestAssetPipelineAndConverters
             FileResolver = path => string.Equals(path, "ConverterTestShader.slang", StringComparison.OrdinalIgnoreCase) ? source : null,
             SearchPaths = [],
         };
-        using ShaderSystem shaders = new(host.RenderingSystem, compilerOptions);
+        using ShaderSystem shaders = host.RenderingSystem.CreateShaderSystem(compilerOptions);
         JsonSerializerOptions options = new()
         {
             Converters = { new JsonConverterShader(shaders) },

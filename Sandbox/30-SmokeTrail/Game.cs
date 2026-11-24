@@ -279,7 +279,7 @@ public unsafe class Game : GameEngine
             ReverseInfiniteDepth = true,
         };
 
-        Shader arenaShader = ShaderSystem.GetShaderFromSource(
+        Shader arenaShader = RenderingSystem.Shaders.GetShaderFromSource(
             "SandboxArenaBoxes3D", "SandboxArenaBoxes3D.slang", ArenaBoxShaderSource, ShaderKind.Graphics);
         _arenaMaterial = arenaShader.CreateMaterial("ArenaBoxes");
         _arenaMaterial.Blend = BlendState.Opaque;
@@ -289,7 +289,7 @@ public unsafe class Game : GameEngine
         _boxBuffers = [RenderingSystem.CreateBuffer(bufBytes), RenderingSystem.CreateBuffer(bufBytes)];
         _boxStaging = new ArenaBoxInstanceData[MaxArenaBoxes];
 
-        _trails = new GpuTrailSystem3D(RenderingSystem, ShaderSystem, pointCapacity: 1 << 17, trailSlots: 256)
+        _trails = new GpuTrailSystem3D(RenderingSystem, pointCapacity: 1 << 17, trailSlots: 256)
         {
             DepthStencilState = DepthStencilState.ReadReverseZ,
         };

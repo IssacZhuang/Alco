@@ -8,6 +8,8 @@ namespace Alco.Rendering;
 /// </summary>
 public sealed class Sprite
 {
+    private readonly Image? _owner;
+
     /// <summary>
     /// Gets the name of the sprite.
     /// </summary>
@@ -52,13 +54,15 @@ public sealed class Sprite
     /// <param name="slicePadding">Optional 9-slice border padding in texels.</param>
     /// <param name="filterMode">Preferred sampling filter mode.</param>
     /// <param name="isPremultiplied">Whether texels are premultiplied alpha.</param>
+    /// <param name="owner">Optional owning image kept alive as long as this sprite is referenced.</param>
     public Sprite(
         string name,
         Texture texture,
         Rect uvRect,
         Padding slicePadding = default,
         Filter filterMode = Filter.Linear,
-        bool isPremultiplied = false)
+        bool isPremultiplied = false,
+        Image? owner = null)
     {
         ArgumentNullException.ThrowIfNull(name);
         ArgumentNullException.ThrowIfNull(texture);
@@ -69,6 +73,7 @@ public sealed class Sprite
         SlicePadding = slicePadding;
         FilterMode = filterMode;
         IsPremultiplied = isPremultiplied;
+        _owner = owner;
         PixelSize = new Vector2(texture.Extent.X * uvRect.Size.X, texture.Extent.Y * uvRect.Size.Y);
     }
 }

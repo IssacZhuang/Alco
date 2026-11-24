@@ -8,6 +8,7 @@ namespace Alco.GUI;
 public class UIImage : UINode
 {
     private Texture? _texture;
+    private Sprite? _sprite;
     private ImageType _imageType = ImageType.Simple;
     private Vector2 _tilingScale = Vector2.One;
     private Rect _uvRect = Rect.One;
@@ -21,6 +22,8 @@ public class UIImage : UINode
             if (_texture == value)
                 return;
             _texture = value;
+            if (_sprite != null && !ReferenceEquals(_sprite.Texture, value))
+                _sprite = null;
             SetRenderDataDirty();
         }
     }
@@ -120,6 +123,7 @@ public class UIImage : UINode
     {
         if (sprite == null)
         {
+            _sprite = null;
             Texture = null;
             UvRect = Rect.One;
             SliceBorders = default;
@@ -129,6 +133,7 @@ public class UIImage : UINode
             return;
         }
 
+        _sprite = sprite;
         Texture = sprite.Texture;
         UvRect = sprite.UvRect;
         SliceBorders = new Vector4(sprite.SlicePadding.Left, sprite.SlicePadding.Top, sprite.SlicePadding.Right, sprite.SlicePadding.Bottom);

@@ -104,7 +104,7 @@ public sealed unsafe class Game : GameEngine
             Far = 100f,
         };
 
-        Shader hdrQuadShader = ShaderSystem.GetShaderFromSource(
+        Shader hdrQuadShader = RenderingSystem.Shaders.GetShaderFromSource(
             "BloomSandboxHdrQuad", "BloomSandboxHdrQuad.slang", HdrQuadShaderSource, ShaderKind.Graphics);
         _hdrQuadMaterial = hdrQuadShader.CreateMaterial("hdr_quad");
         _hdrQuadMaterial.Rasterization = RasterizationState.CullNone;
@@ -113,8 +113,8 @@ public sealed unsafe class Game : GameEngine
         _renderGraph = new RenderGraph(RenderingSystem, new Extent2D(MainView.Size.X, MainView.Size.Y), "BloomHDRSandbox");
         _renderContext = new RenderContext(RenderingSystem, frameDataByteCount: 512 * 1024);
 
-        _bloomNode = new RGNode_Bloom(RenderingSystem, _chain, ShaderSystem);
-        _tonemapNode = new RGNode_Tonemap(RenderingSystem, _ => _chain.Current, b => b.Output, ShaderSystem)
+        _bloomNode = new RGNode_Bloom(RenderingSystem, _chain);
+        _tonemapNode = new RGNode_Tonemap(RenderingSystem, _ => _chain.Current, b => b.Output)
         {
             Operator = TonemapType.Neutral,
         };

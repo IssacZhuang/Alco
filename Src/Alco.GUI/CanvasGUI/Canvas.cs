@@ -38,6 +38,7 @@ public partial class Canvas : AutoDisposable, INavigationContext
     }
 
     private readonly RenderingSystem _renderingSystem;
+    private readonly ShaderSystem _shaders;
     private readonly GlyphCache _glyphCache;
     private readonly bool _ownsGlyphCache;
     private readonly UIBatchRenderer _batchRenderer;
@@ -86,6 +87,9 @@ public partial class Canvas : AutoDisposable, INavigationContext
 
     /// <summary>Gets the underlying graphics rendering system.</summary>
     public RenderingSystem RenderingSystem => _renderingSystem;
+
+    /// <summary>Gets the shader system used to resolve and compile UI materials.</summary>
+    public ShaderSystem Shaders => _shaders;
 
     /// <summary>Gets the input tracker used by this canvas.</summary>
     public IUIInputTracker InputTracker
@@ -190,7 +194,7 @@ public partial class Canvas : AutoDisposable, INavigationContext
     public UIRoot Root { get; }
 
     /// <summary>Shared bindless SVG rasterizer created on demand for <see cref="UIGeometryIcon"/> nodes.</summary>
-    public SvgRenderer SvgRenderer => _svgRenderer ??= new SvgRenderer(_renderingSystem);
+    public SvgRenderer SvgRenderer => _svgRenderer ??= new SvgRenderer(_renderingSystem, _shaders);
 
     /// <summary>Creates a bindless batched UI canvas targeting <paramref name="system"/>.</summary>
     /// <param name="system">The rendering system owning shaders, textures, and transient buffers.</param>
@@ -198,24 +202,27 @@ public partial class Canvas : AutoDisposable, INavigationContext
     /// <param name="defaultFont">Default font asset assigned to child text nodes without an explicit font.</param>
     /// <param name="size">Optional initial logical canvas size; defaults to 640x360.</param>
     /// <param name="glyphCache">Optional shared SDF glyph cache; when <see langword="null"/>, the canvas creates and owns a private instance.</param>
+    /// <param name="shaders">Optional shader system override used to resolve UI materials; defaults to <see cref="RenderingSystem.Shaders"/>.</param>
     public Canvas(
         RenderingSystem system,
         IUIInputTracker inputTracker,
         Font defaultFont,
         Vector2? size = null,
-        GlyphCache? glyphCache = null)
+        GlyphCache? glyphCache = null,
+        ShaderSystem? shaders = null)
     {
         ArgumentNullException.ThrowIfNull(system);
         ArgumentNullException.ThrowIfNull(inputTracker);
         ArgumentNullException.ThrowIfNull(defaultFont);
 
         _renderingSystem = system;
+        _shaders = shaders ?? system.Shaders;
         DefaultFont = defaultFont;
         _ownsGlyphCache = glyphCache == null;
         _glyphCache = glyphCache ?? new GlyphCache(system);
         try
         {
-            _batchRenderer = new UIBatchRenderer(system, _glyphCache);
+            _batchRenderer = new UIBatchRenderer(system, _glyphCache, _shaders);
             _collisionWorld = new CollisionWorld2D();
 
             Vector2 initialSize = size is { X: > 0f, Y: > 0f } s ? s : new Vector2(640f, 360f);

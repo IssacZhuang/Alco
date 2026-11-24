@@ -26,7 +26,7 @@ public class TestParticleSimulation
     [Test]
     public void PlayStopRestartAndVisibilityLifecycle2D()
     {
-        using var system = new GpuParticleSystem2D(_engine.RenderingSystem, _engine.ShaderSystem, particleCapacity: 1024, emitterSlots: 16)
+        using var system = new GpuParticleSystem2D(_engine.RenderingSystem, _engine.RenderingSystem.Shaders, particleCapacity: 1024, emitterSlots: 16)
         {
             SimulationRateLimitEnabled = false,
         };
@@ -94,7 +94,7 @@ public class TestParticleSimulation
     [Test]
     public void RateLimitedMutationsInvalidatePlanAndDrainKills2D()
     {
-        using var system = new GpuParticleSystem2D(_engine.RenderingSystem, _engine.ShaderSystem, particleCapacity: 512, emitterSlots: 8)
+        using var system = new GpuParticleSystem2D(_engine.RenderingSystem, _engine.RenderingSystem.Shaders, particleCapacity: 512, emitterSlots: 8)
         {
             SimulationRateLimitEnabled = true,
             SimulationInterval = 1.0f,
@@ -150,7 +150,7 @@ public class TestParticleSimulation
     [Test]
     public void LifecycleAndOverLifeCurveBaking3D()
     {
-        using var system = new GpuParticleSystem3D(_engine.RenderingSystem, _engine.ShaderSystem, particleCapacity: 1024, emitterSlots: 16);
+        using var system = new GpuParticleSystem3D(_engine.RenderingSystem, _engine.RenderingSystem.Shaders, particleCapacity: 1024, emitterSlots: 16);
         var effect = new ParticleEffect3D
         {
             Name = "curves3d",
@@ -207,7 +207,7 @@ public class TestParticleSimulation
     [Test]
     public void DisposingFinishedOneShotPreservesRateLimitAndDefersKill2D()
     {
-        using var system = new GpuParticleSystem2D(_engine.RenderingSystem, _engine.ShaderSystem, particleCapacity: 512, emitterSlots: 16)
+        using var system = new GpuParticleSystem2D(_engine.RenderingSystem, _engine.RenderingSystem.Shaders, particleCapacity: 512, emitterSlots: 16)
         {
             SimulationRateLimitEnabled = false,
         };
@@ -333,7 +333,7 @@ public class TestParticleSimulation
     [Test]
     public void DisposingFinishedOneShotPreservesRateLimitAndDefersKill3D()
     {
-        using var system = new GpuParticleSystem3D(_engine.RenderingSystem, _engine.ShaderSystem, particleCapacity: 512, emitterSlots: 16)
+        using var system = new GpuParticleSystem3D(_engine.RenderingSystem, _engine.RenderingSystem.Shaders, particleCapacity: 512, emitterSlots: 16)
         {
             SimulationRateLimitEnabled = false,
         };

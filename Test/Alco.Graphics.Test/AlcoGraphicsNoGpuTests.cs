@@ -1029,6 +1029,38 @@ public sealed class AlcoGraphicsNoGpuTests
         }
     }
 
+    /// <summary>Verifies RenderingSystem accepts ShaderCompilerOptions to configure its primary Shaders instance.</summary>
+    [Test]
+    public void NoGpuRenderingSystem_ConstructorShaderOptions_ConfigurePrimaryShaders()
+    {
+        GPUDevice device = Gpu.CreateDevice(new DeviceDesc { Backend = GraphicsBackend.NoGPU });
+        ShaderCompilerOptions shaderOptions = new()
+        {
+            FileResolver = path => string.Equals(Path.GetFileName(path), "ConfiguredVirtualCompute.slang", StringComparison.OrdinalIgnoreCase)
+                ? ComputeAddShaderSource
+                : null,
+            SearchPaths = [],
+        };
+        RenderingSystem system = new(
+            device,
+            textureHeapByteCount: 1024 * 1024,
+            bufferHeapByteCount: 1024 * 1024,
+            shaderOptions: shaderOptions);
+        try
+        {
+            Shader first = system.Shaders.GetShader("ConfiguredVirtualCompute");
+            Shader second = system.Shaders.GetShader("ConfiguredVirtualCompute");
+            Assert.That(first, Is.SameAs(second));
+            Assert.That(first.Kind, Is.EqualTo(ShaderKind.Compute));
+        }
+        finally
+        {
+            device.WaitIdle();
+            system.Destroy();
+            device.Destroy();
+        }
+    }
+
     private static Texture CreateSampledTexture(RenderingSystem system)
     {
         return system.CreateTexture(new TextureDesc

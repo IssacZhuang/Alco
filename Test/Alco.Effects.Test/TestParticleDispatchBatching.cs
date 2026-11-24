@@ -26,7 +26,7 @@ public class TestParticleDispatchBatching
     [Test]
     public void EmitAndSimulateBatchByBehavior2D()
     {
-        using var system = new GpuParticleSystem2D(_engine.RenderingSystem, _engine.ShaderSystem, particleCapacity: 4096, emitterSlots: 64);
+        using var system = new GpuParticleSystem2D(_engine.RenderingSystem, _engine.RenderingSystem.Shaders, particleCapacity: 4096, emitterSlots: 64);
 
         var defaultEffect = new ParticleEffect2D
         {
@@ -95,7 +95,7 @@ public class TestParticleDispatchBatching
     [Test]
     public void EmitAndSimulateBatchByBehavior3D()
     {
-        using var system = new GpuParticleSystem3D(_engine.RenderingSystem, _engine.ShaderSystem, particleCapacity: 4096, emitterSlots: 64);
+        using var system = new GpuParticleSystem3D(_engine.RenderingSystem, _engine.RenderingSystem.Shaders, particleCapacity: 4096, emitterSlots: 64);
 
         var defaultEffect = new ParticleEffect3D
         {

@@ -44,6 +44,8 @@ public unsafe class TestMeshScene3D
         public uint RequiredCullMask;
         public uint PlaneCount;
         public uint Pad0;
+        public Vector3 OriginOffset;
+        public uint Pad1;
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -197,7 +199,7 @@ public unsafe class TestMeshScene3D
         {
             Assert.That(sizeof(MeshScene3DInstance), Is.EqualTo(128));
             Assert.That(sizeof(MeshScene3DBucketMeta), Is.EqualTo(48));
-            Assert.That(sizeof(MeshScene3DPassHeader), Is.EqualTo(128));
+            Assert.That(sizeof(MeshScene3DPassHeader), Is.EqualTo(144));
             Assert.That(sizeof(VertexPBR), Is.EqualTo(48));
             Assert.That(resetArgs.Reflection.MatchesStructLayout<ExpectedResetArgsRoot>("MeshScene3DResetArgsRoot"), Is.True);
             Assert.That(cull.Reflection.MatchesStructLayout<ExpectedCullRoot>("MeshScene3DCullRoot"), Is.True);
@@ -608,6 +610,95 @@ public unsafe class TestMeshScene3D
                 if (!texRed.IsDestroyed) texRed.Destroy();
                 if (!texGreen.IsDestroyed) texGreen.Destroy();
                 if (!texBlue.IsDestroyed) texBlue.Destroy();
+            }
+        }
+    }
+
+    /// <summary>Verifies non-zero OriginOffset preserves float32 culling and vertex precision at large world coordinates.</summary>
+    [TestCase(GraphicsBackend.VulkanCompact)]
+    [TestCase(GraphicsBackend.Vulkan)]
+    [TestCase(GraphicsBackend.Dx12)]
+    [TestCase(GraphicsBackend.Metal)]
+    public void MeshScene3D_OriginOffset_PreservesLargeCoordinatePrecision(GraphicsBackend backend)
+    {
+        if (!TryCreateGpuHost(backend, out RenderingTestHost? host))
+        {
+            return;
+        }
+
+        using (host!)
+        {
+            RenderingSystem rendering = host.RenderingSystem;
+            const int width = 128;
+            const int height = 128;
+            Vector3 originOffset = new(100_000f, 100_000f, 0f);
+
+            Texture colorTarget = CreateColorTarget(rendering, width, height);
+            Texture depthTarget = CreateDepthTarget(rendering, width, height);
+            Texture texGreen = CreateRgbaTexture(rendering, 2, 2, (40, 255, 40, 255));
+            Texture texRed = CreateRgbaTexture(rendering, 2, 2, (255, 40, 40, 255));
+
+            Shader stdShader = AlcoMesh3DShaders.ComposeMeshScene3DSurface(
+                rendering.Shaders, AlcoMesh3DShaders.MeshScene3DSurfaceStandardModule, "TestMeshOriginStd");
+            Material mainMat = stdShader.CreateMaterial("TestMeshOriginStdMat", false);
+            mainMat.Blend = BlendState.Opaque;
+            mainMat.Rasterization = RasterizationState.CullNone;
+            mainMat.DepthStencilState = DepthStencilState.Write;
+
+            using ModelGeometry geom = CreateQuadGeometry(rendering, 8f, "OriginQuad");
+            using var scene = new MeshScene3D(rendering);
+            var context = new RenderContext(rendering);
+            var camera = new Camera2D { Size = new Vector2(width, height), Near = -50f, Far = 50f };
+            var passSig = new RenderPassSignature([Format.Rgba8Unorm], Format.D32Float);
+            var handles = new List<GpuInstancePool<MeshScene3DInstance>.Registration>();
+
+            try
+            {
+                uint bucket = scene.RegisterBucket(new MeshScene3DBucketDesc(0, geom, mainMat, DepthStencilState.Write));
+                handles.Add(scene.RegisterDeferred(bucket, MakeInstance(originOffset + new Vector3(24f, 0f, 0f), Quaternion.Identity, Vector3.One, texGreen, 1u), texGreen));
+                handles.Add(scene.RegisterDeferred(bucket, MakeInstance(originOffset + new Vector3(400f, 400f, 0f), Quaternion.Identity, Vector3.One, texRed, 1u), texRed));
+
+                context.BeginFrame();
+                scene.PrepareAndCull(context, MeshScene3DCullView.FromCamera(camera, cullMargin: 0f, originOffset: originOffset));
+                var passDesc = new RenderingDesc
+                {
+                    Colors = [new ColorAttachment { RenderView = colorTarget.RenderView, Load = LoadOp.Clear, Store = StoreOp.Store, Clear = new Vector4(0f, 0f, 0f, 1f) }],
+                    Depth = new DepthAttachment { RenderView = depthTarget.RenderView, Load = LoadOp.Clear, Store = StoreOp.Store, Clear = 1f },
+                };
+                using (RenderContext.RenderScope render = context.BeginRenderPass(passDesc, passSig))
+                {
+                    render.SetViewport(new Viewport { Width = width, Height = height });
+                    render.SetScissor(new Scissor { Width = width, Height = height });
+                    _ = scene.RenderTier(context, in render, tier: 0, camera, originOffset: originOffset);
+                }
+
+                GpuDrawIndexedIndirectArgs[] args = ReadBackIndexedDrawArgsAndSubmit(host.Device, context, scene.DrawArgsBuffer, 1);
+                byte[] pixels = ReadBackRgba8FreshFrame(host.Device, rendering, colorTarget, width, height);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(args[0].InstanceCount, Is.EqualTo(1u));
+                    (byte rVis, byte gVis, _, _) = SampleWorldPixel(pixels, width, height, 24f, 0f);
+                    Assert.That(gVis, Is.GreaterThan((byte)150));
+                    Assert.That(rVis, Is.LessThan((byte)50));
+                    (byte rBg, byte gBg, byte bBg, _) = SampleWorldPixel(pixels, width, height, 0f, 0f);
+                    Assert.That(rBg, Is.Zero);
+                    Assert.That(gBg, Is.Zero);
+                    Assert.That(bBg, Is.Zero);
+                });
+            }
+            finally
+            {
+                for (int i = 0; i < handles.Count; ++i)
+                {
+                    handles[i].Dispose();
+                }
+
+                context.Destroy();
+                if (!colorTarget.IsDestroyed) colorTarget.Destroy();
+                if (!depthTarget.IsDestroyed) depthTarget.Destroy();
+                if (!texGreen.IsDestroyed) texGreen.Destroy();
+                if (!texRed.IsDestroyed) texRed.Destroy();
             }
         }
     }

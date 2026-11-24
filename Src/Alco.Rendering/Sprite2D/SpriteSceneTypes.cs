@@ -133,14 +133,11 @@ public struct SpriteScenePassHeader
     /// <summary>Non-zero when <see cref="MaterialParams"/> binds a valid buffer.</summary>
     public uint HasMaterialParams;
 
-    /// <summary>Padding to maintain 16-byte alignment.</summary>
+    /// <summary>Padding to maintain 8-byte alignment.</summary>
     public uint Pad0;
 
-    /// <summary>Padding to maintain 16-byte alignment.</summary>
-    public uint Pad1;
-
-    /// <summary>Padding to maintain 16-byte alignment.</summary>
-    public uint Pad2;
+    /// <summary>Origin offset subtracted from instance positions prior to transformation to preserve precision.</summary>
+    public Vector2 OriginOffset;
 }
 
 /// <summary>Registration descriptor for one draw bucket inside <see cref="SpriteScene2D"/>.</summary>

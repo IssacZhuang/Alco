@@ -188,16 +188,17 @@ internal sealed unsafe class UIBatchRenderer : AutoDisposable
 
     public UIFrameStats LastStats => _lastStats;
 
-    public UIBatchRenderer(RenderingSystem system, GlyphCache glyphCache)
+    public UIBatchRenderer(RenderingSystem system, GlyphCache glyphCache, ShaderSystem? shaders = null)
     {
         _system = system ?? throw new ArgumentNullException(nameof(system));
         _glyphCache = glyphCache ?? throw new ArgumentNullException(nameof(glyphCache));
+        ShaderSystem resolvedShaders = shaders ?? system.Shaders;
 
-        Shader defaultShader = system.Shaders.GetShaderFromSource("AlcoGUI_Default", "AlcoGUI_Default.slang",
+        Shader defaultShader = resolvedShaders.GetShaderFromSource("AlcoGUI_Default", "AlcoGUI_Default.slang",
             AlcoGUIShaders.LoadEmbeddedSource("AlcoGUI_Default.slang"), ShaderKind.Graphics);
-        Shader maskShader = system.Shaders.GetShaderFromSource("AlcoGUI_Mask", "AlcoGUI_Mask.slang",
+        Shader maskShader = resolvedShaders.GetShaderFromSource("AlcoGUI_Mask", "AlcoGUI_Mask.slang",
             AlcoGUIShaders.LoadEmbeddedSource("AlcoGUI_Mask.slang"), ShaderKind.Graphics);
-        Shader meshShader = system.Shaders.GetShaderFromSource("AlcoGUI_Mesh", "AlcoGUI_Mesh.slang",
+        Shader meshShader = resolvedShaders.GetShaderFromSource("AlcoGUI_Mesh", "AlcoGUI_Mesh.slang",
             AlcoGUIShaders.LoadEmbeddedSource("AlcoGUI_Mesh.slang"), ShaderKind.Graphics);
 
         RasterizationState noCull = new() { Cull = CullMode.None };

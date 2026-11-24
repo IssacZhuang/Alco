@@ -16,6 +16,13 @@ public sealed partial class AssetSystem
     /// <returns><c>true</c> if the asset was successfully loaded; otherwise, <c>false</c>.</returns>
     public bool TryLoad(string filename, Type type, [NotNullWhen(true)] out object? asset, [NotNullWhen(false)] out string failedReason, AssetCacheMode cacheMode = AssetCacheMode.Recyclable)
     {
+        if (_disposed)
+        {
+            asset = null;
+            failedReason = "AssetSystem has been disposed";
+            return false;
+        }
+
         TryRefreshEntries();
         filename = ParseEntry(filename);
 
@@ -36,6 +43,13 @@ public sealed partial class AssetSystem
             //try load from cache
             lock (handle)
             {
+                if (_disposed)
+                {
+                    asset = null;
+                    failedReason = "AssetSystem has been disposed";
+                    return false;
+                }
+
                 object? cachedAsset = handle.CachedAsset;
                 if (cachedAsset != null && type.IsInstanceOfType(cachedAsset))
                 {
@@ -44,32 +58,42 @@ public sealed partial class AssetSystem
                 }
 
                 handle.IsLoading = true;
-
-
-
-                // check the asset loader
-                if (!TryGetLoader(filename, type, out IAssetLoader? loader))
+                try
                 {
-                    asset = null;
-                    failedReason = $"No asset loader found for the file '{filename}' to type {type.Name}";
-                    return false;
-                }
+                    // check the asset loader
+                    if (!TryGetLoader(filename, type, out IAssetLoader? loader))
+                    {
+                        asset = null;
+                        failedReason = $"No asset loader found for the file '{filename}' to type {type.Name}";
+                        return false;
+                    }
 
-                // // profile
-                // EndProfile();
-                if (!TryLoadAssetCore(filename, type, handle, loader, out object? newAsset, out failedReason))
+                    // // profile
+                    // EndProfile();
+                    if (!TryLoadAssetCore(filename, type, handle, loader, out object? newAsset, out failedReason))
+                    {
+                        asset = null;
+                        return false;
+                    }
+
+                    if (_disposed)
+                    {
+                        (newAsset as IDisposable)?.Dispose();
+                        asset = null;
+                        failedReason = "AssetSystem has been disposed";
+                        return false;
+                    }
+
+                    // try add to cache
+                    handle.SetCache(newAsset, cacheMode);
+                    asset = newAsset;
+
+                    return true;
+                }
+                finally
                 {
-                    asset = null;
-                    return false;
+                    handle.IsLoading = false;
                 }
-
-                // try add to cache
-                handle.SetCache(newAsset, cacheMode);
-
-                handle.IsLoading = false;
-                asset = newAsset;
-
-                return true;
             }
         }
         catch (Exception ex)

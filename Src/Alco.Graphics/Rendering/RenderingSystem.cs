@@ -48,6 +48,7 @@ public sealed class RenderingSystem
     private readonly Lock _uploadLock = new();
     private readonly Lock _queueZeroSubmitLock = new();
     private readonly Lock _shaderLock = new();
+    private readonly ShaderCompilerOptions? _shaderOptions;
     private ShaderSystem? _shaders;
     private readonly List<PendingRelease> _pendingReleases = [];
     private readonly List<Submission> _submissions = [];
@@ -74,11 +75,13 @@ public sealed class RenderingSystem
     /// <param name="bufferHeapByteCount">The initial buffer heap size, a positive multiple of 16 bytes; live buffers never move.</param>
     /// <param name="bufferCapacity">The initial buffer allocation metadata capacity, not a live allocation limit.</param>
     /// <param name="uploadStagingByteCount">The upload staging ring capacity in bytes, aligned up to 16 bytes.</param>
+    /// <param name="shaderOptions">Optional compiler configuration for <see cref="Shaders"/>; defaults to <see cref="ShaderCompilerOptions.Default"/>.</param>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="uploadStagingByteCount"/> is smaller than the minimum staging alignment.</exception>
     /// <exception cref="GPUException">A system-owned GPU resource could not be created.</exception>
     public RenderingSystem(GPUDevice device, ulong textureHeapByteCount,
         ulong bufferHeapByteCount = 64 * 1024 * 1024, uint bufferCapacity = 1024,
-        ulong uploadStagingByteCount = DefaultUploadStagingByteCount)
+        ulong uploadStagingByteCount = DefaultUploadStagingByteCount,
+        ShaderCompilerOptions? shaderOptions = null)
         : this(device, new HeapPoolDesc
         {
             InitialHeapSize = bufferHeapByteCount,
@@ -88,7 +91,7 @@ public sealed class RenderingSystem
         {
             InitialHeapSize = textureHeapByteCount,
             MaxHeapSize = Math.Max(textureHeapByteCount, 256UL * 1024 * 1024),
-        }, uploadStagingByteCount)
+        }, uploadStagingByteCount, shaderOptions)
     {
     }
 
@@ -97,13 +100,16 @@ public sealed class RenderingSystem
     /// <param name="bufferPool">The buffer storage growth policy and byte budget.</param>
     /// <param name="texturePool">The texture storage growth policy and byte budget, including the default white texture.</param>
     /// <param name="uploadStagingByteCount">The upload staging ring capacity in bytes, aligned up to 16 bytes.</param>
+    /// <param name="shaderOptions">Optional compiler configuration for <see cref="Shaders"/>; defaults to <see cref="ShaderCompilerOptions.Default"/>.</param>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="uploadStagingByteCount"/> is smaller than the minimum staging alignment.</exception>
     /// <exception cref="InvalidOperationException">The texture pool budget cannot accommodate the default white texture.</exception>
     /// <exception cref="GPUException">A system-owned GPU resource could not be created.</exception>
     public RenderingSystem(GPUDevice device, in HeapPoolDesc bufferPool, in HeapPoolDesc texturePool,
-        ulong uploadStagingByteCount = DefaultUploadStagingByteCount)
+        ulong uploadStagingByteCount = DefaultUploadStagingByteCount,
+        ShaderCompilerOptions? shaderOptions = null)
     {
         Debug.Assert(device != null);
+        _shaderOptions = shaderOptions;
         if (uploadStagingByteCount < UploadQueue.Alignment || uploadStagingByteCount > ulong.MaxValue - (UploadQueue.Alignment - 1))
         {
             throw new ArgumentOutOfRangeException(
@@ -209,7 +215,7 @@ public sealed class RenderingSystem
         }
     }
 
-    /// <summary>The lazily initialized shader system owning a default <see cref="ShaderCompiler"/> and interned shaders.</summary>
+    /// <summary>The lazily initialized primary shader system owning a <see cref="ShaderCompiler"/> and interned shaders.</summary>
     public ShaderSystem Shaders
     {
         get
@@ -220,7 +226,7 @@ public sealed class RenderingSystem
                 return existing;
             lock (_shaderLock)
             {
-                _shaders ??= new ShaderSystem(this);
+                _shaders ??= new ShaderSystem(this, _shaderOptions);
                 return _shaders;
             }
         }
@@ -233,7 +239,7 @@ public sealed class RenderingSystem
         set => Volatile.Write(ref _pipelineMissPolicy, (byte)value);
     }
 
-    /// <summary>Creates an independent shader system with custom compiler options targeting this rendering system.</summary>
+    /// <summary>Creates an isolated shader system with custom compiler options for scoped tests or tools; normal rendering uses <see cref="Shaders"/>.</summary>
     /// <param name="options">Optional compiler search paths, defines, virtual file resolver, and cache settings.</param>
     /// <returns>A caller-owned <see cref="ShaderSystem"/>; dispose it before destroying this rendering system.</returns>
     public ShaderSystem CreateShaderSystem(ShaderCompilerOptions? options = null)
@@ -804,6 +810,31 @@ public sealed class RenderingSystem
         _shaders?.Dispose();
         _shaders = null;
         // The device is idle here: reclaim every finalized wrapper without waiting on the timeline.
+        ReclaimAllPostedReleases();
+        _submissions.Clear();
+        _samplers.Destroy();
+        _textureWhite.Destroy();
+        for (int pass = 0; pass < 2 && (_liveBuffers != 0 || _liveTextures != 0 || _liveSamplers != 0); ++pass)
+        {
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            ReclaimAllPostedReleases();
+        }
+        _frameTimeline.Destroy();
+        _uploadQueue.Destroy();
+        Debug.Assert(
+            _liveBuffers == 0 && _liveTextures == 0 && _liveSamplers == 0,
+            $"Leaked GPU resources on RenderingSystem.Destroy: buffers={_liveBuffers}, textures={_liveTextures}, samplers={_liveSamplers}");
+        _samplerDescriptors.Destroy();
+        _textureDescriptors.Destroy();
+        _texturePool.Destroy();
+        _gpuBufferPool?.Destroy();
+        _bufferPool.Destroy();
+        _destroyed = true;
+    }
+
+    private void ReclaimAllPostedReleases()
+    {
         lock (_releaseLock)
         {
             if (_unresolvedReleases != null)
@@ -825,18 +856,6 @@ public sealed class RenderingSystem
         _pendingReleases.Clear();
         _uploadQueue.Wait();
         ReclaimTextures();
-        _submissions.Clear();
-        _frameTimeline.Destroy();
-        _samplers.Destroy();
-        _textureWhite.Destroy();
-        _uploadQueue.Destroy();
-        Debug.Assert(_liveBuffers == 0 && _liveTextures == 0 && _liveSamplers == 0);
-        _samplerDescriptors.Destroy();
-        _textureDescriptors.Destroy();
-        _texturePool.Destroy();
-        _gpuBufferPool?.Destroy();
-        _bufferPool.Destroy();
-        _destroyed = true;
     }
 
     internal ulong ReadEpoch() => Volatile.Read(ref _epoch);

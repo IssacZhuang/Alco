@@ -144,6 +144,7 @@ internal sealed class SlangCompileSession : IDisposable
     private readonly Action<string>? _log;
 
     internal readonly List<SlangProgram> Programs = [];
+    private readonly Dictionary<string, (string Source, SlangModuleHandle Handle)> _sourceModules = new(StringComparer.Ordinal);
     private bool _disposed;
 
     internal void ThrowIfDisposed() => ObjectDisposedException.ThrowIf(_disposed, this);
@@ -349,6 +350,11 @@ internal sealed class SlangCompileSession : IDisposable
         lock (SlangCompiler.NativeLock)
         {
             ThrowIfDisposed();
+            if (_sourceModules.TryGetValue(moduleName, out (string Source, SlangModuleHandle Handle) existing) &&
+                string.Equals(existing.Source, source, StringComparison.Ordinal))
+            {
+                return existing.Handle;
+            }
             byte[] bytes = System.Text.Encoding.UTF8.GetBytes(source);
             SlangModule? module = _session.LoadModuleFromSource(moduleName, path, bytes, out string? diagnostics);
             if (module == null || HasErrors(diagnostics))
@@ -358,7 +364,9 @@ internal sealed class SlangCompileSession : IDisposable
                     ToPublicTarget(Target), moduleName, diagnostics);
             }
             LogDiagnostics(diagnostics);
-            return new SlangModuleHandle(this, module);
+            SlangModuleHandle handle = new(this, module);
+            _sourceModules[moduleName] = (source, handle);
+            return handle;
         }
     }
 
@@ -889,6 +897,7 @@ internal sealed class SlangCompileSession : IDisposable
             foreach (SlangProgram program in Programs)
                 program.ReleaseNative();
             Programs.Clear();
+            _sourceModules.Clear();
             _session.Release();
             _fileSystem?.Dispose();
         }

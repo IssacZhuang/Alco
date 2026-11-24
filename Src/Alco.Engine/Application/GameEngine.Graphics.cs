@@ -1,5 +1,6 @@
 using Alco.Graphics;
 using Alco.Graphics.LowLevel;
+using Alco.Rendering;
 
 namespace Alco.Engine;
 
@@ -31,6 +32,22 @@ public partial class GameEngine
     public ViewPresenter CreateViewPresenter(View view)
     {
         return new ViewPresenter(view, _renderingSystem);
+    }
+
+    /// <summary>
+    /// Creates compiler options for <see cref="RenderingSystem.Shaders"/>, binding
+    /// <see cref="AssetSystem"/> module resolution and shader cache settings.
+    /// </summary>
+    /// <returns>The compiler options passed to the rendering system.</returns>
+    protected virtual ShaderCompilerOptions CreateShaderCompilerOptions()
+    {
+        return new ShaderCompilerOptions
+        {
+            FileResolver = ShaderModuleResolver.Create(
+                path => _assetSystem.TryGetStream(path, out Stream? stream) ? stream : null,
+                () => _assetSystem.AllAssetNames),
+            CacheDirectory = CreateShaderCacheDirectory(_setting.Graphics),
+        };
     }
 
     /// <summary>

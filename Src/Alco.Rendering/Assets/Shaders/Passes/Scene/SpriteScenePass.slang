@@ -23,7 +23,7 @@ public SpriteSceneVsOut vsMain<T : ISpriteSceneSurface>(uint vertexId : SV_Verte
     vertexInput.VertexId = vertexId;
     vertexInput.Time = root.Pass.Time;
     vertexInput.BucketTag = root.Pass.BucketTag;
-    vertexInput.Position = inst.Position;
+    vertexInput.Position = inst.Position - root.Pass.OriginOffset;
     vertexInput.Rotation = inst.Rotation;
     vertexInput.Scale = inst.Scale;
     vertexInput.Depth = inst.Depth;

@@ -13,7 +13,7 @@ public partial class Canvas
     /// <returns>A newly created <see cref="Material"/> ready to assign to <see cref="UIImage"/>, <see cref="UIText"/>, or <see cref="UIGeometryIcon"/>.</returns>
     public Material CreateCustomSurfaceMaterial(string surfaceModule, string name = "")
     {
-        Shader shader = AlcoGUIShaders.ComposeSurface(_renderingSystem.Shaders, surfaceModule, name);
+        Shader shader = AlcoGUIShaders.ComposeSurface(_shaders, surfaceModule, name);
         Material material = shader.CreateMaterial(string.IsNullOrEmpty(name) ? surfaceModule : name);
         material.Blend = PremultiplyBlend;
         material.Rasterization = new RasterizationState { Cull = CullMode.None };
@@ -28,7 +28,7 @@ public partial class Canvas
     /// <returns>A newly created <see cref="Material"/> ready for per-node parameter customization.</returns>
     public Material CreateCustomSurfaceMaterialFromSource(string surfaceModule, string virtualPath, string source, string name = "")
     {
-        Shader shader = AlcoGUIShaders.ComposeSurfaceFromSource(_renderingSystem.Shaders, surfaceModule, virtualPath, source, name);
+        Shader shader = AlcoGUIShaders.ComposeSurfaceFromSource(_shaders, surfaceModule, virtualPath, source, name);
         Material material = shader.CreateMaterial(string.IsNullOrEmpty(name) ? surfaceModule : name);
         material.Blend = PremultiplyBlend;
         material.Rasterization = new RasterizationState { Cull = CullMode.None };

@@ -53,7 +53,7 @@ public struct MeshScene3DBucketMeta
     public uint Pad0;
 };
 
-// Root header placed at offset 0 of every MeshScene3D graphics material (128 bytes).
+// Root header placed at offset 0 of every MeshScene3D graphics material (144 bytes).
 public struct MeshScene3DPassHeader
 {
     public float4x4 ViewProjection;
@@ -66,6 +66,8 @@ public struct MeshScene3DPassHeader
     public uint BucketTag;
     public uint HasMaterialParams;
     public uint PassFlags;
+    public float3 OriginOffset;
+    public uint Pad0;
 };
 
 public struct EmptyMeshScene3DParams
@@ -179,6 +181,18 @@ public float3 meshScene3DTransformPosition(MeshScene3DInstance inst, float3 loca
 {
     float4 p = float4(localPos, 1.0);
     return float3(dot(p, inst.World0), dot(p, inst.World1), dot(p, inst.World2));
+}
+
+public float3 meshScene3DTransformPositionRelative(MeshScene3DInstance inst, float3 localPos, float3 originOffset)
+{
+    float3 relTranslation = float3(
+        inst.World0.w - originOffset.x,
+        inst.World1.w - originOffset.y,
+        inst.World2.w - originOffset.z);
+    return float3(
+        dot(localPos, inst.World0.xyz) + relTranslation.x,
+        dot(localPos, inst.World1.xyz) + relTranslation.y,
+        dot(localPos, inst.World2.xyz) + relTranslation.z);
 }
 
 // Transforms a local normal using the 3x3 cofactor matrix of the affine linear part,

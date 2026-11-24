@@ -10,8 +10,7 @@ namespace Alco.Rendering;
 /// </summary>
 public sealed unsafe class SpriteScene2D : AutoDisposable
 {
-    /// <summary>Maximum number of draw buckets supported per scene instance.</summary>
-    public const int MaxBuckets = 64;
+    private const int InitialBucketCapacity = 64;
 
     private sealed class BucketState
     {
@@ -57,8 +56,7 @@ public sealed unsafe class SpriteScene2D : AutoDisposable
         public uint BucketCount;
         public float CullMargin;
         public uint Pad0;
-        public uint Pad1;
-        public uint Pad2;
+        public Vector2 OriginOffset;
     }
 
     private readonly RenderingSystem _system;
@@ -70,12 +68,13 @@ public sealed unsafe class SpriteScene2D : AutoDisposable
 
     private readonly List<BucketState> _buckets = new();
     private readonly Dictionary<int, List<BucketState>> _tiers = new();
-    private readonly SpriteSceneBucketMeta[] _bucketMetaStaging = new SpriteSceneBucketMeta[MaxBuckets];
-    private readonly uint[] _bucketSlotIndices = BuildSequentialIndices(MaxBuckets);
+    private SpriteSceneBucketMeta[] _bucketMetaStaging = new SpriteSceneBucketMeta[InitialBucketCapacity];
+    private uint[] _bucketSlotIndices = BuildSequentialIndices(InitialBucketCapacity);
     private readonly List<RetiredBuffer> _retiredBuffers = new();
 
-    private readonly Alco.Graphics.Buffer _bucketMetaBuffer;
-    private readonly Alco.Graphics.Buffer _drawArgsBuffer;
+    private Alco.Graphics.Buffer _bucketMetaBuffer;
+    private Alco.Graphics.Buffer _drawArgsBuffer;
+    private int _bucketCapacity = InitialBucketCapacity;
     private Alco.Graphics.Buffer _visibleSlotsBuffer;
     private int _visibleSlotsCapacity;
     private bool _bucketsDirty = true;
@@ -101,8 +100,8 @@ public sealed unsafe class SpriteScene2D : AutoDisposable
 
         VerifyLayouts();
 
-        _bucketMetaBuffer = system.CreateBuffer((ulong)MaxBuckets * (ulong)sizeof(SpriteSceneBucketMeta));
-        _drawArgsBuffer = system.CreateBuffer((ulong)MaxBuckets * (ulong)sizeof(GpuDrawIndirectArgs));
+        _bucketMetaBuffer = system.CreateBuffer((ulong)_bucketCapacity * (ulong)sizeof(SpriteSceneBucketMeta));
+        _drawArgsBuffer = system.CreateBuffer((ulong)_bucketCapacity * (ulong)sizeof(GpuDrawIndirectArgs));
         _visibleSlotsCapacity = _pool.SlotCapacity;
         _visibleSlotsBuffer = system.CreateBuffer((ulong)_visibleSlotsCapacity * sizeof(uint));
     }
@@ -122,21 +121,30 @@ public sealed unsafe class SpriteScene2D : AutoDisposable
         _drawCallsSubmitted,
         _pool.ActiveTextureCount);
 
-    /// <summary>Reserves backing GPU slot storage for at least <paramref name="minSlots"/> instances.</summary>
+    /// <summary>Reserves backing GPU storage for at least <paramref name="minSlots"/> instances and optional <paramref name="minBuckets"/> buckets.</summary>
     /// <param name="minSlots">Minimum slot count to pre-allocate.</param>
-    public void EnsureCapacity(int minSlots)
+    /// <param name="minBuckets">Optional minimum bucket capacity to pre-allocate.</param>
+    public void EnsureCapacity(int minSlots, int minBuckets = 0)
     {
         ObjectDisposedException.ThrowIf(IsDisposed, this);
-        _pool.EnsureSlotCapacity(minSlots);
-        if (_pool.SlotCapacity > _visibleSlotsCapacity)
+        if (minSlots > 0)
         {
-            ReplaceVisibleSlotsBuffer(_pool.SlotCapacity);
+            _pool.EnsureSlotCapacity(minSlots);
+            if (_pool.SlotCapacity > _visibleSlotsCapacity)
+            {
+                ReplaceVisibleSlotsBuffer(_pool.SlotCapacity);
+            }
+        }
+
+        if (minBuckets > _bucketCapacity)
+        {
+            GrowBucketStorage(minBuckets);
         }
     }
 
     /// <summary>Registers a new draw bucket and returns its stable bucket identifier.</summary>
     /// <param name="desc">Bucket tier, material, depth-stencil state, procedural vertex settings, and optional parameter buffer.</param>
-    /// <returns>Zero-based bucket identifier (<c>0..MaxBuckets - 1</c>).</returns>
+    /// <returns>Zero-based bucket identifier.</returns>
     public uint RegisterBucket(in SpriteSceneBucketDesc desc)
     {
         ObjectDisposedException.ThrowIf(IsDisposed, this);
@@ -152,9 +160,9 @@ public sealed unsafe class SpriteScene2D : AutoDisposable
             throw new ArgumentOutOfRangeException(nameof(desc), "Bucket local extent scale must be a positive finite number.");
         }
 
-        if (_buckets.Count >= MaxBuckets)
+        if (_buckets.Count >= _bucketCapacity)
         {
-            throw new InvalidOperationException($"SpriteScene2D cannot register more than {MaxBuckets} buckets.");
+            GrowBucketStorage(_buckets.Count + 1);
         }
 
         if (desc.Material.Shader.Kind != ShaderKind.Graphics ||
@@ -261,12 +269,13 @@ public sealed unsafe class SpriteScene2D : AutoDisposable
 
     /// <summary>
     /// Syncs dirty CPU mirror slots to the GPU, updates bucket layout metadata when membership
-    /// changed, resets indirect draw args, and dispatches workgroup-aggregated frustum culling.
+    /// changed, resets indirect draw args, and dispatches frustum culling.
     /// </summary>
     /// <param name="context">Active recording context outside any open scope.</param>
-    /// <param name="viewport">World-space camera culling rectangle.</param>
+    /// <param name="viewport">Camera culling rectangle in origin-relative space (world space when <paramref name="originOffset"/> is zero).</param>
     /// <param name="cullMargin">Extra world-space margin added around each instance's AABB.</param>
-    public void PrepareAndCull(RenderContext context, Rect viewport, float cullMargin = 2f)
+    /// <param name="originOffset">Origin offset subtracted from instance positions before culling to preserve precision at large coordinates.</param>
+    public void PrepareAndCull(RenderContext context, Rect viewport, float cullMargin = 2f, Vector2 originOffset = default)
     {
         ArgumentNullException.ThrowIfNull(context);
         ObjectDisposedException.ThrowIf(IsDisposed, this);
@@ -327,6 +336,7 @@ public sealed unsafe class SpriteScene2D : AutoDisposable
                     SlotCount = (uint)_pool.TotalSlots,
                     BucketCount = (uint)_buckets.Count,
                     CullMargin = cullMargin,
+                    OriginOffset = originOffset,
                 });
                 compute.Dispatch(_cullShader, cullRoot, new Extent3D((uint)((_pool.TotalSlots + 63) / 64), 1u, 1u));
             }
@@ -348,6 +358,7 @@ public sealed unsafe class SpriteScene2D : AutoDisposable
     /// <param name="camera">Camera providing the view-projection matrix.</param>
     /// <param name="time">Elapsed world time in seconds.</param>
     /// <param name="userParams">Optional vector forwarded to surfaces.</param>
+    /// <param name="originOffset">Origin offset subtracted from instance positions before vertex transformation.</param>
     /// <returns>The number of indirect draw calls submitted for this tier.</returns>
     public int RenderTier(
         RenderContext context,
@@ -355,19 +366,21 @@ public sealed unsafe class SpriteScene2D : AutoDisposable
         int tier,
         ICamera camera,
         float time = 0f,
-        Vector4 userParams = default)
+        Vector4 userParams = default,
+        Vector2 originOffset = default)
     {
         ArgumentNullException.ThrowIfNull(camera);
-        return RenderTier(context, in render, tier, camera.ViewProjectionMatrix, time, userParams);
+        return RenderTier(context, in render, tier, camera.ViewProjectionMatrix, time, userParams, originOffset);
     }
 
     /// <summary>Records indirect draws for all non-empty buckets belonging to <paramref name="tier"/>.</summary>
     /// <param name="context">Active recording context.</param>
     /// <param name="render">Open render pass scope.</param>
     /// <param name="tier">Tier identifier matching <see cref="SpriteSceneBucketDesc.Tier"/>.</param>
-    /// <param name="viewProjection">Row-major camera view-projection matrix.</param>
+    /// <param name="viewProjection">Row-major camera view-projection matrix (origin-relative when <paramref name="originOffset"/> is non-zero).</param>
     /// <param name="time">Elapsed world time in seconds.</param>
     /// <param name="userParams">Optional vector forwarded to surfaces.</param>
+    /// <param name="originOffset">Origin offset subtracted from instance positions before vertex transformation.</param>
     /// <returns>The number of indirect draw calls submitted for this tier.</returns>
     public int RenderTier(
         RenderContext context,
@@ -375,7 +388,8 @@ public sealed unsafe class SpriteScene2D : AutoDisposable
         int tier,
         in Matrix4x4 viewProjection,
         float time = 0f,
-        Vector4 userParams = default)
+        Vector4 userParams = default,
+        Vector2 originOffset = default)
     {
         ArgumentNullException.ThrowIfNull(context);
         ObjectDisposedException.ThrowIf(IsDisposed, this);
@@ -409,6 +423,7 @@ public sealed unsafe class SpriteScene2D : AutoDisposable
                 BucketTag = bucket.BucketTag,
                 UserParams = userParams,
                 HasMaterialParams = matParams != null ? 1u : 0u,
+                OriginOffset = originOffset,
             };
 
             uint rootSize = material.Root.SizeBytes;
@@ -504,10 +519,28 @@ public sealed unsafe class SpriteScene2D : AutoDisposable
             PatchCount = (uint)count,
             WordsPerInstance = (uint)(sizeof(SpriteSceneBucketMeta) / 4),
         });
-        compute.Dispatch(_scatterShader, scatterRoot, new Extent3D(1u, 1u, 1u));
+        compute.Dispatch(_scatterShader, scatterRoot, new Extent3D((uint)((count + 63) / 64), 1u, 1u));
         compute.Barrier(
             Stage.Compute, Access.ShaderWrite,
             Stage.Compute, Access.ShaderRead);
+    }
+
+    private void GrowBucketStorage(int requiredBuckets)
+    {
+        int nextCapacity = _bucketCapacity;
+        while (nextCapacity < requiredBuckets)
+        {
+            nextCapacity *= 2;
+        }
+
+        Array.Resize(ref _bucketMetaStaging, nextCapacity);
+        _bucketSlotIndices = BuildSequentialIndices(nextCapacity);
+        _retiredBuffers.Add(new RetiredBuffer(_bucketMetaBuffer, _lastContext, _lastFrameId));
+        _retiredBuffers.Add(new RetiredBuffer(_drawArgsBuffer, _lastContext, _lastFrameId));
+        _bucketMetaBuffer = _system.CreateBuffer((ulong)nextCapacity * (ulong)sizeof(SpriteSceneBucketMeta));
+        _drawArgsBuffer = _system.CreateBuffer((ulong)nextCapacity * (ulong)sizeof(GpuDrawIndirectArgs));
+        _bucketCapacity = nextCapacity;
+        _bucketsDirty = true;
     }
 
     private void ReplaceVisibleSlotsBuffer(int nextCapacity)

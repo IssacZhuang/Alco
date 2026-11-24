@@ -17,12 +17,11 @@ public struct SpriteSceneCullRoot
     public uint BucketCount;
     public float CullMargin;
     public uint Pad0;
-    public uint Pad1;
-    public uint Pad2;
+    public float2 OriginOffset;
 };
 
-groupshared uint s_localCount[SPRITE_SCENE_MAX_BUCKETS];
-groupshared uint s_globalBase[SPRITE_SCENE_MAX_BUCKETS];
+groupshared uint s_localCount[SPRITE_SCENE_LOCAL_AGGREGATE_BUCKETS];
+groupshared uint s_globalBase[SPRITE_SCENE_LOCAL_AGGREGATE_BUCKETS];
 
 [shader("compute")]
 [numthreads(64, 1, 1)]
@@ -30,8 +29,9 @@ public void mainCS(uint3 dispatchId : SV_DispatchThreadID, uint3 groupThreadId :
 {
     SpriteSceneCullRoot root = gpu_load_root<SpriteSceneCullRoot>();
     uint groupIndex = groupThreadId.x;
+    uint localBucketLimit = min(root.BucketCount, SPRITE_SCENE_LOCAL_AGGREGATE_BUCKETS);
 
-    if (groupIndex < root.BucketCount)
+    if (groupIndex < localBucketLimit)
     {
         s_localCount[groupIndex] = 0u;
         s_globalBase[groupIndex] = 0u;
@@ -58,7 +58,7 @@ public void mainCS(uint3 dispatchId : SV_DispatchThreadID, uint3 groupThreadId :
                 float sy = abs(inst.Scale.y);
                 float ex = meta.LocalExtentScale * (c * sx + s * sy) + root.CullMargin;
                 float ey = meta.LocalExtentScale * (s * sx + c * sy) + root.CullMargin;
-                float2 pos = inst.Position;
+                float2 pos = inst.Position - root.OriginOffset;
                 if (pos.x + ex >= root.Viewport.x &&
                     pos.x - ex <= root.Viewport.z &&
                     pos.y + ey >= root.Viewport.y &&
@@ -71,13 +71,14 @@ public void mainCS(uint3 dispatchId : SV_DispatchThreadID, uint3 groupThreadId :
     }
 
     uint localOffset = 0u;
-    if (visible)
+    bool useLocalAggregation = visible && bucket < SPRITE_SCENE_LOCAL_AGGREGATE_BUCKETS;
+    if (useLocalAggregation)
     {
         InterlockedAdd(s_localCount[bucket], 1u, localOffset);
     }
     GroupMemoryBarrierWithGroupSync();
 
-    if (groupIndex < root.BucketCount)
+    if (groupIndex < localBucketLimit)
     {
         uint localCount = s_localCount[groupIndex];
         if (localCount > 0u)
@@ -90,6 +91,9 @@ public void mainCS(uint3 dispatchId : SV_DispatchThreadID, uint3 groupThreadId :
 
     if (visible)
     {
-        gpu_store<uint>(root.VisibleSlots, meta.VisibleBase + s_globalBase[bucket] + localOffset, slot);
+        uint dstOffset = useLocalAggregation
+            ? (s_globalBase[bucket] + localOffset)
+            : gpu_atomic_add_u32(gpu_offset_bytes(root.DrawArgs, bucket * 16u + 4u), 1u);
+        gpu_store<uint>(root.VisibleSlots, meta.VisibleBase + dstOffset, slot);
     }
 }

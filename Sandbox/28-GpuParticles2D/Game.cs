@@ -62,7 +62,7 @@ public class Game : GameEngine
         };
         Gizmo.IsOrthographic = true;
 
-        _particles = new GpuParticleSystem2D(RenderingSystem, ShaderSystem, particleCapacity: 1 << 18, emitterSlots: 512);
+        _particles = new GpuParticleSystem2D(RenderingSystem, particleCapacity: 1 << 18, emitterSlots: 512);
 
         _renderGraph = new RenderGraph(RenderingSystem, new Extent2D(MainView.Size.X, MainView.Size.Y), "gpu_particles_2d");
         _renderGraph.Use(new ParticleSimulateNode2D(_particles));
@@ -156,7 +156,7 @@ public class Game : GameEngine
     {
         foreach (IAssetLoader loader in base.CreateDefaultAssetLoaders())
             yield return loader;
-        yield return new AssetLoaderParticleEffect(AssetSystem, ShaderSystem);
+        yield return new AssetLoaderParticleEffect(AssetSystem, RenderingSystem.Shaders);
     }
 
     private InstanceEntry Spawn(string effectName, Vector2 position, int seed)

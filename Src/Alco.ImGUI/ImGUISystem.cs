@@ -38,7 +38,7 @@ public sealed class ImGUISystem : BaseEngineSystem
         ArgumentNullException.ThrowIfNull(engine);
         _engine = engine;
 
-        Shader shader = ImGUIResourceHelper.GetImGUIShader(engine.ShaderSystem);
+        Shader shader = ImGUIResourceHelper.GetImGUIShader(engine.RenderingSystem.Shaders);
         _material = shader.CreateMaterial("ImGuiMaterial");
         _material.Blend = new BlendState
         {

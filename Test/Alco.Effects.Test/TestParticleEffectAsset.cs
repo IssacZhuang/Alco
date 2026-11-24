@@ -189,7 +189,7 @@ public class TestParticleEffectAsset
         Assert.That(shapeEx!.Message, Does.Contain("dodecahedron").Or.Contain("ParticleShape2D"));
 
         var emptyCodeEffect = new ParticleEffect2D { Name = "EmptyCode", Groups = [] };
-        using (var particleSystem = new GpuParticleSystem2D(_engine.RenderingSystem, _engine.ShaderSystem, particleCapacity: 256, emitterSlots: 8))
+        using (var particleSystem = new GpuParticleSystem2D(_engine.RenderingSystem, _engine.RenderingSystem.Shaders, particleCapacity: 256, emitterSlots: 8))
         {
             InvalidDataException? emptyEx = Assert.Throws<InvalidDataException>(() =>
                 particleSystem.CreateInstance(emptyCodeEffect, new Transform2D(Vector2.Zero)));

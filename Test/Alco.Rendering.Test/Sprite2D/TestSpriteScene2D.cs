@@ -46,8 +46,7 @@ public unsafe class TestSpriteScene2D
         public uint BucketCount;
         public float CullMargin;
         public uint Pad0;
-        public uint Pad1;
-        public uint Pad2;
+        public Vector2 OriginOffset;
     }
 
     private const string CustomSurfaceModule = "TestCustomSpriteSceneSurface";
@@ -759,6 +758,103 @@ public unsafe class TestSpriteScene2D
                 if (!texBlue.IsDestroyed) texBlue.Destroy();
                 if (!texYellow.IsDestroyed) texYellow.Destroy();
                 if (!texSplitMask.IsDestroyed) texSplitMask.Destroy();
+            }
+        }
+    }
+
+    /// <summary>Verifies dynamic bucket growth above 64, scatter/cull paths for bucket >= 64, and non-zero OriginOffset parity.</summary>
+    [TestCase(GraphicsBackend.VulkanCompact)]
+    [TestCase(GraphicsBackend.Vulkan)]
+    [TestCase(GraphicsBackend.Dx12)]
+    public void SpriteScene2D_Over96Buckets_And_OriginOffset(GraphicsBackend backend)
+    {
+        if (!TryCreateGpuHost(backend, out RenderingTestHost? host))
+        {
+            return;
+        }
+
+        using (host!)
+        {
+            RenderingSystem rendering = host.RenderingSystem;
+            const int width = 128;
+            const int height = 128;
+            const int bucketCount = 96;
+            Vector2 originOffset = new(100_000f, 100_000f);
+
+            Texture colorTarget = CreateColorTarget(rendering, width, height);
+            Texture depthTarget = CreateDepthTarget(rendering, width, height);
+            Texture texRed = CreateRgbaTexture(rendering, 2, 2, (255, 0, 0, 255));
+            Texture texGreen = CreateRgbaTexture(rendering, 2, 2, (0, 255, 0, 255));
+
+            Shader stdShader = AlcoSprite2DShaders.ComposeSpriteSceneSurface(
+                rendering.Shaders, AlcoSprite2DShaders.SpriteSceneSurfaceStandardModule, "TestOver96Std");
+            Material stdMat = stdShader.CreateMaterial("TestOver96StdMat", false);
+
+            using var scene = new SpriteScene2D(rendering);
+            var context = new RenderContext(rendering);
+            var camera = new Camera2D { Size = new Vector2(width, height), Near = -10f, Far = 10f };
+            var passSig = new RenderPassSignature([Format.Rgba8Unorm], Format.D32Float);
+            var handles = new List<GpuInstancePool<SpriteSceneInstance>.Registration>();
+
+            try
+            {
+                for (int b = 0; b < bucketCount; ++b)
+                {
+                    _ = scene.RegisterBucket(new SpriteSceneBucketDesc(0, stdMat, DepthStencilState.Write, BucketTag: (uint)b));
+                }
+
+                Assert.That(scene.BucketCount, Is.EqualTo(bucketCount));
+
+                uint nearestFlags = SpriteSceneInstance.PackFlags(SpriteSceneSamplerMode.NearestClamp);
+                // Bucket 1 (< 64): visible sprite near (-32, 0) in origin-relative space.
+                handles.Add(scene.RegisterDeferred(1u, MakeQuad(originOffset + new Vector2(-32f, 0f), new Vector2(16f, 16f), 0f, texRed, nearestFlags), texRed));
+                // Bucket 80 (>= 64): visible sprite near (+32, 0) in origin-relative space.
+                handles.Add(scene.RegisterDeferred(80u, MakeQuad(originOffset + new Vector2(32f, 0f), new Vector2(16f, 16f), 0f, texGreen, nearestFlags), texGreen));
+                // Bucket 95 (>= 64): culled sprite far from origin-relative viewport.
+                handles.Add(scene.RegisterDeferred(95u, MakeQuad(originOffset + new Vector2(500f, 500f), new Vector2(16f, 16f), 0f, texRed, nearestFlags), texRed));
+
+                context.BeginFrame();
+                scene.PrepareAndCull(context, camera.GetViewport(), cullMargin: 0f, originOffset: originOffset);
+
+                var passDesc = new RenderingDesc
+                {
+                    Colors = [new ColorAttachment { RenderView = colorTarget.RenderView, Load = LoadOp.Clear, Store = StoreOp.Store, Clear = new Vector4(0f, 0f, 0f, 1f) }],
+                    Depth = new DepthAttachment { RenderView = depthTarget.RenderView, Load = LoadOp.Clear, Store = StoreOp.Store, Clear = 1f },
+                };
+                int drawCalls;
+                using (RenderContext.RenderScope render = context.BeginRenderPass(passDesc, passSig))
+                {
+                    render.SetViewport(new Viewport { Width = width, Height = height });
+                    render.SetScissor(new Scissor { Width = width, Height = height });
+                    drawCalls = scene.RenderTier(context, in render, tier: 0, camera, originOffset: originOffset);
+                }
+
+                GpuDrawIndirectArgs[] args = ReadBackDrawArgsAndSubmit(host.Device, context, scene.DrawArgsBuffer, bucketCount);
+                byte[] pixels = ReadBackRgba8FreshFrame(host.Device, rendering, colorTarget, width, height);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(drawCalls, Is.EqualTo(3));
+                    Assert.That(args[1].InstanceCount, Is.EqualTo(1u));
+                    Assert.That(args[80].InstanceCount, Is.EqualTo(1u));
+                    Assert.That(args[95].InstanceCount, Is.EqualTo(0u));
+                    AssertPixel(pixels, width, height, -32f, 0f, 255, 0, 0, 255, 5, "Bucket < 64 with OriginOffset");
+                    AssertPixel(pixels, width, height, 32f, 0f, 0, 255, 0, 255, 5, "Bucket >= 64 with OriginOffset");
+                    AssertPixel(pixels, width, height, 0f, 0f, 0, 0, 0, 255, 5, "Background stays unlit");
+                });
+            }
+            finally
+            {
+                for (int i = 0; i < handles.Count; ++i)
+                {
+                    handles[i].Dispose();
+                }
+
+                context.Destroy();
+                if (!colorTarget.IsDestroyed) colorTarget.Destroy();
+                if (!depthTarget.IsDestroyed) depthTarget.Destroy();
+                if (!texRed.IsDestroyed) texRed.Destroy();
+                if (!texGreen.IsDestroyed) texGreen.Destroy();
             }
         }
     }

@@ -45,8 +45,8 @@ public sealed class Game : GameEngine
         _blitMaterial.Rasterization = RasterizationState.CullNone;
         _blitMaterial.Blend = BlendState.Opaque;
 
-        _scene = new AntiAliasingScene(RenderingSystem, ShaderSystem, _chain);
-        _fxaaNode = new RGNode_FXAA(RenderingSystem, _chain, _ => _scene.DepthTarget, ShaderSystem);
+        _scene = new AntiAliasingScene(RenderingSystem, RenderingSystem.Shaders, _chain);
+        _fxaaNode = new RGNode_FXAA(RenderingSystem, _chain, _ => _scene.DepthTarget);
 
         ApplyCommandLineOptions(args);
 

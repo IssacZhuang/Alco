@@ -35,7 +35,6 @@ IDisposable
     private readonly AssetSystem _assetSystem;
 
     private readonly RenderingSystem _renderingSystem;
-    private readonly ShaderSystem _shaderSystem;
     private readonly GlyphCache _glyphCache;
     private readonly ImageUploadQueue _imageUploadQueue;
     private readonly PriorityList<IEngineSystem> _systems = new PriorityList<IEngineSystem>((x, y) => x.Order.CompareTo(y.Order));
@@ -161,15 +160,6 @@ IDisposable
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _renderingSystem;
-    }
-
-    /// <summary>
-    /// Gets the engine shader system configured with asset-system module resolution and caching.
-    /// </summary>
-    public ShaderSystem ShaderSystem
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _shaderSystem;
     }
 
     /// <summary>
@@ -309,20 +299,17 @@ IDisposable
         ulong uploadStagingBytes = _setting.Graphics.UploadStagingByteCount > 0
             ? _setting.Graphics.UploadStagingByteCount
             : (_setting.HasGPU ? 16ul * 1024 * 1024 : 1ul * 1024 * 1024);
-        _renderingSystem = new RenderingSystem(_graphicsDevice, textureHeapBytes, bufferHeapBytes, uploadStagingByteCount: uploadStagingBytes);
-
-        _shaderSystem = _renderingSystem.CreateShaderSystem(new ShaderCompilerOptions
-        {
-            FileResolver = ShaderModuleResolver.Create(
-                path => _assetSystem.TryGetStream(path, out Stream? stream) ? stream : null,
-                () => _assetSystem.AllAssetNames),
-            CacheDirectory = CreateShaderCacheDirectory(_setting.Graphics),
-        });
+        _renderingSystem = new RenderingSystem(
+            _graphicsDevice,
+            textureHeapBytes,
+            bufferHeapBytes,
+            uploadStagingByteCount: uploadStagingBytes,
+            shaderOptions: CreateShaderCompilerOptions());
 
         _glyphCache = new GlyphCache(_renderingSystem);
         _imageUploadQueue = new ImageUploadQueue(_renderingSystem);
 
-        _builtInAssets = new BuiltInAssets(_assetSystem, _shaderSystem);
+        _builtInAssets = new BuiltInAssets(_assetSystem, _renderingSystem.Shaders);
 
         _audioDevice = CreateAudioDevice(_setting.Audio);
 
@@ -576,7 +563,6 @@ IDisposable
 
         EventOnDispose?.Invoke();
         _glyphCache.Dispose();
-        _shaderSystem.Dispose();
         _renderingSystem.Destroy();
         _graphicsDevice.Destroy();
         Gpu.SetErrorCallback(null);

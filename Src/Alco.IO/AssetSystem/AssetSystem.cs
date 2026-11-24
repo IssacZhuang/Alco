@@ -30,6 +30,7 @@ namespace Alco.IO
         private volatile bool _isEntryDirty = false;
         private volatile bool _isRecongizedExtensionsDirty = false;
         private volatile int _version;
+        private volatile bool _disposed;
 
         private readonly IAssetSystemHost _host;
 
@@ -64,11 +65,18 @@ namespace Alco.IO
 
         private void Dispose()
         {
+            _disposed = true;
             foreach (string filename in _assetLookup.Keys)
             {
-                if (_assetLookup.TryRemove(filename, out AssetHandle? handle) && handle.CachedAsset is IDisposable disposable)
+                if (_assetLookup.TryRemove(filename, out AssetHandle? handle))
                 {
-                    disposable.Dispose();
+                    lock (handle)
+                    {
+                        if (handle.CachedAsset is IDisposable disposable)
+                        {
+                            disposable.Dispose();
+                        }
+                    }
                 }
             }
 
