@@ -312,6 +312,9 @@ public enum Stage : ulong
     Transfer = 1ul << 9,
     Host = 1ul << 10, // Barrier destination only, paired with HostRead.
     AllCommands = 1ul << 11, // All GPU command stages; excludes host.
+
+    /// <summary>Acceleration structure build, update, and compaction commands; requires <see cref="DeviceCaps.InlineRayQuery"/>.</summary>
+    AccelerationStructureBuild = 1ul << 12,
 }
 
 [Flags]
@@ -330,6 +333,12 @@ public enum Access : ulong
     IndexRead = 1ul << 9,
     HostRead = 1ul << 10,
     DescriptorRead = 1ul << 11,
+
+    /// <summary>Acceleration structure and scratch reads during builds, or acceleration structure reads during queries.</summary>
+    AccelerationStructureRead = 1ul << 12,
+
+    /// <summary>Build, update, and compaction writes, including scratch and compacted-size outputs.</summary>
+    AccelerationStructureWrite = 1ul << 13,
 }
 
 /// <summary>Immutable device capabilities, valid for the device's lifetime.</summary>
@@ -386,6 +395,15 @@ public sealed class DeviceCaps
 
     /// <summary>Indirect mesh-drawing support.</summary>
     public bool IndirectMeshDraw { get; internal set; }
+
+    /// <summary>Indexed triangle acceleration structure builds and inline ray queries in compute shaders.</summary>
+    public bool InlineRayQuery { get; internal set; }
+
+    /// <summary>Fixed-topology acceleration structure updates on a device that supports inline ray queries.</summary>
+    public bool AccelerationStructureUpdate { get; internal set; }
+
+    /// <summary>Compacted-size queries and compact copies on a device that supports inline ray queries.</summary>
+    public bool AccelerationStructureCompaction { get; internal set; }
 }
 
 /// <summary>The graphics backend selected when creating a device.</summary>

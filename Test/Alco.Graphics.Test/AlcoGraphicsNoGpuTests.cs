@@ -189,6 +189,41 @@ public sealed class AlcoGraphicsNoGpuTests
         }
     }
 
+    /// <summary>Verifies that an unsupported device exposes no ray query features and rejects acceleration structure operations.</summary>
+    [Test]
+    public void NoGpuRayQuery_ReportsUnsupported()
+    {
+        using GPUDeviceScope deviceScope = new(Gpu.CreateDevice(new DeviceDesc { Backend = GraphicsBackend.NoGPU }));
+        GPUDevice device = deviceScope.Device;
+        Assert.That(device.Caps.InlineRayQuery, Is.False);
+        Assert.That(device.Caps.AccelerationStructureUpdate, Is.False);
+        Assert.That(device.Caps.AccelerationStructureCompaction, Is.False);
+
+        AssertUnsupported(() => device.GetBlasBuildSizes(default));
+        AssertUnsupported(() => device.GetTlasBuildSizes(default));
+        AssertUnsupported(() => device.CreateBlas(256));
+        AssertUnsupported(() => device.CreateTlas(256));
+
+        GPUCommandPool pool = device.CreateCommandPool(0);
+        try
+        {
+            GPUCommandBuffer commands = pool.BeginCommands();
+            AssertUnsupported(() => commands.BuildBlas(null!, default, default));
+            AssertUnsupported(() => commands.BuildTlas(null!, default, default));
+            AssertUnsupported(() => commands.WriteAccelerationStructureCompactedSize(null!, default));
+            AssertUnsupported(() => commands.CopyCompactedAccelerationStructure(null!, null!));
+            AssertUnsupported(() => commands.SetRayQueryScene(null));
+            commands.EndCommands();
+        }
+        finally
+        {
+            pool.Destroy();
+        }
+
+        static void AssertUnsupported(TestDelegate action) =>
+            Assert.That(Assert.Throws<GPUException>(action)!.Error, Is.EqualTo(Error.Unsupported));
+    }
+
     /// <summary>Verifies that both views of a reacquired swapchain image give the same render-pass signature.</summary>
     [Test]
     public void NoGpuSwapchain_FormatChangeKeepsAttachmentSignaturesInSync()
