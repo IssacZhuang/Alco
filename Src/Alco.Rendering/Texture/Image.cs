@@ -184,9 +184,9 @@ public sealed class Image : AutoDisposable
 
         lock (UploadLock)
         {
-            if (_ownsResource && !Texture.IsDestroyed)
+            if (_ownsResource && !Texture.IsDisposed)
             {
-                Texture.Destroy();
+                Texture.Dispose();
             }
         }
     }

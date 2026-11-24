@@ -14,8 +14,8 @@ namespace Alco.Effects;
 /// </summary>
 public sealed class GpuParticleSystem3D : AutoDisposable
 {
-    private readonly record struct CachedMaterial(Material Material, int PassRootOffset);
-    private readonly record struct DrawBatch(Material Material, int PassRootOffset, DepthStencilState DepthStencil, uint InstanceBase);
+    private readonly record struct CachedMaterial(Material Material, RootField<ParticlePassData3D> PassField);
+    private readonly record struct DrawBatch(Material Material, RootField<ParticlePassData3D> PassField, DepthStencilState DepthStencil, uint InstanceBase);
     private readonly record struct WorkDispatch(Shader Shader, uint FirstBlock, uint BlockCount);
 
     private readonly struct PlannedBuffers(
@@ -79,7 +79,7 @@ public sealed class GpuParticleSystem3D : AutoDisposable
     }
 
     [StructLayout(LayoutKind.Sequential)]
-    private struct ParticlePassData3D
+    internal struct ParticlePassData3D
     {
         public Matrix4x4 ViewProjection;
         public Vector4 CameraRight;
@@ -123,7 +123,6 @@ public sealed class GpuParticleSystem3D : AutoDisposable
     private readonly Dictionary<(MaterialAsset Asset, BlendState Blend), CachedMaterial> _materials = new(new MaterialKeyComparer());
     private readonly Dictionary<ParticleGroup3D, GroupTextureEntry> _groupTextures = [];
     private readonly List<ParticleGroup3D> _idleTextureGroups = [];
-    private readonly List<(Texture Texture, RenderContext? Context, ulong FrameId)> _retiredTextures = [];
     private readonly List<ParticleEffectInstance3D> _instances = [];
 
     private readonly Dictionary<(Material Material, DepthStencilState Depth), List<ParticleEffectInstance3D.GroupState>> _drawBuckets =
@@ -327,7 +326,7 @@ public sealed class GpuParticleSystem3D : AutoDisposable
                     Slot = pendingSlot,
                     Slice = pendingSlice,
                     Material = cachedMat.Material,
-                    PassRootOffset = cachedMat.PassRootOffset,
+                    PassField = cachedMat.PassField,
                     DepthOverride = groupAsset.Depth,
                     EmitShader = emitShader,
                     SimulateShader = simulateShader,
@@ -376,7 +375,7 @@ public sealed class GpuParticleSystem3D : AutoDisposable
         ObjectDisposedException.ThrowIf(IsDisposed, this);
 
         _simulationStepCounter++;
-        if (_idleTextureGroups.Count > 0 || _retiredTextures.Count > 0)
+        if (_idleTextureGroups.Count > 0)
             ProcessIdleAndRetiredTextures(forceIdleEvict: false);
 
         if (_pool.ReconcileFrame(context))
@@ -461,7 +460,6 @@ public sealed class GpuParticleSystem3D : AutoDisposable
                 Access.ShaderRead | Access.ShaderWrite);
         }
 
-        BumpAllocator frameData = context.FrameData;
         using (RenderContext.ComputeScope compute = context.BeginCompute())
         {
             bool didKills = false;
@@ -481,7 +479,7 @@ public sealed class GpuParticleSystem3D : AutoDisposable
                     SliceOffset = offset,
                     Count = count,
                 };
-                DispatchRoot(compute, frameData, _initShader, in root, (count + 63u) / 64u);
+                DispatchRoot(in compute, _initShader, in root, (count + 63u) / 64u);
                 didKills = true;
             }
 
@@ -493,7 +491,7 @@ public sealed class GpuParticleSystem3D : AutoDisposable
                     DrawArgs = drawArgsView,
                     DrawCount = batchCount,
                 };
-                DispatchRoot(compute, frameData, _resetArgsShader, in resetRoot, (batchCount + 63u) / 64u);
+                DispatchRoot(in compute, _resetArgsShader, in resetRoot, (batchCount + 63u) / 64u);
                 didResetArgs = true;
             }
 
@@ -517,7 +515,7 @@ public sealed class GpuParticleSystem3D : AutoDisposable
                         WorkBlocks = workView,
                         WorkBlockBase = d.FirstBlock,
                     };
-                    DispatchRoot(compute, frameData, d.Shader, in root, d.BlockCount);
+                    DispatchRoot(in compute, d.Shader, in root, d.BlockCount);
                 }
 
                 didEmit = true;
@@ -545,7 +543,7 @@ public sealed class GpuParticleSystem3D : AutoDisposable
                         WorkBlocks = workView,
                         WorkBlockBase = d.FirstBlock,
                     };
-                    DispatchRoot(compute, frameData, d.Shader, in root, d.BlockCount);
+                    DispatchRoot(in compute, d.Shader, in root, d.BlockCount);
                 }
             }
         }
@@ -592,7 +590,6 @@ public sealed class GpuParticleSystem3D : AutoDisposable
         PlannedBuffers buffers = _plannedBuffers;
         _pool.TouchBuffersUsed(context, buffers.Particles, buffers.Params, buffers.DrawArgs, buffers.InstanceData);
 
-        BumpAllocator frameData = context.FrameData;
         GPUBufferView particlesView = buffers.Particles.View;
         GPUBufferView emittersView = buffers.Params.View;
         GPUBufferView instanceBaseView = buffers.InstanceData.View;
@@ -612,26 +609,20 @@ public sealed class GpuParticleSystem3D : AutoDisposable
                 InstanceData = instanceBaseView.OffsetBy(batch.InstanceBase * (uint)sizeof(GpuInstanceData)),
             };
 
-            GPUAllocation<byte> alloc = frameData.Allocate(batch.Material.Root.SizeBytes);
-            batch.Material.CopyRoot(alloc.CpuSpan);
-            MemoryMarshal.Write(alloc.CpuSpan.Slice(batch.PassRootOffset, sizeof(ParticlePassData3D)), in passData);
-
             render.DrawIndexedIndirect(
                 batch.Material,
-                alloc.GPURange,
+                batch.PassField,
+                in passData,
                 batch.DepthStencil,
                 _pool.QuadIndices,
                 IndexType.UInt16,
-                buffers.DrawArgs,
-                drawCount: 1,
-                stride: 0,
-                argumentByteOffset: (ulong)i * (ulong)sizeof(GpuDrawArgs));
+                buffers.DrawArgs.Slice((ulong)i * (ulong)sizeof(GpuDrawArgs)),
+                drawCount: 1);
         }
     }
 
-    private static unsafe void DispatchRoot<TRoot>(
-        RenderContext.ComputeScope compute,
-        BumpAllocator frameData,
+    private static void DispatchRoot<TRoot>(
+        in RenderContext.ComputeScope compute,
         Shader shader,
         in TRoot rootData,
         uint groupCountX)
@@ -639,10 +630,7 @@ public sealed class GpuParticleSystem3D : AutoDisposable
     {
         if (groupCountX == 0)
             return;
-        Debug.Assert((uint)sizeof(TRoot) == shader.Root.SizeBytes);
-        GPUAllocation<byte> alloc = frameData.Allocate((ulong)sizeof(TRoot));
-        MemoryMarshal.Write(alloc.CpuSpan, in rootData);
-        compute.Dispatch(shader, alloc.GPURange, new Extent3D(groupCountX, 1, 1));
+        compute.Dispatch(shader, in rootData, new Extent3D(groupCountX, 1, 1));
     }
 
     private void BuildDrawPlan()
@@ -691,7 +679,7 @@ public sealed class GpuParticleSystem3D : AutoDisposable
             List<ParticleEffectInstance3D.GroupState> bucket = _drawBuckets[(material, depthStencil)];
             uint batchDrawIndex = (uint)b;
             uint batchInstanceBase = instanceOffset;
-            int passOffset = bucket[0].PassRootOffset;
+            RootField<ParticlePassData3D> passField = bucket[0].PassField;
 
             for (int g = 0; g < bucket.Count; g++)
             {
@@ -702,7 +690,7 @@ public sealed class GpuParticleSystem3D : AutoDisposable
                 instanceOffset += group.Slice.Capacity;
             }
 
-            _drawBatches.Add(new DrawBatch(material, passOffset, depthStencil, batchInstanceBase));
+            _drawBatches.Add(new DrawBatch(material, passField, depthStencil, batchInstanceBase));
         }
     }
 
@@ -867,12 +855,11 @@ public sealed class GpuParticleSystem3D : AutoDisposable
         material.DepthStencilState = group.Depth ?? _depthStencilState;
         material.Rasterization = RasterizationState.CullNone;
 
-        RootField? passField = material.Root.Find(ParticleShaderKeys.Pass);
-        if (passField == null || passField.SizeBytes != (uint)sizeof(ParticlePassData3D))
+        if (!material.TryGetRootField(ParticleShaderKeys.Pass, out RootField<ParticlePassData3D> passField))
             throw new InvalidDataException(
                 $"Render template '{_renderTemplateModule}' does not declare expected '{ParticleShaderKeys.Pass}' block ({sizeof(ParticlePassData3D)}B).");
 
-        var created = new CachedMaterial(material, (int)passField.Offset);
+        var created = new CachedMaterial(material, passField);
         _materials[key] = created;
         _materialModules.Apply(material);
         return created;
@@ -930,8 +917,8 @@ public sealed class GpuParticleSystem3D : AutoDisposable
         }
         catch
         {
-            if (ownsGradient) colorGradient.Destroy();
-            if (ownsSize) sizeCurve.Destroy();
+            if (ownsGradient) colorGradient.Dispose();
+            if (ownsSize) sizeCurve.Dispose();
             throw;
         }
 
@@ -999,22 +986,9 @@ public sealed class GpuParticleSystem3D : AutoDisposable
             _groupTextures.Remove(group);
             RemoveIdleAt(i);
             if (entry.OwnsGradient)
-                _retiredTextures.Add((entry.ColorGradient, _pool.LastUseContext, _pool.LastUseFrameId));
+                entry.ColorGradient.Dispose();
             if (entry.OwnsSize)
-                _retiredTextures.Add((entry.SizeCurve, _pool.LastUseContext, _pool.LastUseFrameId));
-        }
-
-        for (int i = _retiredTextures.Count - 1; i >= 0; i--)
-        {
-            (Texture tex, RenderContext? ctx, ulong frameId) = _retiredTextures[i];
-            if (ctx == null || ctx.IsFrameCompleted(frameId))
-            {
-                tex.Destroy();
-                int last = _retiredTextures.Count - 1;
-                if (i != last)
-                    _retiredTextures[i] = _retiredTextures[last];
-                _retiredTextures.RemoveAt(last);
-            }
+                entry.SizeCurve.Dispose();
         }
     }
 
@@ -1042,15 +1016,11 @@ public sealed class GpuParticleSystem3D : AutoDisposable
 
         foreach (GroupTextureEntry entry in _groupTextures.Values)
         {
-            if (entry.OwnsGradient) entry.ColorGradient.Destroy();
-            if (entry.OwnsSize) entry.SizeCurve.Destroy();
+            if (entry.OwnsGradient) entry.ColorGradient.Dispose();
+            if (entry.OwnsSize) entry.SizeCurve.Dispose();
         }
         _groupTextures.Clear();
         _idleTextureGroups.Clear();
-
-        for (int i = 0; i < _retiredTextures.Count; i++)
-            _retiredTextures[i].Texture.Destroy();
-        _retiredTextures.Clear();
 
         _materials.Clear();
         _behaviorShaders.Clear();

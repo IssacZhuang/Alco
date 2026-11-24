@@ -131,7 +131,8 @@ public unsafe class TestFont
 
             // Frame 2: submit an empty frame -> system flushes queued uploads before frame submission.
             context.BeginFrame();
-            context.Submit().Wait();
+            context.Submit();
+            host.RenderingSystem.WaitIdle();
 
             // Frame 3: resolve 'B' (shares shelf 0 with 'A') -> disjoint cell upload commits cleanly alongside 'A'.
             GlyphImage glyphB = cache.ResolveGlyph(font, new Rune('B'));
@@ -139,7 +140,8 @@ public unsafe class TestFont
             Assert.That(glyphB.Page, Is.SameAs(glyphA.Page));
 
             context.BeginFrame();
-            context.Submit().Wait();
+            context.Submit();
+            host.RenderingSystem.WaitIdle();
 
             if (backend == GraphicsBackend.NoGPU)
                 return;
@@ -149,9 +151,10 @@ public unsafe class TestFont
             try
             {
                 context.BeginFrame();
-                context.CopyTextureToMemory(glyphA.Page!.NativeTexture, readback.Range.GPURange.Slice(0, 256UL * 256UL));
+                context.CopyTextureToMemory(glyphA.Page!.GetNativeTexture(), readback.Range.GPURange.Slice(0, 256UL * 256UL));
                 context.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Host, Access.HostRead);
-                context.Submit().Wait();
+                context.Submit();
+                host.RenderingSystem.WaitIdle();
 
                 byte* texels = readback.Range.Cpu;
                 byte maxA = SampleMaxInRect(texels, 256, glyphA.UvRect);
@@ -167,7 +170,7 @@ public unsafe class TestFont
         }
         finally
         {
-            context.Destroy();
+            context.Dispose();
         }
     }
 

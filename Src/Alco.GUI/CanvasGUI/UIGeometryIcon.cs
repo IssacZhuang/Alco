@@ -128,8 +128,8 @@ public class UIGeometryIcon : UINode
 
         if (canvas != null)
             canvas.RetireTexture(previous);
-        else if (!previous.IsDestroyed)
-            previous.Destroy();
+        else if (!previous.IsDisposed)
+            previous.Dispose();
     }
 
     private void PollParseTask(Canvas canvas)

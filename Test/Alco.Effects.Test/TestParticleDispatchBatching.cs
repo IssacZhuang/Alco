@@ -87,7 +87,7 @@ public class TestParticleDispatchBatching
         }
         finally
         {
-            context.Destroy();
+            context.Dispose();
         }
     }
 
@@ -144,7 +144,7 @@ public class TestParticleDispatchBatching
         }
         finally
         {
-            context.Destroy();
+            context.Dispose();
         }
     }
 }

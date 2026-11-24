@@ -36,8 +36,8 @@ public sealed class AlcoGraphicsNoGpuTests
         [GPURoot]
         struct DrawRoot
         {
-            GpuTextureId Albedo;
-            GpuSamplerId Sampler;
+            GPUTextureId Albedo;
+            GPUSamplerId Sampler;
             float4 Tint;
         };
 
@@ -223,13 +223,13 @@ public sealed class AlcoGraphicsNoGpuTests
             freshView = frame.Texture!.CreateRenderView(default);
             Assert.That(freshView.Format, Is.EqualTo(swapchain.Format));
 
-            RenderPassSignature borrowedPass = RenderPassSignature.From(new RenderingDesc
+            RenderPassSignature borrowedPass = RenderPassSignature.From(new GPURenderingDesc
             {
-                Colors = [new ColorAttachment { RenderView = frame.RenderView }],
+                Colors = [new GPUColorAttachment { RenderView = frame.RenderView }],
             });
-            RenderPassSignature freshPass = RenderPassSignature.From(new RenderingDesc
+            RenderPassSignature freshPass = RenderPassSignature.From(new GPURenderingDesc
             {
-                Colors = [new ColorAttachment { RenderView = freshView }],
+                Colors = [new GPUColorAttachment { RenderView = freshView }],
             });
             Assert.That(borrowedPass, Is.EqualTo(new RenderPassSignature(Format.Bgra8Srgb)));
             Assert.That(freshPass, Is.EqualTo(borrowedPass));
@@ -333,15 +333,15 @@ public sealed class AlcoGraphicsNoGpuTests
                 }
                 RenderingDesc passDesc = new()
                 {
-                    Colors = [new ColorAttachment { RenderView = offscreen.RenderView, Load = LoadOp.Clear, Store = StoreOp.Store }],
+                    Colors = [new ColorAttachment { Target = offscreen, Load = LoadOp.Clear, Store = StoreOp.Store }],
                 };
-                GPUAllocation<byte> packedRoot = gfxMat.AllocateRoot(context.FrameData);
+                GPUAllocation<byte> packedRoot = gfxMat.AllocateRoot(context.GetFrameData());
                 using (var render = context.BeginRenderPass(passDesc))
                 {
                     render.Draw(gfxMat, 3);
                     render.DrawIndexed(gfxMat, packedRoot.GPURange, default, indexBuffer, IndexType.UInt16, 3);
                 }
-                TimelinePoint point = context.Submit();
+                TimelinePoint point = context.SubmitWithCompletion();
                 point.Wait();
                 Assert.That(point.Semaphore?.CompletedValue, Is.GreaterThanOrEqualTo(point.Value));
                 gfxMat.WriteMask = 0x7;
@@ -366,15 +366,15 @@ public sealed class AlcoGraphicsNoGpuTests
             }
             finally
             {
-                outputBuffer.Destroy();
-                indexBuffer.Destroy();
-                offscreen.Destroy();
+                outputBuffer.Dispose();
+                indexBuffer.Dispose();
+                offscreen.Dispose();
             }
         }
         finally
         {
-            context.Destroy();
-            system.Destroy();
+            context.Dispose();
+            system.Dispose();
             device.Destroy();
         }
     }
@@ -401,20 +401,20 @@ public sealed class AlcoGraphicsNoGpuTests
 
             context.BeginFrame();
             graph.Execute(context, RenderGraphTarget.FromTexture(output));
-            context.Submit().Wait();
+            context.SubmitWithCompletion().Wait();
 
             Assert.That(node.AliveExecutions, Is.EqualTo(2));
             Assert.That(node.DeadExecutions, Is.EqualTo(0));
             Assert.That(graph.Statistics.CulledPassCount, Is.EqualTo(1));
             Assert.That(graph.Statistics.AlivePassCount, Is.EqualTo(2));
 
-            output.Destroy();
+            output.Dispose();
         }
         finally
         {
-            graph.Destroy();
-            context.Destroy();
-            system.Destroy();
+            graph.Dispose();
+            context.Dispose();
+            system.Dispose();
             device.Destroy();
         }
     }
@@ -474,13 +474,14 @@ public sealed class AlcoGraphicsNoGpuTests
             graphA.Execute(context, RenderGraphTarget.FromTexture(outputA));
             graphB.Execute(context, RenderGraphTarget.FromTexture(outputB));
             Texture firstIntermediate = nodeA.LastIntermediateTexture!;
-            Assert.That(firstIntermediate.IsDestroyed, Is.False);
+            Assert.That(firstIntermediate.IsDisposed, Is.False);
 
             graphA.Resize(new Extent2D(96, 80));
             graphB.Resize(new Extent2D(128, 96));
             Assert.That(graphA.Viewport, Is.EqualTo(new Extent2D(96, 80)));
             Assert.That(graphB.Viewport, Is.EqualTo(new Extent2D(128, 96)));
-            Assert.That(firstIntermediate.IsDestroyed, Is.False);
+            Assert.That(firstIntermediate.IsDisposed, Is.True);
+            Assert.That(firstIntermediate.IsReleased, Is.False);
 
             GPUCommandBuffer commands = context.EndFrame();
             Assert.That(context.IsFrameCompleted(frame1), Is.False);
@@ -491,14 +492,14 @@ public sealed class AlcoGraphicsNoGpuTests
             Assert.That(context.IsFrameCompleted(frame1), Is.False);
             Assert.That(context.IsFramePending(frame1), Is.True);
             graphA.Reclaim();
-            Assert.That(firstIntermediate.IsDestroyed, Is.False);
+            Assert.That(firstIntermediate.IsReleased, Is.False);
 
             // Once GPU completes, IsFrameCompleted flips true and Reclaim destroys retired textures before next BeginFrame.
             device.Submit(new SubmitDesc { Commands = [commands], Completion = pending });
             Assert.That(context.IsFrameCompleted(frame1), Is.True);
             Assert.That(context.IsFramePending(frame1), Is.True);
             graphA.Reclaim();
-            Assert.That(firstIntermediate.IsDestroyed, Is.True);
+            Assert.That(firstIntermediate.IsReleased, Is.True);
 
             context.Wait();
             Assert.That(context.IsFramePending(frame1), Is.False);
@@ -523,7 +524,7 @@ public sealed class AlcoGraphicsNoGpuTests
 
             context.BeginFrame();
             graphA.Execute(context, RenderGraphTarget.FromTexture(outputA));
-            context.Submit().Wait();
+            context.SubmitWithCompletion().Wait();
 
             // 4. DiscardVersion change invalidates cached SyncedReads so barriers re-emit on the next frame.
             RGTexture importedHandle = barrierGraph.ImportTexture(imported, "imported_sync");
@@ -536,14 +537,14 @@ public sealed class AlcoGraphicsNoGpuTests
             barrierGraph.Execute(context, RenderGraphTarget.FromTexture(outputA));
             Assert.That((barrierGraph.PassReports[1].Barrier.Before & Stage.Compute) != 0, Is.True);
             Assert.That((barrierGraph.PassReports[1].Barrier.After & Stage.Pixel) != 0, Is.True);
-            context.Submit().Wait();
+            context.SubmitWithCompletion().Wait();
 
             syncNode.EnableWrite = false;
             context.BeginFrame();
             barrierGraph.Execute(context, RenderGraphTarget.FromTexture(outputA));
             Assert.That((barrierGraph.PassReports[0].Barrier.Before & Stage.Compute) == 0, Is.True);
             Assert.That((barrierGraph.PassReports[0].Barrier.After & Stage.Pixel) == 0, Is.True);
-            context.Submit().Wait();
+            context.SubmitWithCompletion().Wait();
 
             // Frame B (discarded): WriteExt + ReadExt barrier never ran on GPU; DiscardVersion forces re-emission on next frame.
             syncNode.EnableWrite = true;
@@ -558,23 +559,23 @@ public sealed class AlcoGraphicsNoGpuTests
             barrierGraph.Execute(context, RenderGraphTarget.FromTexture(outputA));
             Assert.That((barrierGraph.PassReports[0].Barrier.Before & Stage.Compute) != 0, Is.True);
             Assert.That((barrierGraph.PassReports[0].Barrier.After & Stage.Pixel) != 0, Is.True);
-            context.Submit().Wait();
+            context.SubmitWithCompletion().Wait();
         }
         finally
         {
             context.Wait();
-            barrierGraph.Destroy();
-            graphB.Destroy();
-            graphA.Destroy();
-            if (imported != null && !imported.IsDestroyed)
-                imported.Destroy();
-            if (outputB != null && !outputB.IsDestroyed)
-                outputB.Destroy();
-            if (outputA != null && !outputA.IsDestroyed)
-                outputA.Destroy();
-            context.Destroy();
+            barrierGraph.Dispose();
+            graphB.Dispose();
+            graphA.Dispose();
+            if (imported != null && !imported.IsDisposed)
+                imported.Dispose();
+            if (outputB != null && !outputB.IsDisposed)
+                outputB.Dispose();
+            if (outputA != null && !outputA.IsDisposed)
+                outputA.Dispose();
+            context.Dispose();
             manualFence?.Destroy();
-            system.Destroy();
+            system.Dispose();
             device.Destroy();
         }
     }
@@ -612,9 +613,9 @@ public sealed class AlcoGraphicsNoGpuTests
 
                 context.BeginFrame();
                 context.DiscardFrame();
-                Assert.That(uploadTarget.IsDestroyed, Is.False);
+                Assert.That(uploadTarget.IsDisposed, Is.False);
 
-                TimelinePoint uploadCompletion = system.FlushUploads();
+                TimelinePoint uploadCompletion = system.FlushUploadsWithCompletion();
                 uploadCompletion.Wait();
                 Assert.That(uploadCompletion.Semaphore, Is.Not.Null);
 
@@ -625,11 +626,11 @@ public sealed class AlcoGraphicsNoGpuTests
                     Extent = new Extent3D(4, 4, 1),
                     RowPitchBytes = 4,
                 });
-                uploadTarget.Destroy();
-                Assert.That(uploadTarget.IsDestroyed, Is.True);
+                uploadTarget.Dispose();
+                Assert.That(uploadTarget.IsDisposed, Is.True);
 
                 context.BeginFrame();
-                context.Submit().Wait();
+                context.SubmitWithCompletion().Wait();
 
                 // CopyRoot on Material and MaterialInstance (including padded destination span).
                 Vector4 parentTint = new(0.25f, 0.5f, 0.75f, 1.0f);
@@ -653,16 +654,16 @@ public sealed class AlcoGraphicsNoGpuTests
             }
             finally
             {
-                shader.Destroy();
-                if (!uploadTarget.IsDestroyed)
-                    uploadTarget.Destroy();
-                dummy.Destroy();
+                shader.Dispose();
+                if (!uploadTarget.IsDisposed)
+                    uploadTarget.Dispose();
+                dummy.Dispose();
             }
         }
         finally
         {
-            context.Destroy();
-            system.Destroy();
+            context.Dispose();
+            system.Dispose();
             device.Destroy();
         }
     }
@@ -684,7 +685,7 @@ public sealed class AlcoGraphicsNoGpuTests
             }
             finally
             {
-                defaultSystem.Destroy();
+                defaultSystem.Dispose();
             }
 
             RenderingSystem system = new(
@@ -725,16 +726,16 @@ public sealed class AlcoGraphicsNoGpuTests
                     byte[] readback = new byte[4 * 4 * 4];
                     system.ReadTexture(readWrite, readback);
 
-                    readWrite.Destroy();
+                    readWrite.Dispose();
                     Assert.Throws<ObjectDisposedException>(() => system.UploadTexture(readWrite, pixels));
                     Assert.Throws<ObjectDisposedException>(() => system.ReadTexture(readWrite, readback));
                 }
                 finally
                 {
-                    if (!readWrite.IsDestroyed)
-                        readWrite.Destroy();
-                    uploadOnly.Destroy();
-                    noDestination.Destroy();
+                    if (!readWrite.IsDisposed)
+                        readWrite.Dispose();
+                    uploadOnly.Dispose();
+                    noDestination.Dispose();
                 }
 
                 // Double-buffered UploadQueue splits uploads exceeding capacity at half-capacity batch boundaries.
@@ -779,7 +780,7 @@ public sealed class AlcoGraphicsNoGpuTests
             }
             finally
             {
-                system.Destroy();
+                system.Dispose();
             }
         }
         finally
@@ -887,39 +888,39 @@ public sealed class AlcoGraphicsNoGpuTests
             ForceCollect();
             system.Tick();
 
-            Assert.That(texRef.Target, Is.InstanceOf<Texture>().And.Property(nameof(Texture.IsDestroyed)).False);
-            Assert.That(bufRef.Target, Is.InstanceOf<Buffer>().And.Property(nameof(Buffer.IsDestroyed)).False);
+            Assert.That(texRef.Target, Is.InstanceOf<Texture>().And.Property(nameof(Texture.IsReleased)).False);
+            Assert.That(bufRef.Target, Is.InstanceOf<Buffer>().And.Property(nameof(Buffer.IsReleased)).False);
             Assert.Throws<InvalidOperationException>(() => system.CreateBuffer(128));
             Texture probe = CreateSampledTexture(system);
             Assert.That(probe.SampledIndex, Is.Not.EqualTo(slot));
-            probe.Destroy();
+            probe.DestroyImmediate();
 
             context.EndFrame();
             ForceCollect();
             system.Tick();
-            Assert.That(texRef.Target, Is.InstanceOf<Texture>().And.Property(nameof(Texture.IsDestroyed)).False);
-            Assert.That(bufRef.Target, Is.InstanceOf<Buffer>().And.Property(nameof(Buffer.IsDestroyed)).False);
+            Assert.That(texRef.Target, Is.InstanceOf<Texture>().And.Property(nameof(Texture.IsReleased)).False);
+            Assert.That(bufRef.Target, Is.InstanceOf<Buffer>().And.Property(nameof(Buffer.IsReleased)).False);
             Assert.Throws<InvalidOperationException>(() => system.CreateBuffer(128));
 
             TimelinePoint completion = new() { Semaphore = timeline, Value = 1 };
             context.MarkSubmitted(completion);
             system.Tick();
-            Assert.That(texRef.Target, Is.InstanceOf<Texture>().And.Property(nameof(Texture.IsDestroyed)).False);
-            Assert.That(bufRef.Target, Is.InstanceOf<Buffer>().And.Property(nameof(Buffer.IsDestroyed)).False);
+            Assert.That(texRef.Target, Is.InstanceOf<Texture>().And.Property(nameof(Texture.IsReleased)).False);
+            Assert.That(bufRef.Target, Is.InstanceOf<Buffer>().And.Property(nameof(Buffer.IsReleased)).False);
             Assert.Throws<InvalidOperationException>(() => system.CreateBuffer(128));
 
             device.Submit(new SubmitDesc { Completion = completion });
             context.Wait();
             system.Tick();
-            Assert.That(texRef.Target, Is.InstanceOf<Texture>().And.Property(nameof(Texture.IsDestroyed)).True);
-            Assert.That(bufRef.Target, Is.InstanceOf<Buffer>().And.Property(nameof(Buffer.IsDestroyed)).True);
+            Assert.That(texRef.Target, Is.InstanceOf<Texture>().And.Property(nameof(Texture.IsReleased)).True);
+            Assert.That(bufRef.Target, Is.InstanceOf<Buffer>().And.Property(nameof(Buffer.IsReleased)).True);
 
             Texture recycledTex = CreateSampledTexture(system);
             Buffer recycledBuf = system.CreateBuffer(128);
             Assert.That(recycledTex.SampledIndex, Is.EqualTo(slot));
-            Assert.That(recycledBuf.Range, Is.EqualTo(range));
-            recycledTex.Destroy();
-            recycledBuf.Destroy();
+            Assert.That(recycledBuf.GetRange(), Is.EqualTo(range));
+            recycledTex.Dispose();
+            recycledBuf.Dispose();
 
             // 2. Mid-recording finalization -> DiscardFrame immediately enables reclamation without a submit.
             context.BeginFrame();
@@ -928,29 +929,29 @@ public sealed class AlcoGraphicsNoGpuTests
             ForceCollect();
             system.Tick();
 
-            Assert.That(discardedTexRef.Target, Is.InstanceOf<Texture>().And.Property(nameof(Texture.IsDestroyed)).False);
-            Assert.That(discardedBufRef.Target, Is.InstanceOf<Buffer>().And.Property(nameof(Buffer.IsDestroyed)).False);
+            Assert.That(discardedTexRef.Target, Is.InstanceOf<Texture>().And.Property(nameof(Texture.IsReleased)).False);
+            Assert.That(discardedBufRef.Target, Is.InstanceOf<Buffer>().And.Property(nameof(Buffer.IsReleased)).False);
             Assert.Throws<InvalidOperationException>(() => system.CreateBuffer(128));
 
             context.DiscardFrame();
             system.Tick();
-            Assert.That(discardedTexRef.Target, Is.InstanceOf<Texture>().And.Property(nameof(Texture.IsDestroyed)).True);
-            Assert.That(discardedBufRef.Target, Is.InstanceOf<Buffer>().And.Property(nameof(Buffer.IsDestroyed)).True);
+            Assert.That(discardedTexRef.Target, Is.InstanceOf<Texture>().And.Property(nameof(Texture.IsReleased)).True);
+            Assert.That(discardedBufRef.Target, Is.InstanceOf<Buffer>().And.Property(nameof(Buffer.IsReleased)).True);
 
             Texture reusedTex = CreateSampledTexture(system);
             Buffer reusedBuf = system.CreateBuffer(128);
             Assert.That(reusedTex.SampledIndex, Is.EqualTo(discardedSlot));
-            Assert.That(reusedBuf.Range, Is.EqualTo(discardedRange));
-            reusedTex.Destroy();
-            reusedBuf.Destroy();
+            Assert.That(reusedBuf.GetRange(), Is.EqualTo(discardedRange));
+            reusedTex.Dispose();
+            reusedBuf.Dispose();
         }
         finally
         {
             device.WaitIdle();
             context.DiscardFrame();
-            context.Destroy();
+            context.Dispose();
             timeline.Destroy();
-            system.Destroy();
+            system.Dispose();
             device.Destroy();
         }
     }
@@ -970,21 +971,21 @@ public sealed class AlcoGraphicsNoGpuTests
             ForceCollect();
             system.Tick();
 
-            Assert.That(ctxRef.Target, Is.InstanceOf<RenderContext>().And.Property(nameof(RenderContext.IsDestroyed)).True);
-            Assert.That(texRef.Target, Is.InstanceOf<Texture>().And.Property(nameof(Texture.IsDestroyed)).True);
-            Assert.That(bufRef.Target, Is.InstanceOf<Buffer>().And.Property(nameof(Buffer.IsDestroyed)).True);
+            Assert.That(ctxRef.Target, Is.InstanceOf<RenderContext>().And.Property(nameof(RenderContext.IsReleased)).True);
+            Assert.That(texRef.Target, Is.InstanceOf<Texture>().And.Property(nameof(Texture.IsReleased)).True);
+            Assert.That(bufRef.Target, Is.InstanceOf<Buffer>().And.Property(nameof(Buffer.IsReleased)).True);
 
             Texture reusedTex = CreateSampledTexture(system);
             Buffer reusedBuf = system.CreateBuffer(128);
             Assert.That(reusedTex.SampledIndex, Is.EqualTo(slot));
-            Assert.That(reusedBuf.Range, Is.EqualTo(range));
-            reusedTex.Destroy();
-            reusedBuf.Destroy();
+            Assert.That(reusedBuf.GetRange(), Is.EqualTo(range));
+            reusedTex.Dispose();
+            reusedBuf.Dispose();
         }
         finally
         {
             device.WaitIdle();
-            system.Destroy();
+            system.Dispose();
             device.Destroy();
         }
     }
@@ -1008,14 +1009,14 @@ public sealed class AlcoGraphicsNoGpuTests
             ForceCollect();
             system.Tick();
 
-            Assert.That(afterTexRef.Target, Is.InstanceOf<Texture>().And.Property(nameof(Texture.IsDestroyed)).True);
-            Assert.That(afterBufRef.Target, Is.InstanceOf<Buffer>().And.Property(nameof(Buffer.IsDestroyed)).True);
+            Assert.That(afterTexRef.Target, Is.InstanceOf<Texture>().And.Property(nameof(Texture.IsReleased)).True);
+            Assert.That(afterBufRef.Target, Is.InstanceOf<Buffer>().And.Property(nameof(Buffer.IsReleased)).True);
             Texture reusedAfterTex = CreateSampledTexture(system);
             Buffer reusedAfterBuf = system.CreateBuffer(128);
             Assert.That(reusedAfterTex.SampledIndex, Is.EqualTo(afterSlot));
-            Assert.That(reusedAfterBuf.Range, Is.EqualTo(afterRange));
-            reusedAfterTex.Destroy();
-            reusedAfterBuf.Destroy();
+            Assert.That(reusedAfterBuf.GetRange(), Is.EqualTo(afterRange));
+            reusedAfterTex.Dispose();
+            reusedAfterBuf.Dispose();
             ctxA.DiscardFrame();
 
             // 2. Resources finalized before ctxB.BeginFrame() retire even while ctxB stays recording.
@@ -1024,24 +1025,24 @@ public sealed class AlcoGraphicsNoGpuTests
             ctxB.BeginFrame();
             system.Tick();
 
-            Assert.That(beforeTexRef.Target, Is.InstanceOf<Texture>().And.Property(nameof(Texture.IsDestroyed)).True);
-            Assert.That(beforeBufRef.Target, Is.InstanceOf<Buffer>().And.Property(nameof(Buffer.IsDestroyed)).True);
+            Assert.That(beforeTexRef.Target, Is.InstanceOf<Texture>().And.Property(nameof(Texture.IsReleased)).True);
+            Assert.That(beforeBufRef.Target, Is.InstanceOf<Buffer>().And.Property(nameof(Buffer.IsReleased)).True);
             Texture reusedBeforeTex = CreateSampledTexture(system);
             Buffer reusedBeforeBuf = system.CreateBuffer(128);
             Assert.That(reusedBeforeTex.SampledIndex, Is.EqualTo(beforeSlot));
-            Assert.That(reusedBeforeBuf.Range, Is.EqualTo(beforeRange));
-            reusedBeforeTex.Destroy();
-            reusedBeforeBuf.Destroy();
+            Assert.That(reusedBeforeBuf.GetRange(), Is.EqualTo(beforeRange));
+            reusedBeforeTex.Dispose();
+            reusedBeforeBuf.Dispose();
             ctxB.DiscardFrame();
         }
         finally
         {
             device.WaitIdle();
             ctxB.DiscardFrame();
-            ctxB.Destroy();
+            ctxB.Dispose();
             ctxA.DiscardFrame();
-            ctxA.Destroy();
-            system.Destroy();
+            ctxA.Dispose();
+            system.Dispose();
             device.Destroy();
         }
     }
@@ -1073,7 +1074,7 @@ public sealed class AlcoGraphicsNoGpuTests
         finally
         {
             device.WaitIdle();
-            system.Destroy();
+            system.Dispose();
             device.Destroy();
         }
     }
@@ -1095,7 +1096,7 @@ public sealed class AlcoGraphicsNoGpuTests
         Texture texture = CreateSampledTexture(system);
         Buffer buffer = system.CreateBuffer(128);
         return (new WeakReference(texture, trackResurrection: true), new WeakReference(buffer, trackResurrection: true),
-            texture.SampledIndex, buffer.Range);
+            texture.SampledIndex, buffer.GetRange());
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
@@ -1110,7 +1111,7 @@ public sealed class AlcoGraphicsNoGpuTests
             new WeakReference(texture, trackResurrection: true),
             new WeakReference(buffer, trackResurrection: true),
             texture.SampledIndex,
-            buffer.Range);
+            buffer.GetRange());
     }
 
     private static void ForceCollect()

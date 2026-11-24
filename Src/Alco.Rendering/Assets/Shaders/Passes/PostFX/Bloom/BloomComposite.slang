@@ -13,9 +13,9 @@ import AlcoRendering_Bloom;
 [GPURoot]
 public struct BloomCompositeRoot
 {
-    public GpuTextureId SceneTex;
-    public GpuTextureId BloomTex;
-    public GpuTextureId Dest;
+    public GPUTextureId SceneTex;
+    public GPUTextureId BloomTex;
+    public GPUTextureId Dest;
     public float2 InvDestSize;
     public uint2 DestSize;
     public uint HasBloom;

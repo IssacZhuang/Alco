@@ -4,7 +4,6 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 using Alco.Graphics;
-using Alco.Graphics.LowLevel;
 
 namespace Alco.Rendering;
 
@@ -697,8 +696,7 @@ public sealed unsafe class RGNode_Bloom : IRenderGraphNode
             blitBloomIndex = context.GetTexture(_frameAccumLast).SampledIndex;
         }
 
-        GPUAllocation<BloomBlitRoot> alloc = rc.FrameData.Allocate<BloomBlitRoot>();
-        *alloc.Cpu = new BloomBlitRoot
+        BloomBlitRoot blitRoot = new()
         {
             BloomTex = blitBloomIndex,
             SceneTex = sceneIndex,
@@ -707,7 +705,7 @@ public sealed unsafe class RGNode_Bloom : IRenderGraphNode
 
         ColorAttachment colorAttachment = new()
         {
-            RenderView = context.GetRenderView(_frameCompositeTarget),
+            Target = context.GetRenderTarget(_frameCompositeTarget),
             Load = _frameCompositeIsInPlace ? LoadOp.Load : LoadOp.Discard,
             Store = StoreOp.Store,
         };
@@ -720,7 +718,7 @@ public sealed unsafe class RGNode_Bloom : IRenderGraphNode
         render.SetViewport(new Viewport { Width = targetExtent.X, Height = targetExtent.Y });
         render.SetScissor(new Scissor { Width = targetExtent.X, Height = targetExtent.Y });
         Material material = _frameCompositeIsInPlace ? _blitAdditiveMaterial : _blitOpaqueMaterial;
-        render.Draw(material, alloc.GPURange, DepthStencilState.None, 3u);
+        render.Draw(material, in blitRoot, DepthStencilState.None, 3u);
     }
 
     private static void DispatchCompute<TRoot>(
@@ -736,10 +734,8 @@ public sealed unsafe class RGNode_Bloom : IRenderGraphNode
             return;
         }
 
-        GPUAllocation<byte> alloc = rc.FrameData.Allocate((ulong)sizeof(TRoot));
-        MemoryMarshal.Write(alloc.CpuSpan, in rootData);
         using RenderContext.ComputeScope compute = rc.BeginCompute();
-        compute.Dispatch(shader, alloc.GPURange, new Extent3D(groupCountX, groupCountY, 1u));
+        compute.Dispatch(shader, in rootData, new Extent3D(groupCountX, groupCountY, 1u));
     }
 
     private static Shader LoadBloomShader(ShaderSystem shaderSystem, string moduleName, ShaderKind kind)

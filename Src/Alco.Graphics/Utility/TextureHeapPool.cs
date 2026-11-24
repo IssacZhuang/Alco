@@ -2,9 +2,9 @@
 
 using System.Diagnostics;
 
-using Alco.Graphics.LowLevel;
+using Alco.Graphics;
 
-namespace Alco.Graphics;
+namespace Alco.Graphics.LowLevel;
 
 /// <summary>Owns heaps for placed textures. Externally synchronize operations and keep the device alive until destruction.</summary>
 public sealed class TextureHeapPool

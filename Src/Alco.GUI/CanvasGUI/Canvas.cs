@@ -1,7 +1,6 @@
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using Alco.Graphics;
-using Alco.Graphics.LowLevel;
 using Alco.Rendering;
 
 namespace Alco.GUI;
@@ -30,13 +29,6 @@ public partial class Canvas : AutoDisposable, INavigationContext
         public Texture Target = target;
     }
 
-    private struct RetiredTexture(RenderContext? context, ulong frameId, Texture texture)
-    {
-        public RenderContext? Context = context;
-        public ulong FrameId = frameId;
-        public Texture Texture = texture;
-    }
-
     private readonly RenderingSystem _renderingSystem;
     private readonly ShaderSystem _shaders;
     private readonly GlyphCache _glyphCache;
@@ -44,7 +36,6 @@ public partial class Canvas : AutoDisposable, INavigationContext
     private readonly UIBatchRenderer _batchRenderer;
     private SvgRenderer? _svgRenderer;
     private readonly List<PendingSvgUpload> _pendingSvgUploads = new(8);
-    private readonly List<RetiredTexture> _retiredTextures = new(8);
     private RenderContext? _lastUploadContext;
     private ulong _lastUploadFrameId;
 
@@ -276,8 +267,6 @@ public partial class Canvas : AutoDisposable, INavigationContext
         _lastUploadContext = context;
         _lastUploadFrameId = context.CurrentFrameId;
 
-        PurgeRetiredTextures();
-
         if (_pendingSvgUploads.Count > 0)
         {
             SvgRenderer svg = SvgRenderer;
@@ -303,52 +292,46 @@ public partial class Canvas : AutoDisposable, INavigationContext
         return _batchRenderer.Record(context, in render, viewportExtent, hasStencil);
     }
 
-    /// <summary>Uploads pending GPU data, opens a render pass onto <paramref name="colorView"/>, and records all batched UI draws.</summary>
+    /// <summary>Uploads pending GPU data, opens a render pass onto <paramref name="colorTarget"/>, and records all batched UI draws.</summary>
     /// <param name="context">Active recording frame context (between scopes).</param>
-    /// <param name="colorView">Target color render view.</param>
-    /// <param name="colorFormat">Target color attachment format.</param>
-    /// <param name="extent">Render area dimensions in pixels.</param>
-    /// <param name="stencilView">Optional stencil attachment view for rotated or textured masks.</param>
-    /// <param name="stencilFormat">Stencil format matching <paramref name="stencilView"/>, or <see cref="Format.Undefined"/>.</param>
+    /// <param name="colorTarget">Target color attachment.</param>
+    /// <param name="stencilTarget">Optional stencil attachment for rotated or textured masks.</param>
     /// <param name="colorLoadOp">Color load op (<see cref="LoadOp.Load"/> overlays onto scene; <see cref="LoadOp.Clear"/> clears first).</param>
     /// <param name="clearColor">Clear color used when <paramref name="colorLoadOp"/> is <see cref="LoadOp.Clear"/>.</param>
     /// <returns>Frame statistics for the recorded pass.</returns>
     public UIFrameStats Draw(
         RenderContext context,
-        GPURenderView colorView,
-        Format colorFormat,
-        Extent2D extent,
-        GPURenderView? stencilView = null,
-        Format stencilFormat = Format.Undefined,
+        RenderTarget colorTarget,
+        RenderTarget stencilTarget = default,
         LoadOp colorLoadOp = LoadOp.Load,
         Vector4 clearColor = default)
     {
         ArgumentNullException.ThrowIfNull(context);
-        ArgumentNullException.ThrowIfNull(colorView);
+        if (!colorTarget.IsValid)
+            throw new ArgumentException("Color target must reference a valid render target.", nameof(colorTarget));
 
         Upload(context);
 
-        bool hasStencil = stencilView != null && stencilFormat != Format.Undefined;
+        bool hasStencil = stencilTarget.IsValid && stencilTarget.Format != Format.Undefined;
         RenderingDesc desc = new()
         {
             Colors =
             [
                 new ColorAttachment
                 {
-                    RenderView = colorView,
+                    Target = colorTarget,
                     Load = colorLoadOp,
                     Store = StoreOp.Store,
                     Clear = clearColor,
                 },
             ],
             Stencil = hasStencil
-                ? new StencilAttachment { RenderView = stencilView, Load = LoadOp.Clear, Store = StoreOp.Discard, Clear = 0 }
+                ? new StencilAttachment { Target = stencilTarget, Load = LoadOp.Clear, Store = StoreOp.Discard, Clear = 0 }
                 : default,
         };
 
-        RenderPassSignature signature = new([colorFormat], Format.Undefined, hasStencil ? stencilFormat : Format.Undefined);
-        using RenderContext.RenderScope render = context.BeginRenderPass(desc, signature);
-        return Record(context, in render, extent, hasStencil);
+        using RenderContext.RenderScope render = context.BeginRenderPass(desc);
+        return Record(context, in render, colorTarget.Extent, hasStencil);
     }
 
     /// <summary>Programmatically sets the hovered node (for keyboard/gamepad navigation).</summary>
@@ -390,13 +373,13 @@ public partial class Canvas : AutoDisposable, INavigationContext
         return target;
     }
 
-    /// <summary>Retires an ephemeral texture so it is destroyed only after its last recording frame completes on GPU.</summary>
+    /// <summary>Retires an ephemeral texture so it is disposed safely after referencing GPU frames complete.</summary>
     /// <param name="texture">Texture to retire, or null.</param>
     public void RetireTexture(Texture? texture)
     {
-        if (texture == null || texture.IsDestroyed)
+        if (texture == null || texture.IsDisposed)
             return;
-        _retiredTextures.Add(new RetiredTexture(_lastUploadContext, _lastUploadFrameId, texture));
+        texture.Dispose();
     }
 
     /// <summary>Registers a node as a pointer hit target with the specified shape.</summary>
@@ -492,20 +475,10 @@ public partial class Canvas : AutoDisposable, INavigationContext
             for (int i = 0; i < _pendingSvgUploads.Count; ++i)
             {
                 Texture pending = _pendingSvgUploads[i].Target;
-                if (!pending.IsDestroyed)
-                    pending.Destroy();
+                if (!pending.IsDisposed)
+                    pending.Dispose();
             }
             _pendingSvgUploads.Clear();
-
-            for (int i = 0; i < _retiredTextures.Count; ++i)
-            {
-                RetiredTexture retired = _retiredTextures[i];
-                if (retired.Context != null && !retired.Context.IsDestroyed && retired.Context.IsFramePending(retired.FrameId))
-                    retired.Context.Wait();
-                if (!retired.Texture.IsDestroyed)
-                    retired.Texture.Destroy();
-            }
-            _retiredTextures.Clear();
 
             _inputTracker?.UnregisterTextInput(OnTextInput);
             _collisionWorld.Dispose();
@@ -513,7 +486,7 @@ public partial class Canvas : AutoDisposable, INavigationContext
             _batchRenderer.Dispose();
             if (_ownsGlyphCache)
             {
-                if (_lastUploadContext != null && !_lastUploadContext.IsDestroyed && _lastUploadContext.IsFramePending(_lastUploadFrameId))
+                if (_lastUploadContext != null && !_lastUploadContext.IsDisposed && _lastUploadContext.IsFramePending(_lastUploadFrameId))
                     _lastUploadContext.Wait();
                 _glyphCache.Dispose();
             }
@@ -523,20 +496,6 @@ public partial class Canvas : AutoDisposable, INavigationContext
         _holded = null;
         _selected = null;
         _textInput = null;
-    }
-
-    private void PurgeRetiredTextures()
-    {
-        for (int i = _retiredTextures.Count - 1; i >= 0; --i)
-        {
-            RetiredTexture retired = _retiredTextures[i];
-            if (retired.Context != null && !retired.Context.IsDestroyed && retired.Context.IsFramePending(retired.FrameId))
-                continue;
-
-            if (!retired.Texture.IsDestroyed)
-                retired.Texture.Destroy();
-            _retiredTextures.RemoveAt(i);
-        }
     }
 
     private void OnConfirmDown(UINode? node, Vector2 cursorPosition, bool checkMask)

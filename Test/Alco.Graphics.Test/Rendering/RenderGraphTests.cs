@@ -47,7 +47,7 @@ internal static unsafe class RenderGraphTests
         catch (InvalidOperationException) { missingAnchorThrew = true; }
         check(missingAnchorThrew, "InsertBefore with missing anchor throws InvalidOperationException");
 
-        graph.Destroy();
+        graph.Dispose();
     }
 
     private static void TestCulling(Action<bool, string> check)
@@ -124,8 +124,8 @@ internal static unsafe class RenderGraphTests
         overwriteGraph.CompileDryRun(target);
         check(!IsPassCulled(overwriteGraph, "FirstWrite"), "ReadWrite preserves earlier writer");
 
-        overwriteGraph.Destroy();
-        graph.Destroy();
+        overwriteGraph.Dispose();
+        graph.Dispose();
     }
 
     private static void TestValidation(Action<bool, string> check)
@@ -145,7 +145,7 @@ internal static unsafe class RenderGraphTests
         try { g1.CompileDryRun(target); }
         catch (InvalidOperationException ex) { caughtReadBeforeWrite = ex.Message.Contains("BadReader") && ex.Message.Contains("unwritten_tex"); }
         check(caughtReadBeforeWrite, "Validation rejects reading transient before write with pass and resource names");
-        g1.Destroy();
+        g1.Dispose();
 
         // 2. Stale frame handle reused next frame.
         RenderGraph g2 = new(new Extent2D(128, 128), "ValStale");
@@ -171,7 +171,7 @@ internal static unsafe class RenderGraphTests
         try { g2.CompileDryRun(target); }
         catch (InvalidOperationException) { caughtStale = true; }
         check(caughtStale, "Validation rejects stale frame-scoped handle reused on next frame");
-        g2.Destroy();
+        g2.Dispose();
 
         // 3. Released retained handle rejected.
         RenderGraph g3 = new(new Extent2D(128, 128), "ValReleased");
@@ -186,7 +186,7 @@ internal static unsafe class RenderGraphTests
         try { g3.CompileDryRun(target); }
         catch (InvalidOperationException) { caughtReleased = true; }
         check(caughtReleased, "Validation rejects released retained handle");
-        g3.Destroy();
+        g3.Dispose();
 
         // 4. Incompatible explicit TextureUsage rejected and SupportsUsage reports capabilities accurately.
         RenderGraph g4 = new(new Extent2D(128, 128), "ValUsage");
@@ -219,7 +219,7 @@ internal static unsafe class RenderGraphTests
         try { g4.CompileDryRun(target); }
         catch (InvalidOperationException) { caughtBadUsage = true; }
         check(supportsChecksOk && caughtBadUsage, "SupportsUsage accurately reports texture capabilities and validation rejects incompatible explicit TextureUsage");
-        g4.Destroy();
+        g4.Dispose();
 
         // 5. Same-pass texture feedback conflict rejected (even when declared via separate Read + Write calls).
         RenderGraph g5 = new(new Extent2D(128, 128), "ValConflict");
@@ -237,7 +237,7 @@ internal static unsafe class RenderGraphTests
         try { g5.CompileDryRun(target); }
         catch (InvalidOperationException ex) { caughtConflict = ex.Message.Contains("Feedback") && ex.Message.Contains("rt"); }
         check(caughtConflict, "Validation rejects simultaneous ColorAttachmentWrite + PixelRead on same texture in one pass");
-        g5.Destroy();
+        g5.Dispose();
 
         // 6. ReadWrite without read flags rejected.
         RenderGraph g6 = new(new Extent2D(128, 128), "ValReadWriteMissingRead");
@@ -254,7 +254,7 @@ internal static unsafe class RenderGraphTests
         try { g6.CompileDryRun(target); }
         catch (ArgumentException) { caughtMissingRead = true; }
         check(caughtMissingRead, "Validation rejects ReadWrite declared without read usage flags");
-        g6.Destroy();
+        g6.Dispose();
 
         // 7. Read-only attachment + storage write conflict rejected, while DepthStencilRead + PixelRead is allowed.
         RenderGraph g7 = new(new Extent2D(128, 128), "ValAttachStorageConflict");
@@ -278,7 +278,7 @@ internal static unsafe class RenderGraphTests
         try { g7.CompileDryRun(target); }
         catch (InvalidOperationException) { caughtAttachStorage = true; }
         check(caughtAttachStorage, "Validation rejects simultaneous DepthStencilRead + ComputeWrite in one pass");
-        g7.Destroy();
+        g7.Dispose();
 
         // 8. Duplicate frame import of the same external object deduplicates so culling and barriers preserve write->read dependency.
         RenderGraph g8 = new(new Extent2D(128, 128), "DupImportGraph");
@@ -306,7 +306,7 @@ internal static unsafe class RenderGraphTests
                 AfterAccess = Access.ShaderRead,
             },
             "Duplicate frame imports of one external texture share a slot, preventing false culling and preserving RAW barriers");
-        g8.Destroy();
+        g8.Dispose();
     }
 
     private static void TestAliasingAndPooling(Action<bool, string> check)
@@ -411,8 +411,8 @@ internal static unsafe class RenderGraphTests
             evictGraph.GetPhysicalIndex(keepTex) == 1 && evictGraph.GetPhysicalIndex(frameTex) == 0,
             "Idle eviction of slot 0 swap-moves active frame-scoped slot 2 into 0 and preserves live Physical indices");
 
-        evictGraph.Destroy();
-        graph.Destroy();
+        evictGraph.Dispose();
+        graph.Dispose();
     }
 
     private static void TestBarrierPlanning(Action<bool, string> check)
@@ -507,7 +507,7 @@ internal static unsafe class RenderGraphTests
             After = Stage.ColorOutput,
             AfterAccess = Access.ColorWrite,
         }, "Frame 2 automatically emits cross-frame WAR + write visibility barrier on persistent physical pooled textures");
-        g.Destroy();
+        g.Dispose();
 
         // 2. Imported buffer with HostRead exit barrier + offscreen imported texture with PixelRead exit barrier & Frame 2 WAR.
         RenderGraph ext = new(new Extent2D(64, 64), "ExternalSyncGraph");
@@ -551,7 +551,7 @@ internal static unsafe class RenderGraphTests
             After = Stage.Transfer,
             AfterAccess = Access.TransferWrite,
         }, "Frame 2 readback buffer emits clean WAW without invalid Stage.Host source stage");
-        ext.Destroy();
+        ext.Dispose();
 
         // 3. Write -> Read -> ReadWrite preserves write-domain visibility even when Read already synced SyncedReads;
         //    pure WAR on read-only imported resource stays execution-only (Access.None -> Access.None).
@@ -592,7 +592,7 @@ internal static unsafe class RenderGraphTests
             After = Stage.Compute,
             AfterAccess = Access.None,
         }, "Pure WAR on previously unwritten imported buffer stays execution-only");
-        rwGraph.Destroy();
+        rwGraph.Dispose();
 
         // 4. External sync entry eviction swap-remove must preserve live Physical.Index for higher-index active externals!
         RenderGraph extEvict = new(new Extent2D(64, 64), "ExternalEvictGraph");
@@ -632,7 +632,7 @@ internal static unsafe class RenderGraphTests
                 AfterAccess = Access.ShaderRead,
             },
             "Evicting lower-index external sync entry updates live Physical.Index and preserves barriers for swap-moved external");
-        extEvict.Destroy();
+        extEvict.Dispose();
 
         // 5. PropagateGlobalBarrier with Stage.AllCommands must still require beforeAccess to cover WriteAccess.
         RenderGraphPools testPools = new(null);
@@ -700,7 +700,7 @@ internal static unsafe class RenderGraphTests
         long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
 
         check(allocated == 0, $"Steady-state RenderGraph compilation allocates 0 bytes over 100 frames (allocated={allocated})");
-        graph.Destroy();
+        graph.Dispose();
     }
 
     private sealed class NullNode : IRenderGraphNode

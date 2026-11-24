@@ -2,9 +2,9 @@
 
 using System.Diagnostics;
 
-using Alco.Graphics.LowLevel;
+using Alco.Graphics;
 
-namespace Alco.Graphics;
+namespace Alco.Graphics.LowLevel;
 
 /// <summary>Uploads CPU texture data through caller-owned staging or a reusable staging queue.</summary>
 public static unsafe class TextureUpload

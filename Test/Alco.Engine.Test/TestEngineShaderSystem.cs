@@ -55,11 +55,11 @@ public class TestEngineShaderSystem
             {
                 shader = engine.RenderingSystem.Shaders.GetShader("EngineResolvedCompute");
                 Assert.That(shader.Kind, Is.EqualTo(ShaderKind.Compute));
-                Assert.That(shader.IsDestroyed, Is.False);
+                Assert.That(shader.IsDisposed, Is.False);
                 Assert.That(Directory.GetFiles(cacheDir, "*.agshader"), Is.Not.Empty);
             }
 
-            Assert.That(shader.IsDestroyed, Is.True);
+            Assert.That(shader.IsDisposed, Is.True);
         }
         finally
         {

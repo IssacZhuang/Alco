@@ -132,11 +132,12 @@ internal sealed unsafe class EffectsTestHost : IDisposable
         {
             context.BeginFrame();
             context.SetTextureData(texture, rgbaPixels);
-            context.Submit().Wait();
+            context.Submit();
+            RenderingSystem.WaitIdle();
         }
         finally
         {
-            context.Destroy();
+            context.Dispose();
         }
     }
 
@@ -150,9 +151,10 @@ internal sealed unsafe class EffectsTestHost : IDisposable
         {
             context.BeginFrame();
             context.Barrier(Stage.AllCommands, Access.ColorWrite, Stage.Transfer, Access.TransferRead);
-            context.CopyTextureToMemory(target.NativeTexture, readback.Range.GPURange);
+            context.CopyTextureToMemory(target.GetNativeTexture(), readback.Range.GPURange);
             context.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Host, Access.HostRead);
-            context.Submit().Wait();
+            context.Submit();
+            RenderingSystem.WaitIdle();
 
             byte[] pixels = new byte[(int)byteCount];
             new ReadOnlySpan<byte>(readback.Range.Cpu, (int)byteCount).CopyTo(pixels);
@@ -160,7 +162,7 @@ internal sealed unsafe class EffectsTestHost : IDisposable
         }
         finally
         {
-            context.Destroy();
+            context.Dispose();
             readback.Destroy();
         }
     }
@@ -173,9 +175,10 @@ internal sealed unsafe class EffectsTestHost : IDisposable
         try
         {
             context.Barrier(Stage.ColorOutput, Access.ColorWrite, Stage.Transfer, Access.TransferRead);
-            context.CopyTextureToMemory(target.NativeTexture, readback.Range.GPURange);
+            context.CopyTextureToMemory(target.GetNativeTexture(), readback.Range.GPURange);
             context.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Host, Access.HostRead);
-            context.Submit().Wait();
+            context.Submit();
+            RenderingSystem.WaitIdle();
 
             byte[] pixels = new byte[(int)byteCount];
             new ReadOnlySpan<byte>(readback.Range.Cpu, (int)byteCount).CopyTo(pixels);
@@ -191,7 +194,7 @@ internal sealed unsafe class EffectsTestHost : IDisposable
     public void Dispose()
     {
         Device.WaitIdle();
-        RenderingSystem.Destroy();
+        RenderingSystem.Dispose();
         Device.Destroy();
     }
 

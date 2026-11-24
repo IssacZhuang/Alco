@@ -17,7 +17,7 @@ public struct ParticleSurfaceInput
     public float4 color;
     public float age01;
     public float3 worldPosition;
-    public GpuTextureId spriteTexture;
+    public GPUTextureId spriteTexture;
 };
 
 /// Per-vertex inputs evaluated by a particle surface vertex hook.

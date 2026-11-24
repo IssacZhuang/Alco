@@ -11,7 +11,7 @@ namespace Alco.Graphics;
 /// transient texture and buffer pooling with lifetime aliasing, explicit barrier planning, and optional GPU profiling.
 /// Owns only its pooled resources and profiling buffers; callers retain ownership of nodes and imported resources.
 /// </summary>
-public sealed unsafe class RenderGraph
+public sealed unsafe class RenderGraph : IDisposable
 {
     private const int TimestampSlotCount = 4;
     private const int DefaultTimestampQueryBudget = 256;
@@ -182,7 +182,11 @@ public sealed unsafe class RenderGraph
     /// <summary>The owning rendering system.</summary>
     public RenderingSystem System => _system ?? throw new InvalidOperationException("Dry-run RenderGraph has no RenderingSystem.");
 
-    /// <summary>Whether <see cref="Destroy"/> has been called on this graph.</summary>
+    /// <summary>Whether <see cref="Dispose"/> has been called on this graph.</summary>
+    public bool IsDisposed => _destroyed;
+
+    /// <summary>Legacy alias for <see cref="IsDisposed"/>.</summary>
+    [Obsolete("Use IsDisposed instead.")]
     public bool IsDestroyed => _destroyed;
 
     /// <summary>Whether the most recent or active frame had a valid output target.</summary>
@@ -340,7 +344,7 @@ public sealed unsafe class RenderGraph
     {
         EnsureMutable();
         ArgumentNullException.ThrowIfNull(texture);
-        Debug.Assert(!texture.IsDestroyed);
+        Debug.Assert(!texture.IsDisposed);
         ValidateFinalUsage(finalUsage, isTexture: true, texture.Desc.Usage, string.IsNullOrEmpty(name) ? "imported_texture" : name);
         int index = AllocateRetainedSlot();
         ushort generation = NextGeneration(_resources[index].Generation);
@@ -371,7 +375,7 @@ public sealed unsafe class RenderGraph
     {
         EnsureMutable();
         ArgumentNullException.ThrowIfNull(buffer);
-        Debug.Assert(!buffer.IsDestroyed);
+        Debug.Assert(!buffer.IsDisposed);
         ValidateFinalUsage(finalUsage, isTexture: false, TextureUsage.None, string.IsNullOrEmpty(name) ? "imported_buffer" : name);
         int index = AllocateRetainedSlot();
         ushort generation = NextGeneration(_resources[index].Generation);
@@ -402,7 +406,7 @@ public sealed unsafe class RenderGraph
     {
         EnsureMutable();
         ArgumentNullException.ThrowIfNull(texture);
-        Debug.Assert(!texture.IsDestroyed);
+        Debug.Assert(!texture.IsDisposed);
         int index = ValidateTextureHandle(handle);
         ref ResourceSlot slot = ref _resources[index];
         if (!slot.IsRetained || slot.Kind != ResourceKind.ImportedTexture)
@@ -421,7 +425,7 @@ public sealed unsafe class RenderGraph
     {
         EnsureMutable();
         ArgumentNullException.ThrowIfNull(buffer);
-        Debug.Assert(!buffer.IsDestroyed);
+        Debug.Assert(!buffer.IsDisposed);
         int index = ValidateBufferHandle(handle);
         ref ResourceSlot slot = ref _resources[index];
         if (!slot.IsRetained || slot.Kind != ResourceKind.ImportedBuffer)
@@ -478,7 +482,7 @@ public sealed unsafe class RenderGraph
 
         try
         {
-            if (_lastContext != null && (_lastContext.IsDestroyed || _lastContext.DiscardVersion != _lastContextDiscardVersion))
+            if (_lastContext != null && (_lastContext.IsDisposed || _lastContext.DiscardVersion != _lastContextDiscardVersion))
                 _pools.ClearSyncedReads();
 
             FrameUse frameUse = new(context, context.CurrentFrameId);
@@ -515,11 +519,11 @@ public sealed unsafe class RenderGraph
         }
     }
 
-    /// <summary>Destroys any retired pooled resources whose GPU completion timeline points have been reached.</summary>
+    /// <summary>Reclaims retired GPU resources whose timelines have completed.</summary>
     public void Reclaim()
     {
         EnsureNotDestroyed();
-        _pools.ReclaimRetired();
+        _system?.Tick();
     }
 
     /// <summary>
@@ -541,10 +545,10 @@ public sealed unsafe class RenderGraph
     }
 
     /// <summary>
-    /// Destroys all graph-owned pooled resources, retired resources, and native profiling storage.
-    /// Does not destroy caller-owned nodes or imported resources.
+    /// Disposes all graph-owned pooled resources and native profiling storage.
+    /// Does not dispose caller-owned nodes or imported resources.
     /// </summary>
-    public void Destroy()
+    public void Dispose()
     {
         if (_destroyed)
             return;
@@ -558,7 +562,7 @@ public sealed unsafe class RenderGraph
             for (int index = 0; index < _timestampSlots.Length; ++index)
             {
                 ref TimestampSlot slot = ref _timestampSlots[index];
-                if (slot.Context != null && !slot.Context.IsDestroyed && slot.Context.IsFramePending(slot.ContextFrameId))
+                if (slot.Context != null && !slot.Context.IsDisposed && slot.Context.IsFramePending(slot.ContextFrameId))
                     slot.Context.Wait();
                 slot.Context = null;
                 slot.ContextFrameId = 0;
@@ -574,6 +578,10 @@ public sealed unsafe class RenderGraph
         Array.Clear(_passes, 0, _passes.Length);
         _nodes.Clear();
     }
+
+    /// <summary>Legacy alias for <see cref="Dispose"/>.</summary>
+    [Obsolete("Use Dispose() instead.")]
+    public void Destroy() => Dispose();
 
     // Internal dry-run helpers for CPU unit tests.
     internal RGTexture ImportDryRunTexture(object token, Extent3D extent, Format format, TextureUsage usage, string name,
@@ -773,7 +781,7 @@ public sealed unsafe class RenderGraph
     {
         Debug.Assert(_inSetup);
         ArgumentNullException.ThrowIfNull(texture);
-        Debug.Assert(!texture.IsDestroyed);
+        Debug.Assert(!texture.IsDisposed);
         string resolvedName = string.IsNullOrEmpty(name) ? "frame_imported_texture" : name;
         ValidateFinalUsage(finalUsage, isTexture: true, texture.Desc.Usage, resolvedName);
         int existing = FindImportedSlot(texture, isTexture: true);
@@ -843,7 +851,7 @@ public sealed unsafe class RenderGraph
     {
         Debug.Assert(_inSetup);
         ArgumentNullException.ThrowIfNull(buffer);
-        Debug.Assert(!buffer.IsDestroyed);
+        Debug.Assert(!buffer.IsDisposed);
         string resolvedName = string.IsNullOrEmpty(name) ? "frame_imported_buffer" : name;
         ValidateFinalUsage(finalUsage, isTexture: false, TextureUsage.None, resolvedName);
         int existing = FindImportedSlot(buffer, isTexture: false);
@@ -980,6 +988,20 @@ public sealed unsafe class RenderGraph
         };
     }
 
+    internal RenderTarget ResolveRenderTarget(RGTexture handle)
+    {
+        int index = ValidateTextureHandle(handle);
+        ref ResourceSlot slot = ref _resources[index];
+        if (slot.Kind == ResourceKind.SwapchainOutput)
+        {
+            if (!_currentOutput.IsValid)
+                throw new InvalidOperationException($"RenderGraph '{Name}': output has no render target.");
+            return _currentOutput.Target;
+        }
+        Texture texture = ResolveTexture(handle);
+        return texture.GetRenderTarget();
+    }
+
     internal GPURenderView ResolveRenderView(RGTexture handle)
     {
         int index = ValidateTextureHandle(handle);
@@ -987,7 +1009,7 @@ public sealed unsafe class RenderGraph
         if (slot.Kind == ResourceKind.SwapchainOutput)
             return _currentOutput.RenderView ?? throw new InvalidOperationException($"RenderGraph '{Name}': output has no render view.");
         Texture texture = ResolveTexture(handle);
-        return texture.RenderView;
+        return texture.LowLevelRenderView;
     }
 
     internal GPUTexture ResolveNativeTexture(RGTexture handle)
@@ -997,7 +1019,7 @@ public sealed unsafe class RenderGraph
         if (slot.Kind == ResourceKind.SwapchainOutput)
             return _currentOutput.NativeTexture ?? throw new InvalidOperationException($"RenderGraph '{Name}': output has no native texture.");
         Texture texture = ResolveTexture(handle);
-        return texture.NativeTexture;
+        return texture.LowLevelTexture;
     }
 
     internal Buffer ResolveBuffer(RGBuffer handle)
@@ -1150,7 +1172,7 @@ public sealed unsafe class RenderGraph
                 case ResourceKind.ImportedTexture:
                     if (slot.ExternalTexture != null)
                     {
-                        Debug.Assert(!slot.ExternalTexture.IsDestroyed);
+                        Debug.Assert(!slot.ExternalTexture.IsDisposed);
                         slot.ResolvedExtent = slot.ExternalTexture.Extent;
                         slot.Format = slot.ExternalTexture.Format;
                         slot.ExplicitUsage = slot.ExternalTexture.Desc.Usage;
@@ -1166,7 +1188,7 @@ public sealed unsafe class RenderGraph
                 case ResourceKind.ImportedBuffer:
                     if (slot.ExternalBuffer != null)
                     {
-                        Debug.Assert(!slot.ExternalBuffer.IsDestroyed);
+                        Debug.Assert(!slot.ExternalBuffer.IsDisposed);
                         slot.BufferSizeBytes = slot.ExternalBuffer.SizeBytes;
                     }
                     break;

@@ -3,7 +3,6 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
 using Alco.Graphics;
-using Alco.Graphics.LowLevel;
 
 namespace Alco.Rendering;
 
@@ -326,14 +325,13 @@ public sealed unsafe class RGNode_Tonemap : IRenderGraphNode
         TonemapRoot rootData = BuildRoot(src.SampledIndex, dst.StorageIndex);
 
         RenderContext rc = context.RenderContext;
-        GPURange root = rc.AllocateRoot(in rootData);
         Extent3D groupCount = new(
             (_frameTargetExtent.X + ThreadGroupDim - 1u) / ThreadGroupDim,
             (_frameTargetExtent.Y + ThreadGroupDim - 1u) / ThreadGroupDim,
             1u);
 
         using RenderContext.ComputeScope compute = rc.BeginCompute();
-        compute.Dispatch(_computeMaterial, root, groupCount);
+        compute.Dispatch(_computeMaterial, in rootData, groupCount);
     }
 
     private void ExecuteGraphics(in RenderGraphContext context)
@@ -354,11 +352,10 @@ public sealed unsafe class RGNode_Tonemap : IRenderGraphNode
         TonemapRoot rootData = BuildRoot(src.SampledIndex, 0u);
 
         RenderContext rc = context.RenderContext;
-        GPURange root = rc.AllocateRoot(in rootData);
 
         ColorAttachment colorAttachment = new()
         {
-            RenderView = context.GetRenderView(_frameTarget),
+            Target = context.GetRenderTarget(_frameTarget),
             Load = LoadOp.Discard,
             Store = StoreOp.Store,
         };
@@ -370,7 +367,7 @@ public sealed unsafe class RGNode_Tonemap : IRenderGraphNode
         using RenderContext.RenderScope render = rc.BeginRenderPass(desc);
         render.SetViewport(new Viewport { Width = _frameTargetExtent.X, Height = _frameTargetExtent.Y });
         render.SetScissor(new Scissor { Width = _frameTargetExtent.X, Height = _frameTargetExtent.Y });
-        render.Draw(_graphicsMaterial, root, DepthStencilState.None, 3u);
+        render.Draw(_graphicsMaterial, in rootData, DepthStencilState.None, 3u);
     }
 
     private TonemapRoot BuildRoot(uint sourceIndex, uint destIndex)

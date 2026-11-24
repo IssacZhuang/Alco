@@ -415,7 +415,7 @@ internal sealed class NoGPUCommandBuffer : GPUCommandBuffer
 
     public override void CopyTexture(GPUTexture source, GPUTexture destination, TextureRegionCopyDesc copy = default) { }
 
-    public override void BeginRenderPass(RenderingDesc desc, RenderingFlags flags = RenderingFlags.None) { }
+    public override void BeginRenderPass(GPURenderingDesc desc, RenderingFlags flags = RenderingFlags.None) { }
 
     public override void EndRenderPass() { }
 

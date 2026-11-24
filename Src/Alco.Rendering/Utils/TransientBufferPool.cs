@@ -76,7 +76,7 @@ public sealed class TransientBufferPool : AutoDisposable
             Entry entry = _entries[i];
             if (entry.Context.IsFrameCompleted(entry.LastFrameId))
             {
-                entry.Buffer.Destroy();
+                entry.Buffer.Dispose();
                 _entries.RemoveAt(i);
             }
         }
@@ -97,7 +97,7 @@ public sealed class TransientBufferPool : AutoDisposable
             return;
 
         for (int i = 0; i < _entries.Count; i++)
-            _entries[i].Buffer.Destroy();
+            _entries[i].Buffer.Dispose();
         _entries.Clear();
     }
 }

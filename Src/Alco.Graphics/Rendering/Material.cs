@@ -46,6 +46,20 @@ public class Material
     /// <summary>The full shader reflection snapshot of this material's active variant.</summary>
     public ShaderReflection Reflection => Variant.Compiled.Reflection;
 
+    /// <summary>Gets a strongly-typed handle for root field <paramref name="name"/> in the active root layout.</summary>
+    /// <typeparam name="T">The unmanaged type matching the shader field layout.</typeparam>
+    /// <param name="name">The field name or dot-separated nested path.</param>
+    /// <returns>The validated typed field handle.</returns>
+    public RootField<T> GetRootField<T>(string name) where T : unmanaged => Variant.Root.GetField<T>(name);
+
+    /// <summary>Attempts to resolve a strongly-typed handle for root field <paramref name="name"/> in the active root layout.</summary>
+    /// <typeparam name="T">The unmanaged type matching the shader field layout.</typeparam>
+    /// <param name="name">The field name or dot-separated nested path.</param>
+    /// <param name="field">The resolved field handle when compatible; otherwise default.</param>
+    /// <returns><see langword="true"/> when found with matching size and kind.</returns>
+    public bool TryGetRootField<T>(string name, out RootField<T> field) where T : unmanaged =>
+        Variant.Root.TryGetField(name, out field);
+
     /// <summary>The version incremented whenever this material's own bindings, specialization, or state change.</summary>
     public uint Version => _version;
 
@@ -249,12 +263,26 @@ public class Material
             WriteBufferView(field, default);
         else
         {
-            Debug.Assert(!buffer.IsDestroyed && buffer.System == _shader.System && byteOffset < buffer.SizeBytes);
+            Debug.Assert(!buffer.IsDisposed && buffer.System == _shader.System && byteOffset < buffer.SizeBytes);
             WriteBufferView(field, buffer.View.OffsetBy((uint)byteOffset));
         }
         SetBinding(field.Offset, buffer);
         OnFieldSet(field, buffer != null);
         ++_version;
+    }
+
+    /// <summary>Binds a bounded buffer slice, or restores the inherited binding or zero view when unbound.</summary>
+    /// <param name="name">The root field name or dotted nested path.</param>
+    /// <param name="slice">The bounded buffer slice.</param>
+    /// <exception cref="InvalidOperationException">The field does not exist or is not a buffer field.</exception>
+    public void SetBuffer(string name, BufferSlice slice)
+    {
+        if (slice.Buffer == null)
+        {
+            SetBuffer(name, null, 0);
+            return;
+        }
+        SetBuffer(name, slice.Buffer, slice.ByteOffset);
     }
 
     /// <summary>Writes an ordinary value to the named data field.</summary>
@@ -289,21 +317,12 @@ public class Material
         ++_version;
     }
 
-    /// <summary>Gets or creates a shared graphics or mesh pipeline for this material's active specialization.</summary>
-    /// <param name="pass">The render-pass attachment signature.</param>
-    /// <returns>The pipeline; owned by the material's shader.</returns>
-    public GPUPipeline GetPipeline(RenderPassSignature pass)
+    internal GPUPipeline GetPipeline(RenderPassSignature pass)
     {
         return Variant.GetPipeline(in _state, in _stateKey, in pass, out _);
     }
 
-    /// <summary>Gets or creates a shared graphics or mesh pipeline for this material's active specialization.</summary>
-    /// <param name="colorFormats">The render pass color target formats.</param>
-    /// <param name="depthFormat">The render pass depth target format.</param>
-    /// <param name="stencilFormat">The render pass stencil format.</param>
-    /// <param name="sampleCount">The render pass sample count.</param>
-    /// <returns>The pipeline; owned by the material's shader.</returns>
-    public GPUPipeline GetPipeline(ReadOnlySpan<Format> colorFormats, Format depthFormat,
+    internal GPUPipeline GetPipeline(ReadOnlySpan<Format> colorFormats, Format depthFormat,
         Format stencilFormat = Format.Undefined, uint sampleCount = 1)
     {
         return Variant.GetPipeline(in _state, in _stateKey,
@@ -339,10 +358,7 @@ public class Material
         return WarmUpPipeline(new RenderPassSignature(colorFormats, depthFormat, stencilFormat, sampleCount));
     }
 
-    /// <summary>Copies resolved root data into per-frame storage; direct command use leaves shader and bound-resource retention to the caller.</summary>
-    /// <param name="frameData">The exclusive allocator; retain its storage until the GPU finishes the recorded uses.</param>
-    /// <returns>The 16-byte-aligned root allocation; pass its <c>GPURange</c> to draw and dispatch commands.</returns>
-    public unsafe GPUAllocation<byte> AllocateRoot(BumpAllocator frameData)
+    internal unsafe GPUAllocation<byte> AllocateRoot(BumpAllocator frameData)
     {
         int size = (int)Variant.Root.SizeBytes;
         Debug.Assert(frameData != null && size != 0);
@@ -391,7 +407,7 @@ public class Material
 
     internal void RetainResources(List<RenderingResource> resources)
     {
-        Debug.Assert(!_shader.IsDestroyed);
+        Debug.Assert(!_shader.IsReleased);
         resources.Add(_shader);
         RetainBindings(resources);
     }
@@ -401,7 +417,7 @@ public class Material
         for (int index = 0; index < _bindingCount; ++index)
         {
             RenderingResource resource = _bindings[index].Resource;
-            Debug.Assert(!resource.IsDestroyed);
+            Debug.Assert(!resource.IsReleased);
             resources.Add(resource);
         }
         foreach (RootField field in StagingRoot.LeafFields)

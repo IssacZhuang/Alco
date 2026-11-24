@@ -504,8 +504,8 @@ public unsafe class TestMeshScene3D
                 var passSig = new RenderPassSignature([Format.Rgba8Unorm], Format.D32Float);
                 var passDesc = new RenderingDesc
                 {
-                    Colors = [new ColorAttachment { RenderView = colorTarget.RenderView, Load = LoadOp.Clear, Store = StoreOp.Store, Clear = new Vector4(0f, 0f, 0f, 1f) }],
-                    Depth = new DepthAttachment { RenderView = depthTarget.RenderView, Load = LoadOp.Clear, Store = StoreOp.Store, Clear = 1f },
+                    Colors = [new ColorAttachment { Target = colorTarget, Load = LoadOp.Clear, Store = StoreOp.Store, Clear = new Vector4(0f, 0f, 0f, 1f) }],
+                    Depth = new DepthAttachment { Target = depthTarget, Load = LoadOp.Clear, Store = StoreOp.Store, Clear = 1f },
                 };
 
                 // Frame 1: PrepareAndCull + RenderTier.
@@ -599,17 +599,17 @@ public unsafe class TestMeshScene3D
                     handles[i].Dispose();
                 }
 
-                context.Destroy();
+                context.Dispose();
                 for (int i = 0; i < geometries.Count; ++i)
                 {
                     geometries[i].Dispose();
                 }
 
-                if (!colorTarget.IsDestroyed) colorTarget.Destroy();
-                if (!depthTarget.IsDestroyed) depthTarget.Destroy();
-                if (!texRed.IsDestroyed) texRed.Destroy();
-                if (!texGreen.IsDestroyed) texGreen.Destroy();
-                if (!texBlue.IsDestroyed) texBlue.Destroy();
+                if (!colorTarget.IsDisposed) colorTarget.Dispose();
+                if (!depthTarget.IsDisposed) depthTarget.Dispose();
+                if (!texRed.IsDisposed) texRed.Dispose();
+                if (!texGreen.IsDisposed) texGreen.Dispose();
+                if (!texBlue.IsDisposed) texBlue.Dispose();
             }
         }
     }
@@ -662,8 +662,8 @@ public unsafe class TestMeshScene3D
                 scene.PrepareAndCull(context, MeshScene3DCullView.FromCamera(camera, cullMargin: 0f, originOffset: originOffset));
                 var passDesc = new RenderingDesc
                 {
-                    Colors = [new ColorAttachment { RenderView = colorTarget.RenderView, Load = LoadOp.Clear, Store = StoreOp.Store, Clear = new Vector4(0f, 0f, 0f, 1f) }],
-                    Depth = new DepthAttachment { RenderView = depthTarget.RenderView, Load = LoadOp.Clear, Store = StoreOp.Store, Clear = 1f },
+                    Colors = [new ColorAttachment { Target = colorTarget, Load = LoadOp.Clear, Store = StoreOp.Store, Clear = new Vector4(0f, 0f, 0f, 1f) }],
+                    Depth = new DepthAttachment { Target = depthTarget, Load = LoadOp.Clear, Store = StoreOp.Store, Clear = 1f },
                 };
                 using (RenderContext.RenderScope render = context.BeginRenderPass(passDesc, passSig))
                 {
@@ -694,11 +694,11 @@ public unsafe class TestMeshScene3D
                     handles[i].Dispose();
                 }
 
-                context.Destroy();
-                if (!colorTarget.IsDestroyed) colorTarget.Destroy();
-                if (!depthTarget.IsDestroyed) depthTarget.Destroy();
-                if (!texGreen.IsDestroyed) texGreen.Destroy();
-                if (!texRed.IsDestroyed) texRed.Destroy();
+                context.Dispose();
+                if (!colorTarget.IsDisposed) colorTarget.Dispose();
+                if (!depthTarget.IsDisposed) depthTarget.Dispose();
+                if (!texGreen.IsDisposed) texGreen.Dispose();
+                if (!texRed.IsDisposed) texRed.Dispose();
             }
         }
     }
@@ -839,9 +839,10 @@ public unsafe class TestMeshScene3D
         try
         {
             context.Barrier(Stage.Compute | Stage.Indirect, Access.ShaderWrite | Access.IndirectRead, Stage.Transfer, Access.TransferRead);
-            context.CopyMemory(drawArgsBuffer.Range, readback.Range.GPURange);
+            context.CopyMemory(drawArgsBuffer.GetRange(), readback.Range.GPURange);
             context.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Host, Access.HostRead);
-            context.Submit().Wait();
+            context.Submit();
+            device.WaitIdle();
 
             GpuDrawIndexedIndirectArgs[] result = new GpuDrawIndexedIndirectArgs[bucketCount];
             var src = new ReadOnlySpan<GpuDrawIndexedIndirectArgs>(readback.Range.Cpu, bucketCount);
@@ -866,9 +867,10 @@ public unsafe class TestMeshScene3D
         {
             context.BeginFrame();
             context.Barrier(Stage.AllCommands, Access.ShaderWrite | Access.IndirectRead, Stage.Transfer, Access.TransferRead);
-            context.CopyMemory(drawArgsBuffer.Range, readback.Range.GPURange);
+            context.CopyMemory(drawArgsBuffer.GetRange(), readback.Range.GPURange);
             context.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Host, Access.HostRead);
-            context.Submit().Wait();
+            context.Submit();
+            device.WaitIdle();
 
             GpuDrawIndexedIndirectArgs[] result = new GpuDrawIndexedIndirectArgs[bucketCount];
             var src = new ReadOnlySpan<GpuDrawIndexedIndirectArgs>(readback.Range.Cpu, bucketCount);
@@ -877,7 +879,7 @@ public unsafe class TestMeshScene3D
         }
         finally
         {
-            context.Destroy();
+            context.Dispose();
             readback.Destroy();
         }
     }
@@ -891,9 +893,10 @@ public unsafe class TestMeshScene3D
         {
             context.BeginFrame();
             context.Barrier(Stage.AllCommands, Access.ColorWrite, Stage.Transfer, Access.TransferRead);
-            context.CopyTextureToMemory(target.NativeTexture, readback.Range.GPURange);
+            context.CopyTextureToMemory(target.GetNativeTexture(), readback.Range.GPURange);
             context.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Host, Access.HostRead);
-            context.Submit().Wait();
+            context.Submit();
+            device.WaitIdle();
 
             byte[] pixels = new byte[(int)byteCount];
             new ReadOnlySpan<byte>(readback.Range.Cpu, (int)byteCount).CopyTo(pixels);
@@ -901,7 +904,7 @@ public unsafe class TestMeshScene3D
         }
         finally
         {
-            context.Destroy();
+            context.Dispose();
             readback.Destroy();
         }
     }

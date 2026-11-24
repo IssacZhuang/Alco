@@ -416,9 +416,9 @@ internal static unsafe class HeapPoolGpuTests
                 uploaded.InitializeTexture(small);
                 uploaded.InitializeTexture(color);
                 uploaded.CopyMemoryToTexture(upload.Range.GPURange, small);
-                uploaded.BeginRenderPass(new RenderingDesc
+                uploaded.BeginRenderPass(new GPURenderingDesc
                 {
-                    Colors = [new ColorAttachment
+                    Colors = [new GPUColorAttachment
                     {
                         RenderView = views[pair],
                         Load = LoadOp.Clear,

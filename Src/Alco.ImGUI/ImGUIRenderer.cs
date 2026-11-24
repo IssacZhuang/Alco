@@ -2,7 +2,6 @@ using System.Diagnostics;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using Alco.Graphics;
-using Alco.Graphics.LowLevel;
 using Alco.Rendering;
 using Buffer = Alco.Graphics.Buffer;
 
@@ -27,7 +26,6 @@ public sealed unsafe class ImGUIRenderer : AutoDisposable
     private readonly HashSet<FontLanguage> _addedLanguages = new();
     private readonly List<PooledBuffer> _vertexBufferPool = new(2);
     private readonly List<PooledBuffer> _indexBufferPool = new(2);
-    private readonly List<RetiredTexture> _retiredFontTextures = new(2);
 
     private IntPtr _imGuiContext;
     private Texture _fontTexture;
@@ -98,9 +96,9 @@ public sealed unsafe class ImGUIRenderer : AutoDisposable
         }
         catch
         {
-            if (_fontTexture != null && !_fontTexture.IsDestroyed)
+            if (_fontTexture != null && !_fontTexture.IsDisposed)
             {
-                _fontTexture.Destroy();
+                _fontTexture.Dispose();
             }
             if (_imGuiContext != IntPtr.Zero)
             {
@@ -129,7 +127,6 @@ public sealed unsafe class ImGUIRenderer : AutoDisposable
     {
         ObjectDisposedException.ThrowIf(IsDisposed, this);
         EnsureCurrentContext();
-        ReclaimRetiredTextures();
 
         if (_fontTextureDirty)
         {
@@ -160,15 +157,18 @@ public sealed unsafe class ImGUIRenderer : AutoDisposable
     /// Records an overlay render pass that loads existing contents and draws ImGui geometry on top.
     /// </summary>
     /// <param name="context">An active render context between scopes.</param>
-    /// <param name="targetView">The color render target view to draw into.</param>
-    /// <param name="targetExtent">The render target extent in physical pixels.</param>
+    /// <param name="target">The color render target to draw into.</param>
     /// <param name="insertBarrier">Whether to emit a barrier ensuring prior writes are visible before blending.</param>
-    public void Draw(RenderContext context, GPURenderView targetView, Extent2D targetExtent, bool insertBarrier = true)
+    public void Draw(RenderContext context, RenderTarget target, bool insertBarrier = true)
     {
         ObjectDisposedException.ThrowIf(IsDisposed, this);
         ArgumentNullException.ThrowIfNull(context);
-        ArgumentNullException.ThrowIfNull(targetView);
+        if (!target.IsValid)
+        {
+            return;
+        }
 
+        Extent2D targetExtent = target.Extent;
         if (targetExtent.X == 0 || targetExtent.Y == 0)
         {
             return;
@@ -196,7 +196,7 @@ public sealed unsafe class ImGUIRenderer : AutoDisposable
             [
                 new ColorAttachment
                 {
-                    RenderView = targetView,
+                    Target = target,
                     Load = LoadOp.Load,
                     Store = StoreOp.Store,
                 },
@@ -282,7 +282,7 @@ public sealed unsafe class ImGUIRenderer : AutoDisposable
 
         Vector2 scale = new(2.0f / drawData.DisplaySize.X, -2.0f / drawData.DisplaySize.Y);
         Vector2 translate = new Vector2(-1.0f, 1.0f) - drawData.DisplayPos * scale;
-        uint descriptorCapacity = _renderingSystem.TextureDescriptorHeap.Capacity;
+        uint descriptorCapacity = _renderingSystem.TextureDescriptorCapacity;
         uint whiteTextureIndex = _renderingSystem.TextureWhite.SampledIndex;
 
         uint vertexOffset = 0;
@@ -321,18 +321,12 @@ public sealed unsafe class ImGUIRenderer : AutoDisposable
                     ? (uint)rawTextureId
                     : whiteTextureIndex;
 
-                GPUAllocation<ImGuiRootArguments> root = context.FrameData.Allocate<ImGuiRootArguments>();
-                if (root.Cpu == null || root.Buffer == null)
-                {
-                    throw new InvalidOperationException("RenderContext FrameData capacity exhausted while recording ImGui draw commands.");
-                }
-
                 uint baseVertex = checked(vertexOffset + cmd.VtxOffset);
-                *root.Cpu = new ImGuiRootArguments
+                ImGuiRootArguments root = new()
                 {
                     Scale = scale,
                     Translate = translate,
-                    Vertices = vertexBuffer.View.OffsetBy(checked(baseVertex * (uint)sizeof(ImDrawVert))),
+                    Vertices = vertexBuffer.Slice(checked((ulong)baseVertex * (ulong)sizeof(ImDrawVert))).View,
                     Texture = textureIndex,
                 };
 
@@ -345,7 +339,7 @@ public sealed unsafe class ImGUIRenderer : AutoDisposable
                 });
                 render.DrawIndexed(
                     _material,
-                    root.GPURange,
+                    in root,
                     default,
                     indexBuffer,
                     IndexType.UInt16,
@@ -436,40 +430,14 @@ public sealed unsafe class ImGUIRenderer : AutoDisposable
 
     private void UpdateFontTexture()
     {
-        ReclaimRetiredTextures();
         ImGuiIOPtr io = ImGui.GetIO();
         Texture nextTexture = BuildFontTexture(io);
         Texture previousTexture = _fontTexture;
         _fontTexture = nextTexture;
 
-        if (previousTexture != null && !previousTexture.IsDestroyed)
+        if (previousTexture != null && !previousTexture.IsDisposed)
         {
-            if (_lastDrawContext != null && !_lastDrawContext.IsDestroyed && _lastDrawContext.IsFramePending(_lastDrawFrameId))
-            {
-                _retiredFontTextures.Add(new RetiredTexture(_lastDrawContext, _lastDrawFrameId, previousTexture));
-            }
-            else
-            {
-                previousTexture.Destroy();
-            }
-        }
-    }
-
-    private void ReclaimRetiredTextures()
-    {
-        for (int i = _retiredFontTextures.Count - 1; i >= 0; i--)
-        {
-            RetiredTexture retired = _retiredFontTextures[i];
-            if (retired.Context != null && !retired.Context.IsDestroyed && retired.Context.IsFramePending(retired.FrameId))
-            {
-                continue;
-            }
-
-            if (!retired.Texture.IsDestroyed)
-            {
-                retired.Texture.Destroy();
-            }
-            _retiredFontTextures.RemoveAt(i);
+            previousTexture.Dispose();
         }
     }
 
@@ -478,7 +446,7 @@ public sealed unsafe class ImGUIRenderer : AutoDisposable
         for (int i = 0; i < pool.Count; i++)
         {
             PooledBuffer entry = pool[i];
-            if (entry.Context != null && !entry.Context.IsDestroyed && entry.Context.IsFramePending(entry.FrameId))
+            if (entry.Context != null && !entry.Context.IsDisposed && entry.Context.IsFramePending(entry.FrameId))
             {
                 continue;
             }
@@ -486,7 +454,7 @@ public sealed unsafe class ImGUIRenderer : AutoDisposable
             if (entry.Buffer.SizeBytes < requiredBytes)
             {
                 ulong grownBytes = NextCapacity(requiredBytes, Math.Max(minBytes, entry.Buffer.SizeBytes * 2));
-                entry.Buffer.Destroy();
+                entry.Buffer.Dispose();
                 entry.Buffer = _renderingSystem.CreateBuffer(grownBytes);
             }
 
@@ -518,7 +486,7 @@ public sealed unsafe class ImGUIRenderer : AutoDisposable
 
     private static void WaitIfPending(RenderContext? context, ulong frameId)
     {
-        if (context != null && !context.IsDestroyed && context.IsFramePending(frameId))
+        if (context != null && !context.IsDisposed && context.IsFramePending(frameId))
         {
             context.Wait();
         }
@@ -538,9 +506,9 @@ public sealed unsafe class ImGUIRenderer : AutoDisposable
             for (int i = 0; i < _vertexBufferPool.Count; i++)
             {
                 WaitIfPending(_vertexBufferPool[i].Context, _vertexBufferPool[i].FrameId);
-                if (!_vertexBufferPool[i].Buffer.IsDestroyed)
+                if (!_vertexBufferPool[i].Buffer.IsDisposed)
                 {
-                    _vertexBufferPool[i].Buffer.Destroy();
+                    _vertexBufferPool[i].Buffer.Dispose();
                 }
             }
             _vertexBufferPool.Clear();
@@ -548,26 +516,16 @@ public sealed unsafe class ImGUIRenderer : AutoDisposable
             for (int i = 0; i < _indexBufferPool.Count; i++)
             {
                 WaitIfPending(_indexBufferPool[i].Context, _indexBufferPool[i].FrameId);
-                if (!_indexBufferPool[i].Buffer.IsDestroyed)
+                if (!_indexBufferPool[i].Buffer.IsDisposed)
                 {
-                    _indexBufferPool[i].Buffer.Destroy();
+                    _indexBufferPool[i].Buffer.Dispose();
                 }
             }
             _indexBufferPool.Clear();
 
-            for (int i = 0; i < _retiredFontTextures.Count; i++)
+            if (_fontTexture != null && !_fontTexture.IsDisposed)
             {
-                WaitIfPending(_retiredFontTextures[i].Context, _retiredFontTextures[i].FrameId);
-                if (!_retiredFontTextures[i].Texture.IsDestroyed)
-                {
-                    _retiredFontTextures[i].Texture.Destroy();
-                }
-            }
-            _retiredFontTextures.Clear();
-
-            if (_fontTexture != null && !_fontTexture.IsDestroyed)
-            {
-                _fontTexture.Destroy();
+                _fontTexture.Dispose();
             }
 
             if (_imGuiContext != IntPtr.Zero)
@@ -597,20 +555,6 @@ public sealed unsafe class ImGUIRenderer : AutoDisposable
             Context = context;
             FrameId = frameId;
             Buffer = buffer;
-        }
-    }
-
-    private readonly struct RetiredTexture
-    {
-        public readonly RenderContext? Context;
-        public readonly ulong FrameId;
-        public readonly Texture Texture;
-
-        public RetiredTexture(RenderContext? context, ulong frameId, Texture texture)
-        {
-            Context = context;
-            FrameId = frameId;
-            Texture = texture;
         }
     }
 

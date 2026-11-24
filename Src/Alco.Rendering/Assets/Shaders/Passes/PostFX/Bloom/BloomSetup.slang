@@ -14,8 +14,8 @@ import AlcoRendering_Bloom;
 [GPURoot]
 public struct BloomSetupRoot
 {
-    public GpuTextureId Source;
-    public GpuTextureId Dest;
+    public GPUTextureId Source;
+    public GPUTextureId Dest;
     public float2 InvDestSize;
     public uint2 DestSize;
     public float Threshold;

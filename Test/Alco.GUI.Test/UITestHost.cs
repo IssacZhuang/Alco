@@ -63,9 +63,10 @@ internal sealed unsafe class UITestHost : IDisposable
         {
             // Separate readback submission ensures consistent host visibility across Vulkan drivers.
             Context.BeginFrame();
-            Context.CopyTextureToMemory(target.NativeTexture, readback.Range.GPURange);
+            Context.CopyTextureToMemory(target.GetNativeTexture(), readback.Range.GPURange);
             Context.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Host, Access.HostRead);
-            Context.Submit().Wait();
+            Context.Submit();
+            RenderingSystem.WaitIdle();
 
             byte[] pixels = new byte[byteCount];
             new ReadOnlySpan<byte>(readback.Range.Cpu, (int)byteCount).CopyTo(pixels);
@@ -80,9 +81,9 @@ internal sealed unsafe class UITestHost : IDisposable
     public void Dispose()
     {
         Device.WaitIdle();
-        if (!Context.IsDestroyed)
-            Context.Destroy();
-        RenderingSystem.Destroy();
+        if (!Context.IsDisposed)
+            Context.Dispose();
+        RenderingSystem.Dispose();
         Device.Destroy();
     }
 }

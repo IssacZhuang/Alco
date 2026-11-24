@@ -242,22 +242,22 @@ public unsafe class TestFXAANode
                 }
                 finally
                 {
-                    badInPlace.Destroy();
+                    badInPlace.Dispose();
                 }
             }
             finally
             {
-                graphicsGraph.Destroy();
+                graphicsGraph.Dispose();
             }
         }
         finally
         {
-            graph.Destroy();
-            colorOnlyOutput.Destroy();
-            srgbColor.Destroy();
-            sceneDepth.Destroy();
-            sceneColor.Destroy();
-            context.Destroy();
+            graph.Dispose();
+            colorOnlyOutput.Dispose();
+            srgbColor.Dispose();
+            sceneDepth.Dispose();
+            sceneColor.Dispose();
+            context.Dispose();
         }
     }
 
@@ -366,8 +366,8 @@ public unsafe class TestFXAANode
         finally
         {
             device.WaitIdle();
-            context.Destroy();
-            rendering.Destroy();
+            context.Dispose();
+            rendering.Dispose();
             device.Destroy();
         }
     }
@@ -402,7 +402,7 @@ public unsafe class TestFXAANode
     {
         context.BeginFrame();
         graph.Execute(context);
-        context.Submit().Wait();
+        context.Submit();
     }
 
     private static byte[] ExecuteRgba8Fxaa(
@@ -471,7 +471,8 @@ public unsafe class TestFXAANode
 
             context.BeginFrame();
             graph.Execute(context);
-            context.Submit().Wait();
+            context.Submit();
+            rendering.WaitIdle();
 
             if (!readback)
             {
@@ -484,18 +485,18 @@ public unsafe class TestFXAANode
         }
         finally
         {
-            graph.Destroy();
-            if (srcDepth != null && !srcDepth.IsDestroyed)
+            graph.Dispose();
+            if (srcDepth != null && !srcDepth.IsDisposed)
             {
-                srcDepth.Destroy();
+                srcDepth.Dispose();
             }
-            if (!dstColor.IsDestroyed)
+            if (!dstColor.IsDisposed)
             {
-                dstColor.Destroy();
+                dstColor.Dispose();
             }
-            if (!srcColor.IsDestroyed)
+            if (!srcColor.IsDisposed)
             {
-                srcColor.Destroy();
+                srcColor.Dispose();
             }
         }
     }
@@ -556,16 +557,16 @@ public unsafe class TestFXAANode
         try
         {
             context.BeginFrame();
-            GPURange root = context.AllocateRoot(new DepthSeedRoot
+            DepthSeedRoot root = new()
             {
                 DepthValues = depthBuffer.View,
                 Width = width,
-            });
+            };
             RenderingDesc desc = new()
             {
                 Depth = new DepthAttachment
                 {
-                    RenderView = depthTexture.RenderView,
+                    Target = depthTexture,
                     Load = LoadOp.Clear,
                     Store = StoreOp.Store,
                     Clear = 1.0f,
@@ -575,14 +576,15 @@ public unsafe class TestFXAANode
             {
                 render.SetViewport(new Viewport { Width = width, Height = height });
                 render.SetScissor(new Scissor { Width = width, Height = height });
-                render.Draw(material, root, new DepthStencilState { DepthTest = true, DepthWrite = true, DepthCompare = CompareOp.Always }, 3u);
+                render.Draw(material, in root, new DepthStencilState { DepthTest = true, DepthWrite = true, DepthCompare = CompareOp.Always }, 3u);
             }
             context.Barrier(Stage.DepthStencilTests, Access.DepthStencilWrite, Stage.Compute | Stage.Pixel, Access.ShaderRead);
-            context.Submit().Wait();
+            context.Submit();
+            rendering.WaitIdle();
         }
         finally
         {
-            depthBuffer.Destroy();
+            depthBuffer.Dispose();
         }
     }
 
@@ -641,7 +643,8 @@ public unsafe class TestFXAANode
 
             context.BeginFrame();
             graph.Execute(context);
-            context.Submit().Wait();
+            context.Submit();
+            rendering.WaitIdle();
 
             Vector4[] hdrOut = ReadbackRgba16Float(rendering, dst, (int)width, (int)height);
             int smoothedCount = 0;
@@ -665,9 +668,9 @@ public unsafe class TestFXAANode
         }
         finally
         {
-            graph.Destroy();
-            if (!dst.IsDestroyed) dst.Destroy();
-            if (!src.IsDestroyed) src.Destroy();
+            graph.Dispose();
+            if (!dst.IsDisposed) dst.Dispose();
+            if (!src.IsDisposed) src.Dispose();
         }
     }
 
@@ -704,7 +707,8 @@ public unsafe class TestFXAANode
 
             context.BeginFrame();
             graph.Execute(context, RenderGraphTarget.FromTexture(output), outputFinalUsage: RGUsage.TransferRead);
-            context.Submit().Wait();
+            context.Submit();
+            rendering.WaitIdle();
 
             byte[] actual = new byte[width * height * 4];
             rendering.ReadTexture(output, actual);
@@ -712,9 +716,9 @@ public unsafe class TestFXAANode
         }
         finally
         {
-            graph.Destroy();
-            if (!output.IsDestroyed) output.Destroy();
-            if (!src.IsDestroyed) src.Destroy();
+            graph.Dispose();
+            if (!output.IsDisposed) output.Dispose();
+            if (!src.IsDisposed) src.Dispose();
         }
     }
 

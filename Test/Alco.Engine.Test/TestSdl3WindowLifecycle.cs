@@ -54,7 +54,7 @@ public sealed class TestSdl3WindowLifecycle
             }
             finally
             {
-                firstContext.Destroy();
+                firstContext.Dispose();
             }
 
             platform.CloseView(first);
@@ -76,7 +76,7 @@ public sealed class TestSdl3WindowLifecycle
 
                 ColorAttachment color = new()
                 {
-                    RenderView = secondFrame.RenderView,
+                    Target = LowLevelGraphicsExtensions.FromRenderView(secondFrame.RenderView!, secondFrame.Extent),
                     Load = LoadOp.Clear,
                     Store = StoreOp.Store,
                 };
@@ -89,7 +89,7 @@ public sealed class TestSdl3WindowLifecycle
             }
             finally
             {
-                secondContext.Destroy();
+                secondContext.Dispose();
             }
 
             platform.CloseView(second);
@@ -101,7 +101,7 @@ public sealed class TestSdl3WindowLifecycle
         {
             device?.WaitIdle();
             platform?.Dispose();
-            rendering?.Destroy();
+            rendering?.Dispose();
             device?.Destroy();
             Gpu.SetErrorCallback(null);
             SDL_Quit();

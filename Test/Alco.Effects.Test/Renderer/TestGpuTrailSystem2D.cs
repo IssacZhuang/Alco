@@ -195,7 +195,7 @@ public sealed class TestGpuTrailSystem2D
             }
             finally
             {
-                context.Destroy();
+                context.Dispose();
             }
         }
     }
@@ -222,7 +222,7 @@ public sealed class TestGpuTrailSystem2D
                 system.PrepareRender(context);
                 var passDesc = new RenderingDesc
                 {
-                    Colors = [new ColorAttachment { RenderView = target.RenderView, Load = LoadOp.Clear, Store = StoreOp.Store, Clear = Vector4.Zero }],
+                    Colors = [new ColorAttachment { Target = target, Load = LoadOp.Clear, Store = StoreOp.Store, Clear = Vector4.Zero }],
                 };
                 using (var render = context.BeginRenderPass(passDesc, passSig))
                 {
@@ -230,7 +230,8 @@ public sealed class TestGpuTrailSystem2D
                     render.SetScissor(new Scissor { Width = 32, Height = 32 });
                     system.Render(context, render, in vp);
                 }
-                context.Submit().Wait();
+                context.Submit();
+                host.RenderingSystem.WaitIdle();
             }
 
             for (int i = 0; i < 128; i++) Frame();
@@ -241,8 +242,8 @@ public sealed class TestGpuTrailSystem2D
         }
         finally
         {
-            context.Destroy();
-            target.Destroy();
+            context.Dispose();
+            target.Dispose();
         }
     }
 
@@ -280,7 +281,7 @@ public sealed class TestGpuTrailSystem2D
             system.PrepareRender(context);
             var passDesc = new RenderingDesc
             {
-                Colors = [new ColorAttachment { RenderView = target.RenderView, Load = LoadOp.Clear, Store = StoreOp.Store, Clear = Vector4.Zero }],
+                Colors = [new ColorAttachment { Target = target, Load = LoadOp.Clear, Store = StoreOp.Store, Clear = Vector4.Zero }],
             };
             using (var render = context.BeginRenderPass(passDesc, new RenderPassSignature([Format.Rgba8Unorm])))
             {
@@ -305,8 +306,8 @@ public sealed class TestGpuTrailSystem2D
         finally
         {
             trail.Dispose();
-            context.Destroy();
-            target.Destroy();
+            context.Dispose();
+            target.Dispose();
         }
     }
 
@@ -341,7 +342,7 @@ public sealed class TestGpuTrailSystem2D
             system.PrepareRender(context);
             var passDesc = new RenderingDesc
             {
-                Colors = [new ColorAttachment { RenderView = target.RenderView, Load = LoadOp.Clear, Store = StoreOp.Store, Clear = Vector4.Zero }],
+                Colors = [new ColorAttachment { Target = target, Load = LoadOp.Clear, Store = StoreOp.Store, Clear = Vector4.Zero }],
             };
             using (var render = context.BeginRenderPass(passDesc, new RenderPassSignature([Format.Rgba8Unorm])))
             {
@@ -357,8 +358,8 @@ public sealed class TestGpuTrailSystem2D
         finally
         {
             trail.Dispose();
-            context.Destroy();
-            target.Destroy();
+            context.Dispose();
+            target.Dispose();
         }
     }
 
@@ -382,7 +383,7 @@ public sealed class TestGpuTrailSystem2D
             contextB.BeginFrame(); // Also CurrentFrameId == 1
             var passDesc = new RenderingDesc
             {
-                Colors = [new ColorAttachment { RenderView = target.RenderView, Load = LoadOp.Clear, Store = StoreOp.Store, Clear = Vector4.Zero }],
+                Colors = [new ColorAttachment { Target = target, Load = LoadOp.Clear, Store = StoreOp.Store, Clear = Vector4.Zero }],
             };
             using (var render = contextB.BeginRenderPass(passDesc))
             {
@@ -403,9 +404,9 @@ public sealed class TestGpuTrailSystem2D
         }
         finally
         {
-            contextB.Destroy();
-            contextA.Destroy();
-            target.Destroy();
+            contextB.Dispose();
+            contextA.Dispose();
+            target.Dispose();
         }
     }
 
@@ -467,7 +468,7 @@ public sealed class TestGpuTrailSystem2D
             system.PrepareRender(context);
             var passDesc = new RenderingDesc
             {
-                Colors = [new ColorAttachment { RenderView = target.RenderView, Load = LoadOp.Clear, Store = StoreOp.Store, Clear = Vector4.Zero }],
+                Colors = [new ColorAttachment { Target = target, Load = LoadOp.Clear, Store = StoreOp.Store, Clear = Vector4.Zero }],
             };
             using (var render = context.BeginRenderPass(passDesc))
             {
@@ -482,8 +483,8 @@ public sealed class TestGpuTrailSystem2D
         finally
         {
             trail.Dispose();
-            context.Destroy();
-            target.Destroy();
+            context.Dispose();
+            target.Dispose();
         }
     }
 

@@ -25,8 +25,8 @@ internal static unsafe class SharedSamplerTests
         [GPURoot]
         struct SharedSamplerRoot
         {
-            GpuTextureId Color;
-            GpuTextureId Depth;
+            GPUTextureId Color;
+            GPUTextureId Depth;
             GPUBufferView Samples;
         };
 
@@ -186,15 +186,15 @@ internal static unsafe class SharedSamplerTests
                     context.Barrier(Stage.Transfer, Access.TransferRead, Stage.ColorOutput, Access.ColorWrite);
                 using (RenderContext.RenderScope render = context.BeginRenderPass(new RenderingDesc
                 {
-                    Colors = [new() { RenderView = target.RenderView, Load = LoadOp.Clear }],
-                }, [Format.Rgba8Unorm]))
+                    Colors = [new() { Target = target, Load = LoadOp.Clear }],
+                }))
                 {
                     render.SetViewport(new Viewport { Width = samples.Length, Height = 1 });
                     render.SetScissor(new Scissor { Width = (uint)samples.Length, Height = 1 });
                     render.Draw(material, 3);
                 }
                 context.Barrier(Stage.ColorOutput, Access.ColorWrite, Stage.Transfer, Access.TransferRead);
-                context.CopyTextureToMemory(target.NativeTexture, readback.Range.GPURange);
+                context.CopyTextureToMemory(target.GetNativeTexture(), readback.Range.GPURange);
                 context.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Host, Access.HostRead);
                 GPUCommandBuffer commands = context.EndFrame();
                 ++completion.Value;
@@ -210,19 +210,19 @@ internal static unsafe class SharedSamplerTests
             context?.DiscardFrame();
             context?.Wait();
             system?.Tick();
-            context?.Destroy();
-            shader?.Destroy();
-            sampleBuffer?.Destroy();
-            target?.Destroy();
-            depth?.Destroy();
-            color?.Destroy();
+            context?.Dispose();
+            shader?.Dispose();
+            sampleBuffer?.Dispose();
+            target?.Dispose();
+            depth?.Dispose();
+            color?.Dispose();
             readback.Destroy();
             completion.Semaphore?.Destroy();
-            system?.Destroy();
+            system?.Dispose();
         }
         bool destroyed = bank.Length == SharedSamplers.Count;
         foreach (WeakReference reference in bank)
-            destroyed &= reference.Target is Sampler { IsDestroyed: true };
+            destroyed &= reference.Target is Sampler { IsDisposed: true, IsReleased: true };
         check(destroyed, "system destruction after WaitIdle releases every borrowed fixed sampler");
     }
 
@@ -250,7 +250,7 @@ internal static unsafe class SharedSamplerTests
             SamplerDesc desc = sampler.Desc;
             Filter filter = index is 2 or 3 ? Filter.Nearest : Filter.Linear;
             AddressMode address = index is 1 or 3 or 5 or 6 ? AddressMode.ClampToEdge : AddressMode.Repeat;
-            check(!sampler.IsDestroyed && sampler.Index == (uint)index && (uint)sampler == (uint)index &&
+            check(!sampler.IsDisposed && sampler.Index == (uint)index && (uint)sampler == (uint)index &&
                 desc.MinFilter == filter && desc.MagFilter == filter && desc.MipFilter == filter &&
                 desc.AddressU == address && desc.AddressV == address && desc.AddressW == address &&
                 desc.Anisotropic == (index is 4 or 5) && desc.CompareEnabled == (index == 6) && desc.Compare == CompareOp.LessEqual,
@@ -258,7 +258,7 @@ internal static unsafe class SharedSamplerTests
             if (previous == null)
                 references[index] = new WeakReference(sampler, trackResurrection: true);
             else
-                check(ReferenceEquals(previous[index].Target, sampler) && !sampler.IsDestroyed,
+                check(ReferenceEquals(previous[index].Target, sampler) && !sampler.IsDisposed,
                     $"shared {names[index]} stays system-owned and identical across GC, Tick, and custom churn");
         }
         return references;
@@ -289,7 +289,7 @@ internal static unsafe class SharedSamplerTests
             {
                 for (int index = samplers.Length - 1; index >= 0; --index)
                 {
-                    samplers[index]?.Destroy();
+                    samplers[index]?.Dispose();
                     samplers[index] = null;
                 }
                 for (int index = 0; index < samplers.Length; ++index)
@@ -313,20 +313,20 @@ internal static unsafe class SharedSamplerTests
             GC.Collect(2, GCCollectionMode.Forced, blocking: true);
             GC.WaitForPendingFinalizers();
             Sampler? finalized = abandoned.Target as Sampler;
-            check(finalized is { IsDestroyed: false }, "an unreferenced custom sampler awaits Tick after finalization");
+            check(finalized is { IsReleased: false }, "an unreferenced custom sampler awaits Tick after finalization");
             system.Tick();
-            check(finalized is { IsDestroyed: true }, "Tick reclaims an unreferenced custom sampler after completed frame use");
+            check(finalized is { IsReleased: true }, "Tick reclaims an unreferenced custom sampler after completed frame use");
             recycled = system.CreateSampler(desc);
             check(recycled.Index == collectible.Index && recycled.Index >= SharedSamplers.Count,
                 "GC retirement recycles only the abandoned custom slot, not a shared bank slot");
         }
         finally
         {
-            recycled?.Destroy();
-            if (abandoned?.Target is Sampler { IsDestroyed: false } sampler)
-                sampler.Destroy();
+            recycled?.Dispose();
+            if (abandoned?.Target is Sampler { IsDisposed: false } sampler)
+                sampler.Dispose();
             for (int index = samplers.Length - 1; index >= 0; --index)
-                samplers[index]?.Destroy();
+                samplers[index]?.Dispose();
         }
     }
 

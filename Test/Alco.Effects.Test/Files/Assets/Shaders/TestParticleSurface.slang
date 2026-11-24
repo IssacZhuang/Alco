@@ -14,8 +14,8 @@ public struct DissolveParamsData
     public float edgeWidth;
     public float3 edgeColor;
     public float noiseScale;
-    public GpuTextureId noiseTexture;
-    public GpuTextureId texture;
+    public GPUTextureId noiseTexture;
+    public GPUTextureId texture;
 };
 
 public struct Surface : IParticleSurface

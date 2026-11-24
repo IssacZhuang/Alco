@@ -48,7 +48,7 @@ public sealed class TestSmokeTrailNoise
 
                 var passDesc = new RenderingDesc
                 {
-                    Colors = [new ColorAttachment { RenderView = target.RenderView, Load = LoadOp.Clear, Store = StoreOp.Store, Clear = Vector4.Zero }],
+                    Colors = [new ColorAttachment { Target = target, Load = LoadOp.Clear, Store = StoreOp.Store, Clear = Vector4.Zero }],
                 };
                 using (var render = context.BeginRenderPass(passDesc, new RenderPassSignature([Format.Rgba8Unorm])))
                 {
@@ -65,8 +65,8 @@ public sealed class TestSmokeTrailNoise
             }
             finally
             {
-                context.Destroy();
-                target.Destroy();
+                context.Dispose();
+                target.Dispose();
             }
         }
 

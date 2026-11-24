@@ -34,26 +34,11 @@ internal sealed class ParticleBufferPool<TParticle, TParams> : AutoDisposable
 {
     private const int MinSliceShift = 6; // slices are powers of two, at least 64 particles
 
-    private struct RetiredBuffer
-    {
-        public Alco.Graphics.Buffer Buffer;
-        public RenderContext? Context;
-        public ulong FrameId;
-        public RenderContext? ExtraContext;
-        public ulong ExtraFrameId;
-
-        public readonly bool IsCompleted =>
-            (Context == null || Context.IsFrameCompleted(FrameId)) &&
-            (ExtraContext == null || ExtraContext.IsFrameCompleted(ExtraFrameId));
-    }
-
     private struct PendingCopy
     {
         public Alco.Graphics.Buffer Source;
         public Alco.Graphics.Buffer Target;
         public ulong Bytes;
-        public RenderContext? SourceUseContext;
-        public ulong SourceUseFrameId;
     }
 
     private readonly RenderingSystem _rendering;
@@ -75,7 +60,7 @@ internal sealed class ParticleBufferPool<TParticle, TParams> : AutoDisposable
 
     private readonly List<PendingCopy> _pendingCopies = [];
     private readonly List<PendingCopy> _inFlightCopies = [];
-    private readonly List<RetiredBuffer> _retired = [];
+    private readonly List<Alco.Graphics.Buffer> _staleBuffers = [];
     private readonly List<(uint Offset, uint Count)> _pendingKills = [];
     private readonly List<(uint Offset, uint Count)> _inFlightKills = [];
 
@@ -186,6 +171,15 @@ internal sealed class ParticleBufferPool<TParticle, TParams> : AutoDisposable
     public bool ReconcileFrame(RenderContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
+        if (_staleBuffers.Count > 0 &&
+            (_lastUseContext == null || _lastUseContext.IsDisposed ||
+             !ReferenceEquals(_lastUseContext, context) || _lastUseContext.CurrentFrameId != _lastUseFrameId))
+        {
+            for (int i = 0; i < _staleBuffers.Count; i++)
+                _staleBuffers[i].Dispose();
+            _staleBuffers.Clear();
+        }
+
         if (!_hasUnconfirmedFrame)
             return false;
 
@@ -216,17 +210,7 @@ internal sealed class ParticleBufferPool<TParticle, TParams> : AutoDisposable
         if (!ReferenceEquals(unconfirmed, context) || _unconfirmedFrameId != context.CurrentFrameId)
         {
             for (int i = 0; i < _inFlightCopies.Count; i++)
-            {
-                PendingCopy copy = _inFlightCopies[i];
-                _retired.Add(new RetiredBuffer
-                {
-                    Buffer = copy.Source,
-                    Context = unconfirmed,
-                    FrameId = _unconfirmedFrameId,
-                    ExtraContext = copy.SourceUseContext,
-                    ExtraFrameId = copy.SourceUseFrameId,
-                });
-            }
+                _inFlightCopies[i].Source.Dispose();
             _inFlightCopies.Clear();
             _inFlightKills.Clear();
             _inFlightDirtyMin = int.MaxValue;
@@ -246,7 +230,7 @@ internal sealed class ParticleBufferPool<TParticle, TParams> : AutoDisposable
         _hasUnconfirmedFrame = true;
     }
 
-    /// <summary>Records that <paramref name="context"/> drew from the given buffer snapshot, pinning retired entries until completion.</summary>
+    /// <summary>Records the most recent context and frame that drew from this pool.</summary>
     public void TouchBuffersUsed(
         RenderContext context,
         Alco.Graphics.Buffer particles,
@@ -255,71 +239,12 @@ internal sealed class ParticleBufferPool<TParticle, TParams> : AutoDisposable
         Alco.Graphics.Buffer instanceData)
     {
         ArgumentNullException.ThrowIfNull(context);
-        ulong frameId = context.CurrentFrameId;
+        _ = particles;
+        _ = paramsBuffer;
+        _ = drawArgs;
+        _ = instanceData;
         _lastUseContext = context;
-        _lastUseFrameId = frameId;
-
-        if (ReferenceEquals(particles, _particles)
-            && ReferenceEquals(paramsBuffer, _params)
-            && ReferenceEquals(drawArgs, _drawArgs)
-            && ReferenceEquals(instanceData, _instanceData))
-        {
-            return;
-        }
-
-        for (int i = 0; i < _retired.Count; i++)
-        {
-            RetiredBuffer entry = _retired[i];
-            if (!IsAnyBuffer(entry.Buffer, particles, paramsBuffer, drawArgs, instanceData))
-                continue;
-            PinRetiredUse(ref entry, context, frameId);
-            _retired[i] = entry;
-        }
-
-        for (int i = 0; i < _pendingCopies.Count; i++)
-        {
-            PendingCopy copy = _pendingCopies[i];
-            if (!IsAnyBuffer(copy.Source, particles, paramsBuffer, drawArgs, instanceData))
-                continue;
-            copy.SourceUseContext = context;
-            copy.SourceUseFrameId = frameId;
-            _pendingCopies[i] = copy;
-        }
-
-        for (int i = 0; i < _inFlightCopies.Count; i++)
-        {
-            PendingCopy copy = _inFlightCopies[i];
-            if (!IsAnyBuffer(copy.Source, particles, paramsBuffer, drawArgs, instanceData))
-                continue;
-            copy.SourceUseContext = context;
-            copy.SourceUseFrameId = frameId;
-            _inFlightCopies[i] = copy;
-        }
-    }
-
-    private static bool IsAnyBuffer(
-        Alco.Graphics.Buffer candidate,
-        Alco.Graphics.Buffer particles,
-        Alco.Graphics.Buffer paramsBuffer,
-        Alco.Graphics.Buffer drawArgs,
-        Alco.Graphics.Buffer instanceData)
-        => ReferenceEquals(candidate, particles)
-            || ReferenceEquals(candidate, paramsBuffer)
-            || ReferenceEquals(candidate, drawArgs)
-            || ReferenceEquals(candidate, instanceData);
-
-    private static void PinRetiredUse(ref RetiredBuffer entry, RenderContext context, ulong frameId)
-    {
-        if (entry.Context == null || ReferenceEquals(entry.Context, context) || entry.Context.IsFrameCompleted(entry.FrameId))
-        {
-            entry.Context = context;
-            entry.FrameId = frameId;
-        }
-        else
-        {
-            entry.ExtraContext = context;
-            entry.ExtraFrameId = frameId;
-        }
+        _lastUseFrameId = context.CurrentFrameId;
     }
 
     /// <summary>Writes one emitter's parameter record into the CPU mirror and marks it dirty for upload.</summary>
@@ -391,29 +316,17 @@ internal sealed class ParticleBufferPool<TParticle, TParams> : AutoDisposable
     public void FreeSlot(uint slot) => _freeSlots.Push(slot);
 
     /// <summary>
-    /// Reclaims completed retired buffers, records pending growth migration copies, and stages
+    /// Reconciles pending growth migration copies and stages
     /// dirty emitter parameters into the GPU buffer via <see cref="TransientBufferPool"/>.
     /// Must be called inside an active <see cref="RenderContext"/> frame outside any scope.
     /// </summary>
-    /// <returns>True when at least one <see cref="RenderContext.CopyMemory"/> command was recorded.</returns>
+    /// <returns>True when at least one <see cref="RenderContext.CopyBuffer"/> command was recorded.</returns>
     public unsafe bool RecordUploadsAndMigration(RenderContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
         ReconcileFrame(context);
         _lastUseContext = context;
         _lastUseFrameId = context.CurrentFrameId;
-
-        for (int i = _retired.Count - 1; i >= 0; i--)
-        {
-            if (_retired[i].IsCompleted)
-            {
-                _retired[i].Buffer.Destroy();
-                int last = _retired.Count - 1;
-                if (i != last)
-                    _retired[i] = _retired[last];
-                _retired.RemoveAt(last);
-            }
-        }
 
         int dirtyMin = 0;
         int dirtyCount = 0;
@@ -442,7 +355,7 @@ internal sealed class ParticleBufferPool<TParticle, TParams> : AutoDisposable
                 context.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Transfer, Access.TransferRead);
             }
             PendingCopy copy = _pendingCopies[i];
-            context.CopyMemory(copy.Source.Range.Slice(0, copy.Bytes), copy.Target.Range.Slice(0, copy.Bytes));
+            context.CopyBuffer(copy.Source.Slice(0, copy.Bytes), copy.Target.Slice(0, copy.Bytes));
             _inFlightCopies.Add(copy);
         }
         _pendingCopies.Clear();
@@ -456,7 +369,7 @@ internal sealed class ParticleBufferPool<TParticle, TParams> : AutoDisposable
                 ulong byteSize = (ulong)dirtyCount * elemSize;
                 Alco.Graphics.Buffer staging = _stagingPool.Acquire(context, byteSize);
                 staging.SetData(_cpuParams.AsSpan(dirtyMin, dirtyCount));
-                context.CopyMemory(staging.Range.Slice(0, byteSize), _params.Range.Slice(byteOffset, byteSize));
+                context.CopyBuffer(staging.Slice(0, byteSize), _params.Slice(byteOffset, byteSize));
 
                 _inFlightDirtyMin = Math.Min(_inFlightDirtyMin, dirtyMin);
                 _inFlightDirtyMax = Math.Max(_inFlightDirtyMax, dirtyMin + dirtyCount);
@@ -487,16 +400,14 @@ internal sealed class ParticleBufferPool<TParticle, TParams> : AutoDisposable
                 Source = _particles,
                 Target = newParticles,
                 Bytes = particleBytes,
-                SourceUseContext = _lastUseContext,
-                SourceUseFrameId = _lastUseFrameId,
             });
         }
         else
         {
-            _retired.Add(new RetiredBuffer { Buffer = _particles, Context = _lastUseContext, FrameId = _lastUseFrameId });
+            RetireBuffer(_particles);
         }
 
-        _retired.Add(new RetiredBuffer { Buffer = _instanceData, Context = _lastUseContext, FrameId = _lastUseFrameId });
+        RetireBuffer(_instanceData);
         _particles = newParticles;
         _instanceData = newInstanceData;
         _particleCapacity = newCapacity;
@@ -514,8 +425,8 @@ internal sealed class ParticleBufferPool<TParticle, TParams> : AutoDisposable
         Array.Resize(ref _cpuParams, newCapacity);
         MarkDirty(0, oldCapacity);
 
-        _retired.Add(new RetiredBuffer { Buffer = _drawArgs, Context = _lastUseContext, FrameId = _lastUseFrameId });
-        _retired.Add(new RetiredBuffer { Buffer = _params, Context = _lastUseContext, FrameId = _lastUseFrameId });
+        RetireBuffer(_drawArgs);
+        RetireBuffer(_params);
         _drawArgs = newDrawArgs;
         _params = newParams;
 
@@ -525,25 +436,36 @@ internal sealed class ParticleBufferPool<TParticle, TParams> : AutoDisposable
         Reallocated?.Invoke();
     }
 
+    private void RetireBuffer(Alco.Graphics.Buffer buffer)
+    {
+        if (_lastUseContext != null && !_lastUseContext.IsDisposed && _lastUseFrameId != 0 &&
+            _lastUseContext.CurrentFrameId == _lastUseFrameId)
+        {
+            _staleBuffers.Add(buffer);
+            return;
+        }
+        buffer.Dispose();
+    }
+
     /// <inheritdoc />
     protected override void Dispose(bool disposing)
     {
         if (!disposing)
             return;
 
-        _quadIndices.Destroy();
-        _particles.Destroy();
-        _drawArgs.Destroy();
-        _instanceData.Destroy();
-        _params.Destroy();
-        for (int i = 0; i < _retired.Count; i++)
-            _retired[i].Buffer.Destroy();
-        _retired.Clear();
+        _quadIndices.Dispose();
+        _particles.Dispose();
+        _drawArgs.Dispose();
+        _instanceData.Dispose();
+        _params.Dispose();
+        for (int i = 0; i < _staleBuffers.Count; i++)
+            _staleBuffers[i].Dispose();
+        _staleBuffers.Clear();
         for (int i = 0; i < _pendingCopies.Count; i++)
-            _pendingCopies[i].Source.Destroy();
+            _pendingCopies[i].Source.Dispose();
         _pendingCopies.Clear();
         for (int i = 0; i < _inFlightCopies.Count; i++)
-            _inFlightCopies[i].Source.Destroy();
+            _inFlightCopies[i].Source.Dispose();
         _inFlightCopies.Clear();
         _inFlightKills.Clear();
         _stagingPool.Dispose();

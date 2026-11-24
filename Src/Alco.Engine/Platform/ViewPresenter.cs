@@ -55,6 +55,25 @@ public sealed class ViewPresenter : AutoDisposable
     public bool HasValidFrame => CurrentFrame.RenderView != null && CurrentFrame.Extent.X > 0 && CurrentFrame.Extent.Y > 0;
 
     /// <summary>
+    /// Gets the physical pixel extent of the active frame, or zero when unavailable.
+    /// </summary>
+    public Extent2D CurrentExtent => CurrentFrame.Extent;
+
+    /// <summary>
+    /// Gets a high-level <see cref="RenderTarget"/> wrapping the active swapchain frame, or default when unavailable.
+    /// </summary>
+    public RenderTarget CurrentRenderTarget => CurrentFrame.RenderView != null
+        ? LowLevelGraphicsExtensions.FromRenderView(CurrentFrame.RenderView, CurrentFrame.Extent)
+        : default;
+
+    /// <summary>
+    /// Gets a <see cref="RenderGraphTarget"/> wrapping the active swapchain frame, or default when unavailable.
+    /// </summary>
+    public RenderGraphTarget CurrentRenderGraphTarget => HasValidFrame
+        ? CurrentFrame.ToRenderGraphTarget(SurfaceFormat)
+        : default;
+
+    /// <summary>
     /// Creates a presenter for the given view targeting <paramref name="renderingSystem"/>.
     /// </summary>
     /// <param name="view">The view whose swapchain is presented.</param>
@@ -188,7 +207,7 @@ public sealed class ViewPresenter : AutoDisposable
             _view.OnRestore -= OnWindowRestore;
             _frameContexts.Clear();
             CurrentFrame = default;
-            _acquireContext?.Destroy();
+            _acquireContext?.Dispose();
         }
     }
 

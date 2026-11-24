@@ -1,5 +1,4 @@
 using Alco.Graphics;
-using Alco.Graphics.LowLevel;
 using static Alco.MemoryUtility;
 
 namespace Alco.Rendering;
@@ -16,7 +15,7 @@ public static unsafe class TextureUtility
     public static bool IsBcSupported(RenderingSystem system)
     {
         ArgumentNullException.ThrowIfNull(system);
-        return system.Device.Caps.TextureCompressionBc;
+        return system.Caps.TextureCompressionBc;
     }
 
     /// <summary>Creates an empty 2D GPU texture without uploading initial texels.</summary>
@@ -115,9 +114,9 @@ public static unsafe class TextureUtility
         }
         catch
         {
-            if (!texture.IsDestroyed)
+            if (!texture.IsDisposed)
             {
-                texture.Destroy();
+                texture.Dispose();
             }
             throw;
         }
@@ -250,7 +249,7 @@ public static unsafe class TextureUtility
         ArgumentNullException.ThrowIfNull(system);
         ArgumentNullException.ThrowIfNull(texture);
         ArgumentNullException.ThrowIfNull(output);
-        if (texture.IsDestroyed)
+        if (texture.IsDisposed)
         {
             throw new ObjectDisposedException(nameof(Texture), "Cannot encode a destroyed texture.");
         }
@@ -289,7 +288,7 @@ public static unsafe class TextureUtility
     /// <returns><c>true</c> when <paramref name="format"/> is block-compressed; otherwise, <c>false</c>.</returns>
     public static bool TryGetBlockBytes(Format format, out uint blockBytes)
     {
-        TextureFormatInfo info = Gpu.GetTextureFormatInfo(format);
+        TextureFormatInfo info = Texture.GetFormatInfo(format);
         if (info.BlockExtent.X <= 1 && info.BlockExtent.Y <= 1)
         {
             blockBytes = 0;

@@ -103,7 +103,7 @@ public sealed unsafe class RenderBundle : RenderingResource
     public void DrawIndexed(Material material, Buffer indices, IndexType type, uint indexCount, uint instanceCount = 1,
         uint firstIndex = 0, int vertexOffset = 0, uint firstInstance = 0, ulong byteOffset = 0)
     {
-        Debug.Assert(!indices.IsDestroyed && indices.System == _system && byteOffset <= indices.SizeBytes);
+        Debug.Assert(!indices.IsDisposed && indices.System == _system && byteOffset <= indices.SizeBytes);
         int rootOffset = PrepareDraw(material);
         if (RetainedIndices != indices)
         {
@@ -114,7 +114,7 @@ public sealed unsafe class RenderBundle : RenderingResource
         {
             RootOffset = rootOffset,
             RootSize = (int)material.Root.SizeBytes,
-            Indices = indices.Range.Slice(byteOffset),
+            Indices = indices.LowLevelRange.Slice(byteOffset),
             Count = indexCount,
             InstanceCount = instanceCount,
             First = firstIndex,
@@ -129,7 +129,7 @@ public sealed unsafe class RenderBundle : RenderingResource
     /// <exception cref="GPUException">The persistent root heap could not be created; the recording remains unsealed.</exception>
     public void EndRecording()
     {
-        Debug.Assert(!IsDestroyed && !Sealed);
+        Debug.Assert(!IsDisposed && !Sealed);
         if (RootSize != 0)
         {
             GPUHeap heap = _system.Device.CreateGPUHeap((ulong)RootSize);
@@ -147,7 +147,7 @@ public sealed unsafe class RenderBundle : RenderingResource
 
     internal bool IsCompatible(RenderingSystem system, RenderPassSignature pass)
     {
-        return !IsDestroyed && Sealed && system == _system && _passSignature.Equals(pass);
+        return !IsDisposed && Sealed && system == _system && _passSignature.Equals(pass);
     }
 
     internal void Replay(RenderContext context, GPUCommandBuffer commands)
@@ -191,7 +191,7 @@ public sealed unsafe class RenderBundle : RenderingResource
 
     private int PrepareDraw(Material material)
     {
-        Debug.Assert(!IsDestroyed && !Sealed && material.Shader.System == _system && material.Shader.Kind == ShaderKind.Graphics);
+        Debug.Assert(!IsDisposed && !Sealed && material.Shader.System == _system && material.Shader.Kind == ShaderKind.Graphics);
         GPUPipeline pipeline = material.GetPipeline(_passSignature);
         DepthStencilState depthStencil = material.DepthStencilState;
         if (RunCount == 0 || Runs[RunCount - 1].Pipeline != pipeline ||

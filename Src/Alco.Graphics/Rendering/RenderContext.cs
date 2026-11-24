@@ -2,6 +2,7 @@
 
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using Alco.Graphics.LowLevel;
 
 namespace Alco.Graphics;
@@ -10,20 +11,34 @@ namespace Alco.Graphics;
 /// <remarks>Serialize submissions with all other queue-zero operations that submit work.</remarks>
 public sealed class RenderContext : RenderingResource
 {
+    private struct OverflowPage
+    {
+        internal GPUHeap Heap;
+        internal BumpAllocator Allocator;
+        internal Buffer Buffer;
+        internal ulong CapacityBytes;
+        internal ulong BaseOffset;
+    }
+
     private sealed class FrameSlot
     {
         internal readonly GPUCommandPool Pool;
         internal readonly BumpAllocator RootData;
+        internal readonly Buffer MainBuffer;
+        internal readonly ulong MainBaseOffset;
+        internal List<OverflowPage>? OverflowPages;
         internal GPUHeap UploadHeap;
         internal BumpAllocator? UploadData;
         internal TimelinePoint Completion;
         internal ulong SubmissionValue;
         internal ulong FrameId;
 
-        internal FrameSlot(GPUDevice device, GPUAllocation<byte> storage)
+        internal FrameSlot(RenderingSystem system, GPUAllocation<byte> storage, Buffer mainBuffer)
         {
             RootData = new BumpAllocator(storage);
-            GPUCommandPool pool = device.CreateCommandPool(0);
+            MainBuffer = mainBuffer;
+            MainBaseOffset = storage.Offset;
+            GPUCommandPool pool = system.Device.CreateCommandPool(0);
             try
             {
                 GPUCommandBuffer commands = pool.BeginCommands();
@@ -52,6 +67,7 @@ public sealed class RenderContext : RenderingResource
 
     private readonly GPUHeap _rootHeap;
     private readonly FrameSlot[] _frames;
+    private readonly ulong _frameDataByteCount;
     private readonly ulong _uploadByteCount;
     private int _frameIndex;
     private ulong _nextFrameId;
@@ -79,6 +95,7 @@ public sealed class RenderContext : RenderingResource
     {
         Debug.Assert(frameDataByteCount != 0 && frameDataByteCount % BumpAllocator.Alignment == 0);
         Debug.Assert(uploadByteCount != 0 && uploadByteCount % BumpAllocator.Alignment == 0);
+        _frameDataByteCount = frameDataByteCount;
         _uploadByteCount = uploadByteCount;
         GPUHeap rootHeap = system.Device.CreateGPUHeap(frameDataByteCount * 2);
         FrameSlot[] frames = new FrameSlot[2];
@@ -87,13 +104,18 @@ public sealed class RenderContext : RenderingResource
         try
         {
             for (; frameCount < frames.Length; ++frameCount)
-                frames[frameCount] = new FrameSlot(system.Device, storage.Allocate(frameDataByteCount));
+            {
+                GPUAllocation<byte> slotStorage = storage.Allocate(frameDataByteCount);
+                Buffer mainBuffer = new(system, slotStorage, MemoryType.CpuVisible);
+                frames[frameCount] = new FrameSlot(system, slotStorage, mainBuffer);
+            }
         }
         catch (GPUException)
         {
             for (int index = frameCount - 1; index >= 0; --index)
                 frames[index].Pool.Destroy();
             rootHeap.Destroy();
+            GC.SuppressFinalize(this);
             throw;
         }
         _rootHeap = rootHeap;
@@ -104,7 +126,7 @@ public sealed class RenderContext : RenderingResource
     {
         get
         {
-            Debug.Assert(!IsDestroyed && _recording && _commands != null);
+            Debug.Assert(!IsDisposed && _recording && _commands != null);
             return _commands;
         }
     }
@@ -136,7 +158,7 @@ public sealed class RenderContext : RenderingResource
     /// <returns><see langword="true"/> while the frame's slot and recorded timestamp destinations remain in use.</returns>
     public bool IsFramePending(ulong frameId)
     {
-        if (frameId == 0 || IsDestroyed)
+        if (frameId == 0 || IsDisposed)
             return false;
         for (int index = 0; index < _frames.Length; ++index)
         {
@@ -151,7 +173,7 @@ public sealed class RenderContext : RenderingResource
     /// <returns><see langword="true"/> when resources used only by <paramref name="frameId"/> are safe to destroy without blocking.</returns>
     public bool IsFrameCompleted(ulong frameId)
     {
-        if (frameId == 0 || IsDestroyed)
+        if (frameId == 0 || IsDisposed)
             return true;
         if (frameId == _activeFrameId)
             return false;
@@ -166,42 +188,164 @@ public sealed class RenderContext : RenderingResource
         return true;
     }
 
+    [InlineArray((int)Backend.MaxColorAttachments)]
+    private struct GPUColorAttachmentArray
+    {
+        private GPUColorAttachment _element0;
+    }
+
     private bool HasRenderPass => _scope is ScopeKind.Render or ScopeKind.PreparedRender;
 
-    /// <summary>The current frame allocator; do not reset it or use its allocations after this slot is recycled.</summary>
-    public BumpAllocator FrameData
+    internal BumpAllocator FrameData
     {
         get
         {
-            Debug.Assert(!IsDestroyed && _recording);
+            Debug.Assert(!IsDisposed && _recording);
             return _frames[_frameIndex].RootData;
         }
     }
 
-    /// <summary>Allocates and writes one frame-scoped root struct into <see cref="FrameData"/>.</summary>
+    internal unsafe GPURange AllocateRootRange<TRoot>(in TRoot value) where TRoot : unmanaged
+    {
+        GPUAllocation<byte> allocation = AllocateFrameBytes((ulong)sizeof(TRoot), out _, out _);
+        *(TRoot*)allocation.Cpu = value;
+        return allocation.GPURange;
+    }
+
+    /// <summary>Allocates and writes one frame-scoped root struct into auto-paging transient storage.</summary>
     /// <typeparam name="TRoot">The unmanaged root struct type.</typeparam>
     /// <param name="value">The root payload to copy into per-frame storage.</param>
-    /// <returns>The 16-byte-aligned <see cref="GPURange"/> covering the written root data.</returns>
-    /// <exception cref="InvalidOperationException">Per-frame root storage is exhausted.</exception>
-    public unsafe GPURange AllocateRoot<TRoot>(in TRoot value) where TRoot : unmanaged
+    /// <returns>The 16-byte-aligned <see cref="BufferSlice"/> covering the written root data.</returns>
+    public unsafe BufferSlice AllocateRoot<TRoot>(in TRoot value) where TRoot : unmanaged
     {
-        GPUAllocation<TRoot> allocation = FrameData.Allocate<TRoot>();
-        if (allocation.SizeBytes == 0)
-            throw new InvalidOperationException("The recording frame's root storage is exhausted.");
-        *allocation.Cpu = value;
-        return allocation.GPURange;
+        ulong byteCount = (ulong)sizeof(TRoot);
+        GPUAllocation<byte> allocation = AllocateFrameBytes(byteCount, out Buffer owner, out ulong offset);
+        *(TRoot*)allocation.Cpu = value;
+        return new BufferSlice(owner, offset, byteCount);
+    }
+
+    /// <summary>Uploads transient per-frame data into CPU-visible frame arena storage (auto-paging on overflow).</summary>
+    /// <typeparam name="T">The unmanaged element type.</typeparam>
+    /// <param name="data">The elements to copy into transient GPU-readable storage.</param>
+    /// <returns>A slice valid for the current recorded frame, or empty when <paramref name="data"/> is empty.</returns>
+    public unsafe BufferSlice UploadTransient<T>(ReadOnlySpan<T> data) where T : unmanaged
+    {
+        if (data.IsEmpty)
+            return default;
+        ulong byteCount = (ulong)data.Length * (ulong)sizeof(T);
+        GPUAllocation<byte> allocation = AllocateFrameBytes(byteCount, out Buffer owner, out ulong offset);
+        fixed (T* source = data)
+            NativeMemory.Copy(source, allocation.Cpu, (nuint)byteCount);
+        return new BufferSlice(owner, offset, byteCount);
+    }
+
+    /// <summary>Uploads a single transient struct into CPU-visible frame arena storage (auto-paging on overflow).</summary>
+    /// <typeparam name="T">The unmanaged struct type.</typeparam>
+    /// <param name="value">The value to copy into transient GPU-readable storage.</param>
+    /// <returns>A slice covering the uploaded element for the current recorded frame.</returns>
+    public BufferSlice UploadTransient<T>(in T value) where T : unmanaged =>
+        UploadTransient(MemoryMarshal.CreateReadOnlySpan(in Unsafe.AsRef(in value), 1));
+
+    /// <summary>Reserves transient frame arena storage and returns a writable span plus its GPU slice.</summary>
+    /// <typeparam name="T">The unmanaged element type.</typeparam>
+    /// <param name="count">Number of elements to reserve.</param>
+    /// <param name="slice">Receives the GPU buffer slice valid for the current recorded frame.</param>
+    /// <returns>A writable CPU span covering <paramref name="count"/> elements.</returns>
+    public unsafe Span<T> AllocateTransient<T>(int count, out BufferSlice slice) where T : unmanaged
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(count);
+        if (count == 0)
+        {
+            slice = default;
+            return Span<T>.Empty;
+        }
+        ulong byteCount = (ulong)count * (ulong)sizeof(T);
+        GPUAllocation<byte> allocation = AllocateFrameBytes(byteCount, out Buffer owner, out ulong offset);
+        slice = new BufferSlice(owner, offset, byteCount);
+        return new Span<T>(allocation.Cpu, count);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private GPUAllocation<byte> AllocateFrameBytes(ulong byteCount, out Buffer ownerBuffer, out ulong relativeOffset)
+    {
+        Debug.Assert(!IsDisposed && _recording && byteCount != 0);
+        FrameSlot frame = _frames[_frameIndex];
+        GPUAllocation<byte> allocation = frame.RootData.Allocate(byteCount);
+        if (allocation.SizeBytes != 0)
+        {
+            ownerBuffer = frame.MainBuffer;
+            relativeOffset = allocation.Offset - frame.MainBaseOffset;
+            return allocation;
+        }
+        return AllocateOverflowBytes(frame, byteCount, out ownerBuffer, out relativeOffset);
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private GPUAllocation<byte> AllocateOverflowBytes(FrameSlot frame, ulong byteCount, out Buffer ownerBuffer, out ulong relativeOffset)
+    {
+        List<OverflowPage>? pages = frame.OverflowPages;
+        if (pages != null)
+        {
+            for (int index = 0; index < pages.Count; ++index)
+            {
+                OverflowPage page = pages[index];
+                GPUAllocation<byte> existing = page.Allocator.Allocate(byteCount);
+                if (existing.SizeBytes != 0)
+                {
+                    ownerBuffer = page.Buffer;
+                    relativeOffset = existing.Offset - page.BaseOffset;
+                    return existing;
+                }
+            }
+        }
+
+        ulong alignedRequest = (byteCount + BumpAllocator.Alignment - 1) & ~(BumpAllocator.Alignment - 1);
+        ulong previousCapacity = pages != null && pages.Count > 0 ? pages[^1].CapacityBytes : _frameDataByteCount;
+        ulong doubled = previousCapacity <= ulong.MaxValue / 2 ? previousCapacity * 2 : ulong.MaxValue;
+        ulong pageCapacity = Math.Max(alignedRequest, doubled);
+        GPUHeap heap = _system.Device.CreateGPUHeap(pageCapacity, MemoryType.CpuVisible);
+        try
+        {
+            GPUAllocation<byte> storage = heap.Range;
+            Buffer pageBuffer = new(_system, storage, MemoryType.CpuVisible);
+            BumpAllocator allocator = new(storage);
+            GPUAllocation<byte> allocation = allocator.Allocate(byteCount);
+            pages ??= [];
+            frame.OverflowPages = pages;
+            pages.Add(new OverflowPage
+            {
+                Heap = heap,
+                Allocator = allocator,
+                Buffer = pageBuffer,
+                CapacityBytes = pageCapacity,
+                BaseOffset = storage.Offset,
+            });
+            ownerBuffer = pageBuffer;
+            relativeOffset = allocation.Offset - storage.Offset;
+            return allocation;
+        }
+        catch
+        {
+            heap.Destroy();
+            throw;
+        }
     }
 
     /// <summary>Waits for the next slot, collects its timestamps, and begins recording; resolve the previous frame before calling.</summary>
     /// <exception cref="GPUException">Command recording could not begin.</exception>
     public void BeginFrame()
     {
-        Debug.Assert(!IsDestroyed && _commands == null);
+        Debug.Assert(!IsDisposed && _commands == null);
         _system.Tick();
         FrameSlot frame = _frames[_frameIndex];
         Reclaim(frame);
         frame.Pool.Reset();
         frame.RootData.Reset();
+        if (frame.OverflowPages != null)
+        {
+            for (int index = 0; index < frame.OverflowPages.Count; ++index)
+                frame.OverflowPages[index].Allocator.Reset();
+        }
         frame.UploadData?.Reset();
         _commands = frame.Pool.BeginCommands();
         _recording = true;
@@ -212,42 +356,33 @@ public sealed class RenderContext : RenderingResource
     }
 
     /// <summary>Ends and submits the active frame without presenting or waiting for GPU completion. Close all scopes first.</summary>
-    /// <param name="waits">The GPU dependencies for this submission.</param>
-    /// <returns>The frame's completion point, borrowing the system's timeline. Do not signal or destroy it.</returns>
     /// <exception cref="GPUException">Initialization command recording could not begin.</exception>
-    public TimelinePoint Submit(scoped ReadOnlySpan<TimelinePoint> waits = default)
+    public void Submit()
     {
-        return _system.Submit([this], waits);
+        _system.Submit([this]);
     }
 
-    /// <summary>Ends and submits the active frame and presents the specified image. Close all scopes first.</summary>
-    /// <param name="swapchain">The swapchain whose acquired image to present.</param>
-    /// <param name="waits">The GPU dependencies for this submission.</param>
-    /// <returns>The frame's GPU completion point, borrowing the system's timeline. Do not signal or destroy it.</returns>
-    /// <exception cref="GPUException">Initialization command recording could not begin.</exception>
-    public TimelinePoint SubmitAndPresent(GPUSwapchain swapchain, scoped ReadOnlySpan<TimelinePoint> waits = default)
+    internal TimelinePoint SubmitInternal(scoped ReadOnlySpan<TimelinePoint> waits = default)
+    {
+        return _system.SubmitInternal([this], waits);
+    }
+
+    internal TimelinePoint SubmitAndPresentInternal(GPUSwapchain swapchain, scoped ReadOnlySpan<TimelinePoint> waits = default)
     {
         Debug.Assert(swapchain != null);
         return _system.SubmitPrepared([this], swapchain, waits, _system.PrepareSubmission());
     }
 
-    /// <summary>Ends recording after all scopes close and flushes pending texture initialization for a caller-managed submission.</summary>
-    /// <remarks>Submit this frame once and call <see cref="MarkSubmitted"/>, or discard it.</remarks>
-    /// <returns>The borrowed, ended command buffer for submission only.</returns>
-    /// <exception cref="GPUException">Initialization command recording could not begin.</exception>
-    public GPUCommandBuffer EndFrame()
+    internal GPUCommandBuffer EndFrameInternal()
     {
         GPUCommandBuffer commands = EndRecording();
         _system.FlushUploads();
         return commands;
     }
 
-    /// <summary>Registers the completion covering all uses of a caller-submitted frame and advances to the other slot.</summary>
-    /// <param name="completion">A completion ordered after all frame uses; retain its semaphore until this slot is reclaimed or waited.</param>
-    /// <remarks>Finalized resources alive during the recorded frame retire automatically after <paramref name="completion"/> completes.</remarks>
-    public void MarkSubmitted(TimelinePoint completion)
+    internal void MarkSubmittedInternal(TimelinePoint completion)
     {
-        Debug.Assert(!IsDestroyed && !_recording && _commands != null && completion.Semaphore != null);
+        Debug.Assert(!IsDisposed && !_recording && _commands != null && completion.Semaphore != null);
         RegisterSubmission(completion, _system.OnSubmitted(completion, DetachActiveRecording()));
     }
 
@@ -274,7 +409,7 @@ public sealed class RenderContext : RenderingResource
     /// <summary>Discards an unsubmitted frame and invalidates its scopes, commands, and data; swapchain cancellation remains caller-owned.</summary>
     public void DiscardFrame()
     {
-        Debug.Assert(!IsDestroyed);
+        Debug.Assert(!IsDisposed);
         if (_commands == null)
             return;
         if (HasRenderPass)
@@ -284,6 +419,11 @@ public sealed class RenderContext : RenderingResource
         FrameSlot frame = _frames[_frameIndex];
         frame.Pool.Reset();
         frame.RootData.Reset();
+        if (frame.OverflowPages != null)
+        {
+            for (int index = 0; index < frame.OverflowPages.Count; ++index)
+                frame.OverflowPages[index].Allocator.Reset();
+        }
         frame.UploadData?.Reset();
         frame.FrameId = 0;
         _system.OnDiscardRecording(DetachActiveRecording());
@@ -298,10 +438,13 @@ public sealed class RenderContext : RenderingResource
     /// <summary>Waits for submitted slots and collects timestamps without submitting the current frame.</summary>
     public void Wait()
     {
-        Debug.Assert(!IsDestroyed);
+        Debug.Assert(!IsDisposed);
         foreach (FrameSlot frame in _frames)
             Reclaim(frame);
     }
+
+    /// <summary>Waits for submitted work if needed and releases the context's command pools and frame storage immediately.</summary>
+    public override void Dispose() => DestroyImmediate();
 
     /// <summary>Destroys the command pools and root storage after waiting idle; safe at any point once no frame is being recorded.</summary>
     protected override void Release()
@@ -327,14 +470,17 @@ public sealed class RenderContext : RenderingResource
             frame.FrameId = 0;
             frame.Pool.Destroy();
             frame.UploadHeap.Destroy();
+            if (frame.OverflowPages != null)
+            {
+                for (int index = 0; index < frame.OverflowPages.Count; ++index)
+                    frame.OverflowPages[index].Heap.Destroy();
+                frame.OverflowPages.Clear();
+            }
         }
         _rootHeap.Destroy();
     }
 
-    /// <summary>Acquires an image and records its initial transition between scopes.</summary>
-    /// <param name="swapchain">The swapchain to acquire.</param>
-    /// <returns>A frame borrowed until presentation or reconfiguration, or an empty frame while unavailable.</returns>
-    public SwapchainFrame Acquire(GPUSwapchain swapchain)
+    internal SwapchainFrame AcquireInternal(GPUSwapchain swapchain)
     {
         return CommandsBetweenScopes.Acquire(swapchain);
     }
@@ -358,37 +504,85 @@ public sealed class RenderContext : RenderingResource
         ++_recordedTimestampCount;
     }
 
-    /// <summary>Records a buffer copy between scopes without inserting a barrier.</summary>
-    /// <param name="source">The source range, kept alive until GPU completion.</param>
-    /// <param name="destination">The destination range, kept alive until GPU completion.</param>
-    public void CopyMemory(GPURange source, GPURange destination)
+    /// <summary>Records a buffer-to-buffer copy between scopes without inserting a barrier.</summary>
+    /// <param name="source">The source slice, kept live or disposed-deferred until GPU completion.</param>
+    /// <param name="destination">The destination slice, large enough to receive <paramref name="source"/>.</param>
+    public void CopyBuffer(BufferSlice source, BufferSlice destination)
+    {
+        if (source.IsEmpty)
+            return;
+        Debug.Assert(source.Buffer != null && !source.Buffer.IsDisposed && source.Buffer.System == _system);
+        Debug.Assert(destination.Buffer != null && !destination.Buffer.IsDisposed && destination.Buffer.System == _system);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(source.SizeBytes, destination.SizeBytes);
+        CommandsBetweenScopes.CopyMemory(source.LowLevelRange, destination.LowLevelRange.Slice(0, source.SizeBytes));
+    }
+
+    /// <summary>Records a buffer-to-buffer copy between scopes without inserting a barrier.</summary>
+    /// <param name="source">The source buffer.</param>
+    /// <param name="sourceOffset">The source byte offset.</param>
+    /// <param name="destination">The destination buffer.</param>
+    /// <param name="destinationOffset">The destination byte offset.</param>
+    /// <param name="byteCount">The number of bytes to copy.</param>
+    public void CopyBuffer(Buffer source, ulong sourceOffset, Buffer destination, ulong destinationOffset, ulong byteCount)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        ArgumentNullException.ThrowIfNull(destination);
+        CopyBuffer(source.Slice(sourceOffset, byteCount), destination.Slice(destinationOffset, byteCount));
+    }
+
+    /// <summary>Records a buffer-to-texture copy between scopes without inserting a barrier.</summary>
+    /// <param name="source">The source buffer slice.</param>
+    /// <param name="destination">The single-sample destination texture.</param>
+    /// <param name="copy">The destination texture region and source memory pitches.</param>
+    public void CopyBufferToTexture(BufferSlice source, Texture destination, TextureCopyDesc copy = default)
+    {
+        ArgumentNullException.ThrowIfNull(destination);
+        Debug.Assert(source.Buffer != null && !source.Buffer.IsDisposed && source.Buffer.System == _system);
+        Debug.Assert(!destination.IsDisposed && destination.System == _system);
+        CommandsBetweenScopes.CopyMemoryToTexture(source.LowLevelRange, destination.LowLevelTexture, copy);
+    }
+
+    /// <summary>Records a texture-to-buffer copy between scopes without inserting a barrier.</summary>
+    /// <param name="source">The single-sample source texture.</param>
+    /// <param name="destination">The destination buffer slice.</param>
+    /// <param name="copy">The texture region and destination pitches.</param>
+    public void CopyTextureToBuffer(Texture source, BufferSlice destination, TextureCopyDesc copy = default)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        Debug.Assert(!source.IsDisposed && source.System == _system);
+        Debug.Assert(destination.Buffer != null && !destination.Buffer.IsDisposed && destination.Buffer.System == _system);
+        CommandsBetweenScopes.CopyTextureToMemory(source.LowLevelTexture, destination.LowLevelRange, copy);
+    }
+
+    /// <summary>Records a non-overlapping texture-to-texture copy between scopes without inserting a barrier.</summary>
+    /// <param name="source">The single-sample source texture.</param>
+    /// <param name="destination">The single-sample destination texture.</param>
+    /// <param name="copy">The source and destination regions.</param>
+    public void CopyTexture(Texture source, Texture destination, TextureRegionCopyDesc copy = default)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        ArgumentNullException.ThrowIfNull(destination);
+        Debug.Assert(!source.IsDisposed && source.System == _system);
+        Debug.Assert(!destination.IsDisposed && destination.System == _system);
+        CommandsBetweenScopes.CopyTexture(source.LowLevelTexture, destination.LowLevelTexture, copy);
+    }
+
+    internal void CopyMemoryInternal(GPURange source, GPURange destination)
     {
         CommandsBetweenScopes.CopyMemory(source, destination);
     }
 
-    /// <summary>Records a buffer-to-texture copy between scopes without inserting a barrier.</summary>
-    /// <param name="source">The source range, kept alive until GPU completion.</param>
-    /// <param name="destination">The single-sample destination texture, kept alive until GPU completion.</param>
-    /// <param name="copy">The destination texture region and source pitches.</param>
-    public void CopyMemoryToTexture(GPURange source, GPUTexture destination, TextureCopyDesc copy = default)
+    internal void CopyMemoryToTextureInternal(GPURange source, GPUTexture destination, TextureCopyDesc copy = default)
     {
         CommandsBetweenScopes.CopyMemoryToTexture(source, destination, copy);
     }
 
-    /// <summary>Records a texture-to-buffer copy between scopes without inserting a barrier.</summary>
-    /// <param name="source">The single-sample source texture, kept alive until GPU completion.</param>
-    /// <param name="destination">The destination range, kept alive until GPU completion.</param>
-    /// <param name="copy">The texture region and destination pitches.</param>
-    public void CopyTextureToMemory(GPUTexture source, GPURange destination, TextureCopyDesc copy = default)
+    internal void CopyTextureToMemoryInternal(GPUTexture source, GPURange destination, TextureCopyDesc copy = default)
     {
         CommandsBetweenScopes.CopyTextureToMemory(source, destination, copy);
     }
 
-    /// <summary>Records a non-overlapping texture copy between scopes without inserting a barrier.</summary>
-    /// <param name="source">The single-sample source texture, kept alive until GPU completion.</param>
-    /// <param name="destination">The single-sample destination texture, kept alive until GPU completion.</param>
-    /// <param name="copy">The source and destination regions.</param>
-    public void CopyTexture(GPUTexture source, GPUTexture destination, TextureRegionCopyDesc copy = default)
+    internal void CopyTextureInternal(GPUTexture source, GPUTexture destination, TextureRegionCopyDesc copy = default)
     {
         CommandsBetweenScopes.CopyTexture(source, destination, copy);
     }
@@ -422,7 +616,7 @@ public sealed class RenderContext : RenderingResource
     public unsafe void SetTextureData(Texture texture, ReadOnlySpan<byte> source, in TextureCopyDesc copy = default)
     {
         GPUCommandBuffer commands = CommandsBetweenScopes;
-        Debug.Assert(texture != null && !texture.IsDestroyed && texture.System == _system && !source.IsEmpty);
+        Debug.Assert(texture != null && !texture.IsDisposed && texture.System == _system && !source.IsEmpty);
         ulong byteCount = TextureUpload.GetSizeBytes(texture.Desc, copy);
         if (byteCount > _uploadByteCount)
             throw new InvalidOperationException("The texture upload exceeds this context's per-frame upload capacity.");
@@ -439,7 +633,7 @@ public sealed class RenderContext : RenderingResource
         if (staging.SizeBytes == 0)
             throw new InvalidOperationException("The recording frame's upload storage is exhausted.");
         commands.Barrier(Stage.AllCommands, TextureAccess, Stage.Transfer, Access.TransferRead | Access.TransferWrite);
-        TextureUpload.UploadTexture(commands, staging, texture.NativeTexture, texture.Desc, source, copy);
+        TextureUpload.UploadTexture(commands, staging, texture.LowLevelTexture, texture.Desc, source, copy);
         commands.Barrier(Stage.Transfer, Access.TransferWrite, Stage.AllCommands, TextureAccess);
     }
 
@@ -448,7 +642,9 @@ public sealed class RenderContext : RenderingResource
     /// <returns>The borrowed scope, valid until the pass ends or the frame is discarded.</returns>
     public RenderScope BeginRenderPass(scoped RenderingDesc desc)
     {
-        return BeginRenderPass(desc, RenderPassSignature.From(in desc));
+        GPUColorAttachmentArray colors = default;
+        GPURenderingDesc nativeDesc = ToLowLevel(in desc, ref colors);
+        return BeginRenderPassInternal(nativeDesc, RenderPassSignature.From(in nativeDesc));
     }
 
     /// <summary>Begins a render pass within the active frame using an explicit pass signature.</summary>
@@ -456,6 +652,32 @@ public sealed class RenderContext : RenderingResource
     /// <param name="signature">The pass attachment formats and sample count.</param>
     /// <returns>The borrowed scope, valid until the pass ends or the frame is discarded.</returns>
     public RenderScope BeginRenderPass(scoped RenderingDesc desc, RenderPassSignature signature)
+    {
+        GPUColorAttachmentArray colors = default;
+        GPURenderingDesc nativeDesc = ToLowLevel(in desc, ref colors);
+        return BeginRenderPassInternal(nativeDesc, signature);
+    }
+
+    /// <summary>Begins a render pass within the active frame. No other scope may be open.</summary>
+    /// <param name="desc">The attachments and their operations.</param>
+    /// <param name="colorFormats">The formats matching the color attachments in order.</param>
+    /// <param name="depthFormat">The depth attachment format, or Undefined when absent.</param>
+    /// <param name="stencilFormat">The stencil attachment format, or Undefined when absent.</param>
+    /// <returns>The borrowed scope, valid until the pass ends or the frame is discarded.</returns>
+    public RenderScope BeginRenderPass(scoped RenderingDesc desc, scoped ReadOnlySpan<Format> colorFormats,
+        Format depthFormat = Format.Undefined, Format stencilFormat = Format.Undefined)
+    {
+        GPUColorAttachmentArray colors = default;
+        GPURenderingDesc nativeDesc = ToLowLevel(in desc, ref colors);
+        return BeginRenderPassInternal(nativeDesc, colorFormats, depthFormat, stencilFormat);
+    }
+
+    internal RenderScope BeginRenderPassInternal(scoped GPURenderingDesc desc)
+    {
+        return BeginRenderPassInternal(desc, RenderPassSignature.From(in desc));
+    }
+
+    internal RenderScope BeginRenderPassInternal(scoped GPURenderingDesc desc, RenderPassSignature signature)
     {
         GPUCommandBuffer commands = CommandsBetweenScopes;
         Debug.Assert(signature.ColorCount == desc.Colors.Length);
@@ -468,21 +690,52 @@ public sealed class RenderContext : RenderingResource
         return new RenderScope(this, ++_scopeId);
     }
 
-    /// <summary>Begins a render pass within the active frame. No other scope may be open.</summary>
-    /// <param name="desc">The attachments and their operations.</param>
-    /// <param name="colorFormats">The formats matching the color attachments in order.</param>
-    /// <param name="depthFormat">The depth attachment format, or Undefined when absent.</param>
-    /// <param name="stencilFormat">The stencil attachment format, or Undefined when absent.</param>
-    /// <returns>The borrowed scope, valid until the pass ends or the frame is discarded.</returns>
-    public RenderScope BeginRenderPass(scoped RenderingDesc desc, scoped ReadOnlySpan<Format> colorFormats,
+    internal RenderScope BeginRenderPassInternal(scoped GPURenderingDesc desc, scoped ReadOnlySpan<Format> colorFormats,
         Format depthFormat = Format.Undefined, Format stencilFormat = Format.Undefined)
     {
         Debug.Assert(colorFormats.Length == desc.Colors.Length);
         uint sampleCount = DeriveSampleCount(in desc);
-        return BeginRenderPass(desc, new RenderPassSignature(colorFormats, depthFormat, stencilFormat, sampleCount));
+        return BeginRenderPassInternal(desc, new RenderPassSignature(colorFormats, depthFormat, stencilFormat, sampleCount));
     }
 
-    private static uint DeriveSampleCount(scoped in RenderingDesc desc)
+    private static GPURenderingDesc ToLowLevel(scoped in RenderingDesc desc, ref GPUColorAttachmentArray colorsStorage)
+    {
+        int colorCount = desc.Colors.Length;
+        Debug.Assert(colorCount <= (int)Backend.MaxColorAttachments);
+        Span<GPUColorAttachment> colors = colorsStorage;
+        for (int index = 0; index < colorCount; ++index)
+        {
+            ColorAttachment src = desc.Colors[index];
+            colors[index] = new GPUColorAttachment
+            {
+                RenderView = src.Target.View,
+                ResolveView = src.ResolveTarget.View,
+                Load = src.Load,
+                Store = src.Store,
+                Clear = src.Clear,
+            };
+        }
+        return new GPURenderingDesc
+        {
+            Colors = colors[..colorCount],
+            Depth = new GPUDepthAttachment
+            {
+                RenderView = desc.Depth.Target.View,
+                Load = desc.Depth.Load,
+                Store = desc.Depth.Store,
+                Clear = desc.Depth.Clear,
+            },
+            Stencil = new GPUStencilAttachment
+            {
+                RenderView = desc.Stencil.Target.View,
+                Load = desc.Stencil.Load,
+                Store = desc.Stencil.Store,
+                Clear = desc.Stencil.Clear,
+            },
+        };
+    }
+
+    private static uint DeriveSampleCount(scoped in GPURenderingDesc desc)
     {
         for (int index = 0; index < desc.Colors.Length; ++index)
         {
@@ -497,25 +750,19 @@ public sealed class RenderContext : RenderingResource
         return 1;
     }
 
-    /// <summary>Begins a pass for prepacked roots and caller-owned bindings; do not record material draws in it.</summary>
-    /// <param name="desc">The attachments and their operations, compatible with the pipeline.</param>
-    /// <param name="pipeline">The graphics pipeline, kept alive until GPU completion.</param>
-    /// <param name="textures">The texture descriptor heap, kept alive until GPU completion.</param>
-    /// <param name="samplers">The sampler descriptor heap, kept alive until GPU completion.</param>
-    /// <returns>The borrowed scope for prepared draws, with depth and stencil tests disabled.</returns>
-    public RenderScope BeginPreparedRenderPass(scoped RenderingDesc desc, GPUPipeline pipeline,
+    internal RenderScope BeginPreparedRenderPassInternal(scoped GPURenderingDesc desc, GPUPipeline pipeline,
         GPUTextureDescriptorHeap textures, GPUSamplerDescriptorHeap samplers)
     {
         GPUCommandBuffer commands = CommandsBetweenScopes;
         commands.SetTextureDescriptorHeap(textures);
         commands.SetSamplerDescriptorHeap(samplers);
-        RenderScope render = BeginPreparedRenderPass(desc);
+        RenderScope render = BeginPreparedRenderPassInternal(desc);
         commands.BindPipeline(pipeline);
         commands.SetDepthStencil(default);
         return render;
     }
 
-    internal RenderScope BeginPreparedRenderPass(scoped RenderingDesc desc)
+    internal RenderScope BeginPreparedRenderPassInternal(scoped GPURenderingDesc desc)
     {
         CommandsBetweenScopes.BeginRenderPass(desc);
         _scope = ScopeKind.PreparedRender;
@@ -584,20 +831,54 @@ public sealed class RenderContext : RenderingResource
     [Conditional("DEBUG")]
     private void AssertScope(ScopeKind kind, uint id)
     {
-        Debug.Assert(!IsDestroyed && _recording && IsScopeActive(kind, id));
+        Debug.Assert(!IsDisposed && _recording && IsScopeActive(kind, id));
     }
 
     private GPURange PrepareDraw(Material material, ShaderKind kind = ShaderKind.Graphics)
     {
         BindMaterial(material, material.DepthStencilState, kind);
-        return material.AllocateRoot(_frames[_frameIndex].RootData).GPURange;
+        return AllocateMaterialRoot(material);
+    }
+
+    private GPURange PrepareDrawWithPass<TPass>(Material material, RootField<TPass> passField, in TPass pass,
+        DepthStencilState depthStencil, ShaderKind kind = ShaderKind.Graphics) where TPass : unmanaged
+    {
+        BindMaterial(material, depthStencil, kind);
+        return AllocateMaterialRootWithOverride(material, passField, in pass);
+    }
+
+    private GPURange AllocateMaterialRoot(Material material)
+    {
+        uint rootSize = material.Root.SizeBytes;
+        Debug.Assert(rootSize != 0);
+        GPUAllocation<byte> root = AllocateFrameBytes(rootSize, out _, out _);
+        material.CopyRoot(root.CpuSpan);
+        return root.GPURange;
+    }
+
+    private GPURange AllocateMaterialRootWithOverride<TPass>(Material material, RootField<TPass> passField, in TPass pass)
+        where TPass : unmanaged
+    {
+        uint rootSize = material.Root.SizeBytes;
+        Debug.Assert(rootSize != 0 && passField.IsValid && passField.Offset + passField.SizeBytes <= rootSize);
+        GPUAllocation<byte> root = AllocateFrameBytes(rootSize, out _, out _);
+        material.CopyRoot(root.CpuSpan);
+        MemoryMarshal.Write(root.CpuSpan.Slice((int)passField.Offset, (int)passField.SizeBytes), in pass);
+        return root.GPURange;
+    }
+
+    private unsafe GPURange AllocateRawRoot<TRoot>(in TRoot value) where TRoot : unmanaged
+    {
+        GPUAllocation<byte> root = AllocateFrameBytes((ulong)sizeof(TRoot), out _, out _);
+        *(TRoot*)root.Cpu = value;
+        return root.GPURange;
     }
 
     private void BindMaterial(Material material, DepthStencilState depthStencil, ShaderKind kind = ShaderKind.Graphics)
     {
         Debug.Assert(_recording && _scope == ScopeKind.Render && _commands != null && material.Shader.System == _system);
         Shader shader = material.Shader;
-        Debug.Assert(!shader.IsDestroyed && shader.Kind == kind);
+        Debug.Assert(!shader.IsDisposed && shader.Kind == kind);
         ShaderVariant variant = material.Variant;
         PipelineStateKey stateKey = material.StateKey;
         GPUPipeline? pipeline = _lastPipeline;
@@ -640,18 +921,38 @@ public sealed class RenderContext : RenderingResource
     private GPURange PrepareDispatch(Material material)
     {
         BindCompute(material.Shader, material);
-        return material.AllocateRoot(_frames[_frameIndex].RootData).GPURange;
+        return AllocateMaterialRoot(material);
+    }
+
+    private GPURange PrepareDispatchWithPass<TPass>(Material material, RootField<TPass> passField, in TPass pass) where TPass : unmanaged
+    {
+        BindCompute(material.Shader, material);
+        return AllocateMaterialRootWithOverride(material, passField, in pass);
     }
 
     private void BindCompute(Shader shader, Material? material)
     {
-        Debug.Assert(_recording && _scope == ScopeKind.Compute && _commands != null && !shader.IsDestroyed && shader.Kind == ShaderKind.Compute && shader.System == _system);
+        Debug.Assert(_recording && _scope == ScopeKind.Compute && _commands != null && !shader.IsDisposed && shader.Kind == ShaderKind.Compute && shader.System == _system);
         ShaderVariant variant = material != null ? material.Variant : shader.DefaultVariant;
         if (_lastVariant != variant)
         {
             _commands.BindPipeline(variant.GetComputePipeline());
             _lastVariant = variant;
         }
+    }
+
+    private GPURange ValidateRootSlice(BufferSlice root, uint minSize)
+    {
+        Debug.Assert(root.Buffer != null && !root.Buffer.IsDisposed && root.Buffer.System == _system);
+        GPURange range = root.LowLevelRange;
+        Debug.Assert(range.Buffer != null && range.Offset % BumpAllocator.Alignment == 0 && range.Size >= minSize);
+        return range;
+    }
+
+    private GPURange ValidateBufferSlice(BufferSlice slice)
+    {
+        Debug.Assert(slice.Buffer != null && !slice.Buffer.IsDisposed && slice.Buffer.System == _system);
+        return slice.LowLevelRange;
     }
 
     /// <summary>Records graphics and mesh commands in one active render pass.</summary>
@@ -691,21 +992,12 @@ public sealed class RenderContext : RenderingResource
             _context.RecordingCommands.SetScissor(scissor);
         }
 
-        /// <summary>Records a draw with the pipeline supplied when the prepared pass began.</summary>
-        /// <param name="root">The aligned root range and its referenced resources, kept alive until GPU completion.</param>
-        /// <param name="vertexCount">The number of vertices.</param>
-        public void Draw(GPURange root, uint vertexCount)
+        internal void DrawLowLevel(GPURange root, uint vertexCount)
         {
             PreparedCommands.Draw(root, vertexCount);
         }
 
         /// <summary>Records a draw with a fresh root snapshot.</summary>
-        /// <param name="material">The material; its parameters and state must remain unchanged during parallel recording.</param>
-        /// <param name="vertexCount">The number of vertices per instance.</param>
-        /// <param name="instanceCount">The number of instances.</param>
-        /// <param name="firstVertex">The index of the first vertex.</param>
-        /// <param name="firstInstance">The index of the first instance.</param>
-        /// <exception cref="InvalidOperationException"><see cref="RenderingSystem.PipelineMissPolicy"/> is <see cref="PipelineMissPolicy.Throw"/> and no matching pipeline is cached.</exception>
         public void Draw(Material material, uint vertexCount, uint instanceCount = 1, uint firstVertex = 0, uint firstInstance = 0)
         {
             _context.AssertScope(ScopeKind.Render, _id);
@@ -713,16 +1005,45 @@ public sealed class RenderContext : RenderingResource
             _context.RecordingCommands.Draw(root, vertexCount, instanceCount, firstVertex, firstInstance);
         }
 
-        /// <summary>Records a draw with prepacked root data and draw-local depth and stencil state.</summary>
-        /// <param name="material">The material to bind; do not mutate it during parallel recording.</param>
-        /// <param name="root">The full root block replacing material parameters. Keep it aligned to 16 bytes and its resources live until completion.</param>
-        /// <param name="depthStencil">The depth and stencil state for this draw, without changing the material.</param>
-        /// <param name="vertexCount">The number of vertices per instance.</param>
-        /// <param name="instanceCount">The number of instances.</param>
-        /// <param name="firstVertex">The index of the first vertex.</param>
-        /// <param name="firstInstance">The index of the first instance.</param>
-        /// <exception cref="InvalidOperationException"><see cref="RenderingSystem.PipelineMissPolicy"/> is <see cref="PipelineMissPolicy.Throw"/> and no matching pipeline is cached.</exception>
-        public void Draw(Material material, GPURange root, DepthStencilState depthStencil, uint vertexCount,
+        /// <summary>Records a draw overriding <paramref name="passField"/> in the material's root snapshot.</summary>
+        public void Draw<TPass>(Material material, RootField<TPass> passField, in TPass pass, uint vertexCount,
+            uint instanceCount = 1, uint firstVertex = 0, uint firstInstance = 0) where TPass : unmanaged
+        {
+            _context.AssertScope(ScopeKind.Render, _id);
+            GPURange root = _context.PrepareDrawWithPass(material, passField, in pass, material.DepthStencilState);
+            _context.RecordingCommands.Draw(root, vertexCount, instanceCount, firstVertex, firstInstance);
+        }
+
+        /// <summary>Records a draw overriding <paramref name="passField"/> and depth-stencil state.</summary>
+        public void Draw<TPass>(Material material, RootField<TPass> passField, in TPass pass, DepthStencilState depthStencil,
+            uint vertexCount, uint instanceCount = 1, uint firstVertex = 0, uint firstInstance = 0) where TPass : unmanaged
+        {
+            _context.AssertScope(ScopeKind.Render, _id);
+            GPURange root = _context.PrepareDrawWithPass(material, passField, in pass, depthStencil);
+            _context.RecordingCommands.Draw(root, vertexCount, instanceCount, firstVertex, firstInstance);
+        }
+
+        /// <summary>Records a draw with an explicit typed root struct and draw-local depth-stencil state.</summary>
+        public unsafe void Draw<TRoot>(Material material, in TRoot root, DepthStencilState depthStencil, uint vertexCount,
+            uint instanceCount = 1, uint firstVertex = 0, uint firstInstance = 0) where TRoot : unmanaged
+        {
+            _context.AssertScope(ScopeKind.Render, _id);
+            Debug.Assert((uint)sizeof(TRoot) >= material.Root.SizeBytes);
+            _context.BindMaterial(material, depthStencil);
+            _context.RecordingCommands.Draw(_context.AllocateRawRoot(in root), vertexCount, instanceCount, firstVertex, firstInstance);
+        }
+
+        /// <summary>Records a draw with a prepacked root <see cref="BufferSlice"/> and draw-local depth-stencil state.</summary>
+        public void Draw(Material material, BufferSlice root, DepthStencilState depthStencil, uint vertexCount,
+            uint instanceCount = 1, uint firstVertex = 0, uint firstInstance = 0)
+        {
+            _context.AssertScope(ScopeKind.Render, _id);
+            GPURange range = _context.ValidateRootSlice(root, material.Root.SizeBytes);
+            _context.BindMaterial(material, depthStencil);
+            _context.RecordingCommands.Draw(range, vertexCount, instanceCount, firstVertex, firstInstance);
+        }
+
+        internal void DrawLowLevel(Material material, GPURange root, DepthStencilState depthStencil, uint vertexCount,
             uint instanceCount = 1, uint firstVertex = 0, uint firstInstance = 0)
         {
             _context.AssertScope(ScopeKind.Render, _id);
@@ -732,133 +1053,237 @@ public sealed class RenderContext : RenderingResource
         }
 
         /// <summary>Records an indexed draw with a fresh root snapshot.</summary>
-        /// <param name="material">The material; its parameters and state must remain unchanged during parallel recording.</param>
-        /// <param name="indices">The index buffer.</param>
-        /// <param name="type">The index element type.</param>
-        /// <param name="indexCount">The number of indices per instance.</param>
-        /// <param name="instanceCount">The number of instances.</param>
-        /// <param name="firstIndex">The index of the first index-buffer element.</param>
-        /// <param name="vertexOffset">The offset added to each fetched index.</param>
-        /// <param name="firstInstance">The index of the first instance.</param>
-        /// <param name="byteOffset">The index buffer's byte offset; firstIndex is relative to the resulting subrange.</param>
-        /// <exception cref="InvalidOperationException"><see cref="RenderingSystem.PipelineMissPolicy"/> is <see cref="PipelineMissPolicy.Throw"/> and no matching pipeline is cached.</exception>
         public void DrawIndexed(Material material, Buffer indices, IndexType type, uint indexCount, uint instanceCount = 1,
             uint firstIndex = 0, int vertexOffset = 0, uint firstInstance = 0, ulong byteOffset = 0)
         {
             _context.AssertScope(ScopeKind.Render, _id);
-            Debug.Assert(indices != null && !indices.IsDestroyed && indices.System == _context._system && byteOffset < indices.SizeBytes);
+            Debug.Assert(indices != null && !indices.IsDisposed && indices.System == _context._system && byteOffset < indices.SizeBytes);
             GPURange root = _context.PrepareDraw(material);
-            _context.RecordingCommands.DrawIndexed(root, indices.Range.Slice(byteOffset), type, indexCount, instanceCount, firstIndex, vertexOffset,
+            _context.RecordingCommands.DrawIndexed(root, indices.LowLevelRange.Slice(byteOffset), type, indexCount, instanceCount, firstIndex, vertexOffset,
                 firstInstance);
         }
 
-        /// <summary>Records an indexed draw with prepacked root data and draw-local depth and stencil state.</summary>
-        /// <param name="material">The material to bind; do not mutate it during parallel recording.</param>
-        /// <param name="root">The full root block replacing material parameters. Keep it aligned to 16 bytes and its resources live until completion.</param>
-        /// <param name="depthStencil">The depth and stencil state for this draw, without changing the material.</param>
-        /// <param name="indices">The index buffer.</param>
-        /// <param name="type">The index element type.</param>
-        /// <param name="indexCount">The number of indices per instance.</param>
-        /// <param name="instanceCount">The number of instances.</param>
-        /// <param name="firstIndex">The index of the first index-buffer element.</param>
-        /// <param name="vertexOffset">The offset added to each fetched index.</param>
-        /// <param name="firstInstance">The index of the first instance.</param>
-        /// <param name="byteOffset">The index buffer's byte offset; firstIndex is relative to the resulting subrange.</param>
-        /// <exception cref="InvalidOperationException"><see cref="RenderingSystem.PipelineMissPolicy"/> is <see cref="PipelineMissPolicy.Throw"/> and no matching pipeline is cached.</exception>
-        public void DrawIndexed(Material material, GPURange root, DepthStencilState depthStencil, Buffer indices, IndexType type,
+        /// <summary>Records an indexed draw using a bounded index <see cref="BufferSlice"/>.</summary>
+        public void DrawIndexed(Material material, BufferSlice indices, IndexType type, uint indexCount, uint instanceCount = 1,
+            uint firstIndex = 0, int vertexOffset = 0, uint firstInstance = 0)
+        {
+            _context.AssertScope(ScopeKind.Render, _id);
+            GPURange indexRange = _context.ValidateBufferSlice(indices);
+            GPURange root = _context.PrepareDraw(material);
+            _context.RecordingCommands.DrawIndexed(root, indexRange, type, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
+        }
+
+        /// <summary>Records an indexed draw overriding <paramref name="passField"/> in the material's root snapshot.</summary>
+        public void DrawIndexed<TPass>(Material material, RootField<TPass> passField, in TPass pass,
+            BufferSlice indices, IndexType type, uint indexCount, uint instanceCount = 1,
+            uint firstIndex = 0, int vertexOffset = 0, uint firstInstance = 0) where TPass : unmanaged
+        {
+            _context.AssertScope(ScopeKind.Render, _id);
+            GPURange indexRange = _context.ValidateBufferSlice(indices);
+            GPURange root = _context.PrepareDrawWithPass(material, passField, in pass, material.DepthStencilState);
+            _context.RecordingCommands.DrawIndexed(root, indexRange, type, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
+        }
+
+        /// <summary>Records an indexed draw overriding <paramref name="passField"/> and depth-stencil state.</summary>
+        public void DrawIndexed<TPass>(Material material, RootField<TPass> passField, in TPass pass, DepthStencilState depthStencil,
+            BufferSlice indices, IndexType type, uint indexCount, uint instanceCount = 1,
+            uint firstIndex = 0, int vertexOffset = 0, uint firstInstance = 0) where TPass : unmanaged
+        {
+            _context.AssertScope(ScopeKind.Render, _id);
+            GPURange indexRange = _context.ValidateBufferSlice(indices);
+            GPURange root = _context.PrepareDrawWithPass(material, passField, in pass, depthStencil);
+            _context.RecordingCommands.DrawIndexed(root, indexRange, type, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
+        }
+
+        /// <summary>Records an indexed draw with an explicit typed root struct and draw-local depth-stencil state.</summary>
+        public unsafe void DrawIndexed<TRoot>(Material material, in TRoot root, DepthStencilState depthStencil,
+            BufferSlice indices, IndexType type, uint indexCount, uint instanceCount = 1,
+            uint firstIndex = 0, int vertexOffset = 0, uint firstInstance = 0) where TRoot : unmanaged
+        {
+            _context.AssertScope(ScopeKind.Render, _id);
+            Debug.Assert((uint)sizeof(TRoot) >= material.Root.SizeBytes);
+            GPURange indexRange = _context.ValidateBufferSlice(indices);
+            _context.BindMaterial(material, depthStencil);
+            _context.RecordingCommands.DrawIndexed(_context.AllocateRawRoot(in root), indexRange, type, indexCount, instanceCount, firstIndex,
+                vertexOffset, firstInstance);
+        }
+
+        /// <summary>Records an indexed draw with a prepacked root <see cref="BufferSlice"/> and draw-local depth-stencil state.</summary>
+        public void DrawIndexed(Material material, BufferSlice root, DepthStencilState depthStencil,
+            BufferSlice indices, IndexType type, uint indexCount, uint instanceCount = 1,
+            uint firstIndex = 0, int vertexOffset = 0, uint firstInstance = 0)
+        {
+            _context.AssertScope(ScopeKind.Render, _id);
+            GPURange rootRange = _context.ValidateRootSlice(root, material.Root.SizeBytes);
+            GPURange indexRange = _context.ValidateBufferSlice(indices);
+            _context.BindMaterial(material, depthStencil);
+            _context.RecordingCommands.DrawIndexed(rootRange, indexRange, type, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
+        }
+
+        internal void DrawIndexedLowLevel(Material material, GPURange root, DepthStencilState depthStencil, Buffer indices, IndexType type,
             uint indexCount, uint instanceCount = 1, uint firstIndex = 0, int vertexOffset = 0, uint firstInstance = 0, ulong byteOffset = 0)
         {
             _context.AssertScope(ScopeKind.Render, _id);
             Debug.Assert(root.Buffer != null && root.Offset % BumpAllocator.Alignment == 0 && root.Size >= material.Root.SizeBytes);
-            Debug.Assert(indices != null && !indices.IsDestroyed && indices.System == _context._system && byteOffset < indices.SizeBytes);
+            Debug.Assert(indices != null && !indices.IsDisposed && indices.System == _context._system && byteOffset < indices.SizeBytes);
             _context.BindMaterial(material, depthStencil);
-            _context.RecordingCommands.DrawIndexed(root, indices.Range.Slice(byteOffset), type, indexCount, instanceCount, firstIndex, vertexOffset,
+            _context.RecordingCommands.DrawIndexed(root, indices.LowLevelRange.Slice(byteOffset), type, indexCount, instanceCount, firstIndex, vertexOffset,
                 firstInstance);
         }
 
         /// <summary>Records non-indexed indirect draws with a fresh root snapshot.</summary>
-        /// <param name="material">The material; its parameters and state must remain unchanged during parallel recording.</param>
-        /// <param name="arguments">The GPU-written or uploaded argument buffer.</param>
-        /// <param name="drawCount">The number of draw records.</param>
-        /// <param name="stride">The record stride in bytes; zero selects tightly packed 16-byte records.</param>
-        /// <param name="argumentByteOffset">The byte offset of the first argument record.</param>
-        /// <exception cref="InvalidOperationException"><see cref="RenderingSystem.PipelineMissPolicy"/> is <see cref="PipelineMissPolicy.Throw"/> and no matching pipeline is cached.</exception>
         public void DrawIndirect(Material material, Buffer arguments, uint drawCount = 1, uint stride = 0, ulong argumentByteOffset = 0)
         {
             _context.AssertScope(ScopeKind.Render, _id);
-            Debug.Assert(arguments != null && !arguments.IsDestroyed && arguments.System == _context._system && argumentByteOffset < arguments.SizeBytes);
+            Debug.Assert(arguments != null && !arguments.IsDisposed && arguments.System == _context._system && argumentByteOffset < arguments.SizeBytes);
             GPURange root = _context.PrepareDraw(material);
-            _context.RecordingCommands.DrawIndirect(root, arguments.Range.Slice(argumentByteOffset), drawCount, stride);
+            _context.RecordingCommands.DrawIndirect(root, arguments.LowLevelRange.Slice(argumentByteOffset), drawCount, stride);
         }
 
-        /// <summary>Records non-indexed indirect draws with prepacked root data and draw-local depth and stencil state.</summary>
-        /// <param name="material">The material to bind; do not mutate it during parallel recording.</param>
-        /// <param name="root">The full root block replacing material parameters. Keep it aligned to 16 bytes and its resources live until completion.</param>
-        /// <param name="depthStencil">The depth and stencil state for this draw, without changing the material.</param>
-        /// <param name="arguments">The GPU-written or uploaded argument buffer.</param>
-        /// <param name="drawCount">The number of draw records.</param>
-        /// <param name="stride">The record stride in bytes; zero selects tightly packed 16-byte records.</param>
-        /// <param name="argumentByteOffset">The byte offset of the first argument record.</param>
-        /// <exception cref="InvalidOperationException"><see cref="RenderingSystem.PipelineMissPolicy"/> is <see cref="PipelineMissPolicy.Throw"/> and no matching pipeline is cached.</exception>
-        public void DrawIndirect(Material material, GPURange root, DepthStencilState depthStencil, Buffer arguments,
+        /// <summary>Records non-indexed indirect draws with a fresh root snapshot and argument slice.</summary>
+        public void DrawIndirect(Material material, BufferSlice arguments, uint drawCount = 1, uint stride = 0)
+        {
+            _context.AssertScope(ScopeKind.Render, _id);
+            GPURange argRange = _context.ValidateBufferSlice(arguments);
+            GPURange root = _context.PrepareDraw(material);
+            _context.RecordingCommands.DrawIndirect(root, argRange, drawCount, stride);
+        }
+
+        /// <summary>Records non-indexed indirect draws overriding <paramref name="passField"/>.</summary>
+        public void DrawIndirect<TPass>(Material material, RootField<TPass> passField, in TPass pass,
+            BufferSlice arguments, uint drawCount = 1, uint stride = 0) where TPass : unmanaged
+        {
+            _context.AssertScope(ScopeKind.Render, _id);
+            GPURange argRange = _context.ValidateBufferSlice(arguments);
+            GPURange root = _context.PrepareDrawWithPass(material, passField, in pass, material.DepthStencilState);
+            _context.RecordingCommands.DrawIndirect(root, argRange, drawCount, stride);
+        }
+
+        /// <summary>Records non-indexed indirect draws overriding <paramref name="passField"/> and depth-stencil state.</summary>
+        public void DrawIndirect<TPass>(Material material, RootField<TPass> passField, in TPass pass, DepthStencilState depthStencil,
+            BufferSlice arguments, uint drawCount = 1, uint stride = 0) where TPass : unmanaged
+        {
+            _context.AssertScope(ScopeKind.Render, _id);
+            GPURange argRange = _context.ValidateBufferSlice(arguments);
+            GPURange root = _context.PrepareDrawWithPass(material, passField, in pass, depthStencil);
+            _context.RecordingCommands.DrawIndirect(root, argRange, drawCount, stride);
+        }
+
+        /// <summary>Records non-indexed indirect draws with an explicit typed root struct and depth-stencil state.</summary>
+        public unsafe void DrawIndirect<TRoot>(Material material, in TRoot root, DepthStencilState depthStencil,
+            BufferSlice arguments, uint drawCount = 1, uint stride = 0) where TRoot : unmanaged
+        {
+            _context.AssertScope(ScopeKind.Render, _id);
+            Debug.Assert((uint)sizeof(TRoot) >= material.Root.SizeBytes);
+            GPURange argRange = _context.ValidateBufferSlice(arguments);
+            _context.BindMaterial(material, depthStencil);
+            _context.RecordingCommands.DrawIndirect(_context.AllocateRawRoot(in root), argRange, drawCount, stride);
+        }
+
+        /// <summary>Records non-indexed indirect draws with a prepacked root <see cref="BufferSlice"/> and depth-stencil state.</summary>
+        public void DrawIndirect(Material material, BufferSlice root, DepthStencilState depthStencil,
+            BufferSlice arguments, uint drawCount = 1, uint stride = 0)
+        {
+            _context.AssertScope(ScopeKind.Render, _id);
+            GPURange rootRange = _context.ValidateRootSlice(root, material.Root.SizeBytes);
+            GPURange argRange = _context.ValidateBufferSlice(arguments);
+            _context.BindMaterial(material, depthStencil);
+            _context.RecordingCommands.DrawIndirect(rootRange, argRange, drawCount, stride);
+        }
+
+        internal void DrawIndirectLowLevel(Material material, GPURange root, DepthStencilState depthStencil, Buffer arguments,
             uint drawCount = 1, uint stride = 0, ulong argumentByteOffset = 0)
         {
             _context.AssertScope(ScopeKind.Render, _id);
             Debug.Assert(root.Buffer != null && root.Offset % BumpAllocator.Alignment == 0 && root.Size >= material.Root.SizeBytes);
-            Debug.Assert(arguments != null && !arguments.IsDestroyed && arguments.System == _context._system && argumentByteOffset < arguments.SizeBytes);
+            Debug.Assert(arguments != null && !arguments.IsDisposed && arguments.System == _context._system && argumentByteOffset < arguments.SizeBytes);
             _context.BindMaterial(material, depthStencil);
-            _context.RecordingCommands.DrawIndirect(root, arguments.Range.Slice(argumentByteOffset), drawCount, stride);
+            _context.RecordingCommands.DrawIndirect(root, arguments.LowLevelRange.Slice(argumentByteOffset), drawCount, stride);
         }
 
         /// <summary>Records indexed indirect draws with a fresh root snapshot.</summary>
-        /// <param name="material">The material; its parameters and state must remain unchanged during parallel recording.</param>
-        /// <param name="indices">The index buffer.</param>
-        /// <param name="type">The index element type.</param>
-        /// <param name="arguments">The GPU-written or uploaded argument buffer.</param>
-        /// <param name="drawCount">The number of draw records.</param>
-        /// <param name="stride">The record stride in bytes; zero selects tightly packed 20-byte records.</param>
-        /// <param name="argumentByteOffset">The byte offset of the first argument record.</param>
-        /// <param name="indexByteOffset">The index buffer's byte offset.</param>
-        /// <exception cref="InvalidOperationException"><see cref="RenderingSystem.PipelineMissPolicy"/> is <see cref="PipelineMissPolicy.Throw"/> and no matching pipeline is cached.</exception>
         public void DrawIndexedIndirect(Material material, Buffer indices, IndexType type, Buffer arguments,
             uint drawCount = 1, uint stride = 0, ulong argumentByteOffset = 0, ulong indexByteOffset = 0)
         {
             _context.AssertScope(ScopeKind.Render, _id);
-            Debug.Assert(indices != null && !indices.IsDestroyed && indices.System == _context._system && indexByteOffset < indices.SizeBytes);
-            Debug.Assert(arguments != null && !arguments.IsDestroyed && arguments.System == _context._system && argumentByteOffset < arguments.SizeBytes);
+            Debug.Assert(indices != null && !indices.IsDisposed && indices.System == _context._system && indexByteOffset < indices.SizeBytes);
+            Debug.Assert(arguments != null && !arguments.IsDisposed && arguments.System == _context._system && argumentByteOffset < arguments.SizeBytes);
             GPURange root = _context.PrepareDraw(material);
-            _context.RecordingCommands.DrawIndexedIndirect(root, indices.Range.Slice(indexByteOffset), type,
-                arguments.Range.Slice(argumentByteOffset), drawCount, stride);
+            _context.RecordingCommands.DrawIndexedIndirect(root, indices.LowLevelRange.Slice(indexByteOffset), type,
+                arguments.LowLevelRange.Slice(argumentByteOffset), drawCount, stride);
         }
 
-        /// <summary>Records indexed indirect draws with prepacked root data and draw-local depth and stencil state.</summary>
-        /// <param name="material">The material to bind; do not mutate it during parallel recording.</param>
-        /// <param name="root">The full root block replacing material parameters. Keep it aligned to 16 bytes and its resources live until completion.</param>
-        /// <param name="depthStencil">The depth and stencil state for this draw, without changing the material.</param>
-        /// <param name="indices">The index buffer.</param>
-        /// <param name="type">The index element type.</param>
-        /// <param name="arguments">The GPU-written or uploaded argument buffer.</param>
-        /// <param name="drawCount">The number of draw records.</param>
-        /// <param name="stride">The record stride in bytes; zero selects tightly packed 20-byte records.</param>
-        /// <param name="argumentByteOffset">The byte offset of the first argument record.</param>
-        /// <param name="indexByteOffset">The index buffer's byte offset.</param>
-        /// <exception cref="InvalidOperationException"><see cref="RenderingSystem.PipelineMissPolicy"/> is <see cref="PipelineMissPolicy.Throw"/> and no matching pipeline is cached.</exception>
-        public void DrawIndexedIndirect(Material material, GPURange root, DepthStencilState depthStencil,
+        /// <summary>Records indexed indirect draws using bounded slices.</summary>
+        public void DrawIndexedIndirect(Material material, BufferSlice indices, IndexType type, BufferSlice arguments,
+            uint drawCount = 1, uint stride = 0)
+        {
+            _context.AssertScope(ScopeKind.Render, _id);
+            GPURange indexRange = _context.ValidateBufferSlice(indices);
+            GPURange argRange = _context.ValidateBufferSlice(arguments);
+            GPURange root = _context.PrepareDraw(material);
+            _context.RecordingCommands.DrawIndexedIndirect(root, indexRange, type, argRange, drawCount, stride);
+        }
+
+        /// <summary>Records indexed indirect draws overriding <paramref name="passField"/>.</summary>
+        public void DrawIndexedIndirect<TPass>(Material material, RootField<TPass> passField, in TPass pass,
+            BufferSlice indices, IndexType type, BufferSlice arguments, uint drawCount = 1, uint stride = 0) where TPass : unmanaged
+        {
+            _context.AssertScope(ScopeKind.Render, _id);
+            GPURange indexRange = _context.ValidateBufferSlice(indices);
+            GPURange argRange = _context.ValidateBufferSlice(arguments);
+            GPURange root = _context.PrepareDrawWithPass(material, passField, in pass, material.DepthStencilState);
+            _context.RecordingCommands.DrawIndexedIndirect(root, indexRange, type, argRange, drawCount, stride);
+        }
+
+        /// <summary>Records indexed indirect draws overriding <paramref name="passField"/> and depth-stencil state.</summary>
+        public void DrawIndexedIndirect<TPass>(Material material, RootField<TPass> passField, in TPass pass, DepthStencilState depthStencil,
+            BufferSlice indices, IndexType type, BufferSlice arguments, uint drawCount = 1, uint stride = 0) where TPass : unmanaged
+        {
+            _context.AssertScope(ScopeKind.Render, _id);
+            GPURange indexRange = _context.ValidateBufferSlice(indices);
+            GPURange argRange = _context.ValidateBufferSlice(arguments);
+            GPURange root = _context.PrepareDrawWithPass(material, passField, in pass, depthStencil);
+            _context.RecordingCommands.DrawIndexedIndirect(root, indexRange, type, argRange, drawCount, stride);
+        }
+
+        /// <summary>Records indexed indirect draws with an explicit typed root struct and depth-stencil state.</summary>
+        public unsafe void DrawIndexedIndirect<TRoot>(Material material, in TRoot root, DepthStencilState depthStencil,
+            BufferSlice indices, IndexType type, BufferSlice arguments, uint drawCount = 1, uint stride = 0) where TRoot : unmanaged
+        {
+            _context.AssertScope(ScopeKind.Render, _id);
+            Debug.Assert((uint)sizeof(TRoot) >= material.Root.SizeBytes);
+            GPURange indexRange = _context.ValidateBufferSlice(indices);
+            GPURange argRange = _context.ValidateBufferSlice(arguments);
+            _context.BindMaterial(material, depthStencil);
+            _context.RecordingCommands.DrawIndexedIndirect(_context.AllocateRawRoot(in root), indexRange, type, argRange, drawCount, stride);
+        }
+
+        /// <summary>Records indexed indirect draws with a prepacked root <see cref="BufferSlice"/> and depth-stencil state.</summary>
+        public void DrawIndexedIndirect(Material material, BufferSlice root, DepthStencilState depthStencil,
+            BufferSlice indices, IndexType type, BufferSlice arguments, uint drawCount = 1, uint stride = 0)
+        {
+            _context.AssertScope(ScopeKind.Render, _id);
+            GPURange rootRange = _context.ValidateRootSlice(root, material.Root.SizeBytes);
+            GPURange indexRange = _context.ValidateBufferSlice(indices);
+            GPURange argRange = _context.ValidateBufferSlice(arguments);
+            _context.BindMaterial(material, depthStencil);
+            _context.RecordingCommands.DrawIndexedIndirect(rootRange, indexRange, type, argRange, drawCount, stride);
+        }
+
+        internal void DrawIndexedIndirectLowLevel(Material material, GPURange root, DepthStencilState depthStencil,
             Buffer indices, IndexType type, Buffer arguments,
             uint drawCount = 1, uint stride = 0, ulong argumentByteOffset = 0, ulong indexByteOffset = 0)
         {
             _context.AssertScope(ScopeKind.Render, _id);
             Debug.Assert(root.Buffer != null && root.Offset % BumpAllocator.Alignment == 0 && root.Size >= material.Root.SizeBytes);
-            Debug.Assert(indices != null && !indices.IsDestroyed && indices.System == _context._system && indexByteOffset < indices.SizeBytes);
-            Debug.Assert(arguments != null && !arguments.IsDestroyed && arguments.System == _context._system && argumentByteOffset < arguments.SizeBytes);
+            Debug.Assert(indices != null && !indices.IsDisposed && indices.System == _context._system && indexByteOffset < indices.SizeBytes);
+            Debug.Assert(arguments != null && !arguments.IsDisposed && arguments.System == _context._system && argumentByteOffset < arguments.SizeBytes);
             _context.BindMaterial(material, depthStencil);
-            _context.RecordingCommands.DrawIndexedIndirect(root, indices.Range.Slice(indexByteOffset), type,
-                arguments.Range.Slice(argumentByteOffset), drawCount, stride);
+            _context.RecordingCommands.DrawIndexedIndirect(root, indices.LowLevelRange.Slice(indexByteOffset), type,
+                arguments.LowLevelRange.Slice(argumentByteOffset), drawCount, stride);
         }
 
         /// <summary>Records a mesh draw with a fresh root snapshot.</summary>
-        /// <param name="material">The mesh material, unchanged during parallel recording.</param>
-        /// <param name="groupCount">The task or mesh workgroup counts.</param>
         public void DrawMeshlets(Material material, Extent3D groupCount)
         {
             _context.AssertScope(ScopeKind.Render, _id);
@@ -866,21 +1291,24 @@ public sealed class RenderContext : RenderingResource
         }
 
         /// <summary>Records indirect mesh draws with a fresh root snapshot.</summary>
-        /// <param name="material">The mesh material, unchanged during parallel recording.</param>
-        /// <param name="arguments">The argument buffer.</param>
-        /// <param name="drawCount">The number of argument records.</param>
-        /// <param name="stride">The byte stride, or zero for tightly packed records.</param>
-        /// <param name="byteOffset">The byte offset of the first record in the buffer.</param>
         public void DrawMeshletsIndirect(Material material, Buffer arguments, uint drawCount = 1, uint stride = 0, ulong byteOffset = 0)
         {
             _context.AssertScope(ScopeKind.Render, _id);
-            Debug.Assert(!arguments.IsDestroyed && arguments.System == _context._system && byteOffset < arguments.SizeBytes);
+            Debug.Assert(!arguments.IsDisposed && arguments.System == _context._system && byteOffset < arguments.SizeBytes);
             GPURange root = _context.PrepareDraw(material, ShaderKind.Mesh);
-            _context.RecordingCommands.DrawMeshletsIndirect(root, arguments.Range.Slice(byteOffset), drawCount, stride);
+            _context.RecordingCommands.DrawMeshletsIndirect(root, arguments.LowLevelRange.Slice(byteOffset), drawCount, stride);
+        }
+
+        /// <summary>Records indirect mesh draws with a fresh root snapshot and argument slice.</summary>
+        public void DrawMeshletsIndirect(Material material, BufferSlice arguments, uint drawCount = 1, uint stride = 0)
+        {
+            _context.AssertScope(ScopeKind.Render, _id);
+            GPURange argRange = _context.ValidateBufferSlice(arguments);
+            GPURange root = _context.PrepareDraw(material, ShaderKind.Mesh);
+            _context.RecordingCommands.DrawMeshletsIndirect(root, argRange, drawCount, stride);
         }
 
         /// <summary>Replays sealed draws in the current compatible pass, without allocating frame roots.</summary>
-        /// <param name="bundle">The bundle recorded for this system and pass formats.</param>
         public void ExecuteBundle(RenderBundle bundle)
         {
             _context.AssertScope(ScopeKind.Render, _id);
@@ -917,19 +1345,56 @@ public sealed class RenderContext : RenderingResource
         }
 
         /// <summary>Records a dispatch with a fresh root snapshot.</summary>
-        /// <param name="material">The compute material, unchanged during parallel recording.</param>
-        /// <param name="groupCount">The number of workgroups along each axis.</param>
         public void Dispatch(Material material, Extent3D groupCount)
         {
             _context.AssertScope(ScopeKind.Compute, _id);
             _context.RecordingCommands.Dispatch(_context.PrepareDispatch(material), groupCount);
         }
 
-        /// <summary>Records a dispatch with prepacked data matching <paramref name="material"/>'s active specialization.</summary>
-        /// <param name="material">The compute material; its active specialization selects the pipeline.</param>
-        /// <param name="root">The aligned root block and its referenced resources; destroy them only after GPU completion.</param>
-        /// <param name="groupCount">The number of workgroups along each axis.</param>
-        public void Dispatch(Material material, GPURange root, Extent3D groupCount)
+        /// <summary>Records a dispatch overriding <paramref name="passField"/> in the material's root snapshot.</summary>
+        public void Dispatch<TPass>(Material material, RootField<TPass> passField, in TPass pass, Extent3D groupCount) where TPass : unmanaged
+        {
+            _context.AssertScope(ScopeKind.Compute, _id);
+            _context.RecordingCommands.Dispatch(_context.PrepareDispatchWithPass(material, passField, in pass), groupCount);
+        }
+
+        /// <summary>Records a dispatch with an explicit typed root struct for <paramref name="material"/>'s active specialization.</summary>
+        public unsafe void Dispatch<TRoot>(Material material, in TRoot root, Extent3D groupCount) where TRoot : unmanaged
+        {
+            _context.AssertScope(ScopeKind.Compute, _id);
+            Debug.Assert((uint)sizeof(TRoot) >= material.Root.SizeBytes);
+            _context.BindCompute(material.Shader, material);
+            _context.RecordingCommands.Dispatch(_context.AllocateRawRoot(in root), groupCount);
+        }
+
+        /// <summary>Records a dispatch with an explicit typed root struct for <paramref name="shader"/>.</summary>
+        public unsafe void Dispatch<TRoot>(Shader shader, in TRoot root, Extent3D groupCount) where TRoot : unmanaged
+        {
+            _context.AssertScope(ScopeKind.Compute, _id);
+            Debug.Assert((uint)sizeof(TRoot) >= shader.Root.SizeBytes);
+            _context.BindCompute(shader, null);
+            _context.RecordingCommands.Dispatch(_context.AllocateRawRoot(in root), groupCount);
+        }
+
+        /// <summary>Records a dispatch with a prepacked root <see cref="BufferSlice"/> for <paramref name="material"/>.</summary>
+        public void Dispatch(Material material, BufferSlice root, Extent3D groupCount)
+        {
+            _context.AssertScope(ScopeKind.Compute, _id);
+            GPURange rootRange = _context.ValidateRootSlice(root, material.Root.SizeBytes);
+            _context.BindCompute(material.Shader, material);
+            _context.RecordingCommands.Dispatch(rootRange, groupCount);
+        }
+
+        /// <summary>Records a dispatch with a prepacked root <see cref="BufferSlice"/> for <paramref name="shader"/>.</summary>
+        public void Dispatch(Shader shader, BufferSlice root, Extent3D groupCount)
+        {
+            _context.AssertScope(ScopeKind.Compute, _id);
+            GPURange rootRange = _context.ValidateRootSlice(root, shader.Root.SizeBytes);
+            _context.BindCompute(shader, null);
+            _context.RecordingCommands.Dispatch(rootRange, groupCount);
+        }
+
+        internal void DispatchLowLevel(Material material, GPURange root, Extent3D groupCount)
         {
             _context.AssertScope(ScopeKind.Compute, _id);
             Debug.Assert(material != null && root.Buffer != null && root.Offset % BumpAllocator.Alignment == 0 && root.Size >= material.Root.SizeBytes);
@@ -937,11 +1402,7 @@ public sealed class RenderContext : RenderingResource
             _context.RecordingCommands.Dispatch(root, groupCount);
         }
 
-        /// <summary>Records a dispatch with prepacked data matching the compute shader's root layout.</summary>
-        /// <param name="shader">The compute shader.</param>
-        /// <param name="root">The aligned root block and its referenced resources; destroy them only after GPU completion.</param>
-        /// <param name="groupCount">The number of workgroups along each axis.</param>
-        public void Dispatch(Shader shader, GPURange root, Extent3D groupCount)
+        internal void DispatchLowLevel(Shader shader, GPURange root, Extent3D groupCount)
         {
             _context.AssertScope(ScopeKind.Compute, _id);
             Debug.Assert(root.Buffer != null && root.Offset % BumpAllocator.Alignment == 0 && root.Size >= shader.Root.SizeBytes);
@@ -950,43 +1411,79 @@ public sealed class RenderContext : RenderingResource
         }
 
         /// <summary>Records an indirect dispatch with a fresh root snapshot.</summary>
-        /// <param name="material">The compute material, unchanged during parallel recording.</param>
-        /// <param name="arguments">The argument buffer.</param>
-        /// <param name="byteOffset">The byte offset of the dispatch record.</param>
         public void DispatchIndirect(Material material, Buffer arguments, ulong byteOffset = 0)
         {
             _context.AssertScope(ScopeKind.Compute, _id);
-            Debug.Assert(!arguments.IsDestroyed && arguments.System == _context._system && byteOffset < arguments.SizeBytes);
+            Debug.Assert(!arguments.IsDisposed && arguments.System == _context._system && byteOffset < arguments.SizeBytes);
             GPURange root = _context.PrepareDispatch(material);
-            _context.RecordingCommands.DispatchIndirect(root, arguments.Range.Slice(byteOffset));
+            _context.RecordingCommands.DispatchIndirect(root, arguments.LowLevelRange.Slice(byteOffset));
         }
 
-        /// <summary>Records an indirect dispatch with prepacked data matching <paramref name="material"/>'s active specialization.</summary>
-        /// <param name="material">The compute material; its active specialization selects the pipeline.</param>
-        /// <param name="root">The aligned root block and its referenced resources; destroy them only after GPU completion.</param>
-        /// <param name="arguments">The argument buffer.</param>
-        /// <param name="byteOffset">The byte offset of the dispatch record.</param>
-        public void DispatchIndirect(Material material, GPURange root, Buffer arguments, ulong byteOffset = 0)
+        /// <summary>Records an indirect dispatch with a fresh root snapshot and argument slice.</summary>
+        public void DispatchIndirect(Material material, BufferSlice arguments)
+        {
+            _context.AssertScope(ScopeKind.Compute, _id);
+            GPURange argRange = _context.ValidateBufferSlice(arguments);
+            GPURange root = _context.PrepareDispatch(material);
+            _context.RecordingCommands.DispatchIndirect(root, argRange);
+        }
+
+        /// <summary>Records an indirect dispatch with an explicit typed root struct for <paramref name="material"/>.</summary>
+        public unsafe void DispatchIndirect<TRoot>(Material material, in TRoot root, BufferSlice arguments) where TRoot : unmanaged
+        {
+            _context.AssertScope(ScopeKind.Compute, _id);
+            Debug.Assert((uint)sizeof(TRoot) >= material.Root.SizeBytes);
+            GPURange argRange = _context.ValidateBufferSlice(arguments);
+            _context.BindCompute(material.Shader, material);
+            _context.RecordingCommands.DispatchIndirect(_context.AllocateRawRoot(in root), argRange);
+        }
+
+        /// <summary>Records an indirect dispatch with an explicit typed root struct for <paramref name="shader"/>.</summary>
+        public unsafe void DispatchIndirect<TRoot>(Shader shader, in TRoot root, BufferSlice arguments) where TRoot : unmanaged
+        {
+            _context.AssertScope(ScopeKind.Compute, _id);
+            Debug.Assert((uint)sizeof(TRoot) >= shader.Root.SizeBytes);
+            GPURange argRange = _context.ValidateBufferSlice(arguments);
+            _context.BindCompute(shader, null);
+            _context.RecordingCommands.DispatchIndirect(_context.AllocateRawRoot(in root), argRange);
+        }
+
+        /// <summary>Records an indirect dispatch with a prepacked root <see cref="BufferSlice"/> for <paramref name="material"/>.</summary>
+        public void DispatchIndirect(Material material, BufferSlice root, BufferSlice arguments)
+        {
+            _context.AssertScope(ScopeKind.Compute, _id);
+            GPURange rootRange = _context.ValidateRootSlice(root, material.Root.SizeBytes);
+            GPURange argRange = _context.ValidateBufferSlice(arguments);
+            _context.BindCompute(material.Shader, material);
+            _context.RecordingCommands.DispatchIndirect(rootRange, argRange);
+        }
+
+        /// <summary>Records an indirect dispatch with a prepacked root <see cref="BufferSlice"/> for <paramref name="shader"/>.</summary>
+        public void DispatchIndirect(Shader shader, BufferSlice root, BufferSlice arguments)
+        {
+            _context.AssertScope(ScopeKind.Compute, _id);
+            GPURange rootRange = _context.ValidateRootSlice(root, shader.Root.SizeBytes);
+            GPURange argRange = _context.ValidateBufferSlice(arguments);
+            _context.BindCompute(shader, null);
+            _context.RecordingCommands.DispatchIndirect(rootRange, argRange);
+        }
+
+        internal void DispatchIndirectLowLevel(Material material, GPURange root, Buffer arguments, ulong byteOffset = 0)
         {
             _context.AssertScope(ScopeKind.Compute, _id);
             Debug.Assert(material != null && root.Buffer != null && root.Offset % BumpAllocator.Alignment == 0 && root.Size >= material.Root.SizeBytes);
-            Debug.Assert(!arguments.IsDestroyed && arguments.System == _context._system && byteOffset < arguments.SizeBytes);
+            Debug.Assert(!arguments.IsDisposed && arguments.System == _context._system && byteOffset < arguments.SizeBytes);
             _context.BindCompute(material.Shader, material);
-            _context.RecordingCommands.DispatchIndirect(root, arguments.Range.Slice(byteOffset));
+            _context.RecordingCommands.DispatchIndirect(root, arguments.LowLevelRange.Slice(byteOffset));
         }
 
-        /// <summary>Records an indirect dispatch with prepacked data matching the compute shader's root layout.</summary>
-        /// <param name="shader">The compute shader.</param>
-        /// <param name="root">The aligned root block and its referenced resources; destroy them only after GPU completion.</param>
-        /// <param name="arguments">The argument buffer.</param>
-        /// <param name="byteOffset">The byte offset of the dispatch record.</param>
-        public void DispatchIndirect(Shader shader, GPURange root, Buffer arguments, ulong byteOffset = 0)
+        internal void DispatchIndirectLowLevel(Shader shader, GPURange root, Buffer arguments, ulong byteOffset = 0)
         {
             _context.AssertScope(ScopeKind.Compute, _id);
             Debug.Assert(root.Buffer != null && root.Offset % BumpAllocator.Alignment == 0 && root.Size >= shader.Root.SizeBytes);
-            Debug.Assert(!arguments.IsDestroyed && arguments.System == _context._system && byteOffset < arguments.SizeBytes);
+            Debug.Assert(!arguments.IsDisposed && arguments.System == _context._system && byteOffset < arguments.SizeBytes);
             _context.BindCompute(shader, null);
-            _context.RecordingCommands.DispatchIndirect(root, arguments.Range.Slice(byteOffset));
+            _context.RecordingCommands.DispatchIndirect(root, arguments.LowLevelRange.Slice(byteOffset));
         }
 
         /// <inheritdoc cref="GPUCommandBuffer.Barrier"/>

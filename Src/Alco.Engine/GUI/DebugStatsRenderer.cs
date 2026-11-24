@@ -138,7 +138,7 @@ public sealed class DebugStatsRenderer : IDisposable
     public void Dispose()
     {
         _commands.Clear();
-        _renderContext.Destroy();
+        _renderContext.Dispose();
     }
 
     private readonly struct DrawCommand

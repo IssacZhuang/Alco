@@ -400,7 +400,7 @@ internal static unsafe class RegressionTests
         check(target.Blend.Color.Source == BlendFactor.One && target.Blend.Alpha.Source == BlendFactor.One &&
             target.Blend.Color.Destination == BlendFactor.Zero && target.Blend.Alpha.Destination == BlendFactor.Zero,
             "new color target preserves nested source-one/destination-zero blend defaults");
-        RenderingDesc rendering = new();
+        GPURenderingDesc rendering = new();
         rendering.Depth.Load = LoadOp.Clear;
         check(rendering.Depth.Clear == 1.0f, "new rendering description preserves its nested depth-clear default");
         GraphicsPipelineDesc graphics = new();
@@ -2174,9 +2174,9 @@ internal static unsafe class RegressionTests
                 GPUCommandBuffer commands = pool.BeginCommands();
                 if (mode == 0) commands.InitializeTexture(color);
                 else commands.Barrier(Stage.Transfer, Access.TransferRead, Stage.ColorOutput, Access.ColorWrite);
-                commands.BeginRenderPass(new RenderingDesc
+                commands.BeginRenderPass(new GPURenderingDesc
                 {
-                    Colors = [new ColorAttachment { RenderView = view, Load = LoadOp.Clear, Clear = Vector4.Zero }],
+                    Colors = [new GPUColorAttachment { RenderView = view, Load = LoadOp.Clear, Clear = Vector4.Zero }],
                 });
                 for (int index = 0; index < pipelines.Length; ++index)
                 {
@@ -2386,10 +2386,10 @@ internal static unsafe class RegressionTests
                             Access.ColorWrite | Access.DepthStencilRead | Access.DepthStencilWrite);
                         commands.Barrier(Stage.Pixel, Access.ShaderRead, Stage.Transfer, Access.TransferWrite);
                     }
-                    commands.BeginRenderPass(new RenderingDesc
+                    commands.BeginRenderPass(new GPURenderingDesc
                     {
-                        Colors = [new ColorAttachment { RenderView = colorView, Load = LoadOp.Clear, Clear = Vector4.Zero }],
-                        Depth = new DepthAttachment { RenderView = depthView, Load = LoadOp.Clear },
+                        Colors = [new GPUColorAttachment { RenderView = colorView, Load = LoadOp.Clear, Clear = Vector4.Zero }],
+                        Depth = new GPUDepthAttachment { RenderView = depthView, Load = LoadOp.Clear },
                     });
                     commands.SetViewport(new Viewport { X = 5, Y = 7, Width = 32, Height = 32, MinDepth = minDepth, MaxDepth = maxDepth });
                     commands.SetScissor(new Scissor { X = 12, Y = 11, Width = 11, Height = 6 });
@@ -2405,9 +2405,9 @@ internal static unsafe class RegressionTests
                     commands.CopyTexture(color, sampled);
                     commands.Barrier(Stage.Transfer, Access.TransferRead | Access.TransferWrite,
                         Stage.Pixel | Stage.ColorOutput, Access.ShaderRead | Access.ColorWrite);
-                    commands.BeginRenderPass(new RenderingDesc
+                    commands.BeginRenderPass(new GPURenderingDesc
                     {
-                        Colors = [new ColorAttachment { RenderView = colorView, Load = LoadOp.Clear, Clear = Vector4.Zero }],
+                        Colors = [new GPUColorAttachment { RenderView = colorView, Load = LoadOp.Clear, Clear = Vector4.Zero }],
                     });
                     commands.SetViewport(new Viewport { Width = width, Height = height });
                     commands.SetScissor(new Scissor { Width = width, Height = height });
@@ -2552,10 +2552,10 @@ internal static unsafe class RegressionTests
                             commands.Barrier(Stage.DepthStencilTests, Access.DepthStencilRead | Access.DepthStencilWrite,
                                 Stage.DepthStencilTests, Access.DepthStencilRead | Access.DepthStencilWrite);
                         }
-                        commands.BeginRenderPass(new RenderingDesc
+                        commands.BeginRenderPass(new GPURenderingDesc
                         {
-                            Colors = [new ColorAttachment { RenderView = colorView, Load = LoadOp.Clear, Clear = Vector4.Zero }],
-                            Stencil = new StencilAttachment { RenderView = stencilView, Load = LoadOp.Clear, Clear = 37 },
+                            Colors = [new GPUColorAttachment { RenderView = colorView, Load = LoadOp.Clear, Clear = Vector4.Zero }],
+                            Stencil = new GPUStencilAttachment { RenderView = stencilView, Load = LoadOp.Clear, Clear = 37 },
                         });
                         commands.BindPipeline(pipelines[cull * 2 + winding]);
                         DepthStencilState stencilState = new()
@@ -2654,9 +2654,9 @@ internal static unsafe class RegressionTests
                 commands.InitializeTexture(texture);
                 commands.CopyMemory(initializedOutput.GPURange, output.Range.GPURange);
                 commands.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Compute, Access.ShaderWrite);
-                commands.BeginRenderPass(new RenderingDesc
+                commands.BeginRenderPass(new GPURenderingDesc
                 {
-                    Stencil = new StencilAttachment { RenderView = view, Load = LoadOp.Clear, Clear = 37 },
+                    Stencil = new GPUStencilAttachment { RenderView = view, Load = LoadOp.Clear, Clear = 37 },
                 });
                 commands.EndRenderPass();
                 commands.Barrier(Stage.DepthStencilTests, Access.DepthStencilWrite, Stage.Compute, Access.ShaderRead);
@@ -2796,9 +2796,9 @@ internal static unsafe class RegressionTests
                         commands.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Indirect, Access.IndirectRead);
                     }
                     else commands.Barrier(Stage.Transfer, Access.TransferRead, Stage.ColorOutput, Access.ColorRead | Access.ColorWrite);
-                    commands.BeginRenderPass(new RenderingDesc
+                    commands.BeginRenderPass(new GPURenderingDesc
                     {
-                        Colors = [new ColorAttachment { RenderView = view, Load = LoadOp.Clear, Clear = Vector4.Zero }],
+                        Colors = [new GPUColorAttachment { RenderView = view, Load = LoadOp.Clear, Clear = Vector4.Zero }],
                     });
                     commands.BindPipeline(pipelines[pipelineIndex]);
                     if (mode == 0) commands.DrawMeshlets(root.GPURange, new Extent3D(2, 1, 1));
@@ -2915,10 +2915,10 @@ internal static unsafe class RegressionTests
                 if (mode == 4)
                     commands.Barrier(Stage.DepthStencilTests, Access.DepthStencilWrite,
                         Stage.DepthStencilTests, Access.DepthStencilRead | Access.DepthStencilWrite);
-                commands.BeginRenderPass(new RenderingDesc
+                commands.BeginRenderPass(new GPURenderingDesc
                 {
-                    Colors = [new ColorAttachment { RenderView = colorView, Load = LoadOp.Clear, Clear = Vector4.Zero }],
-                    Stencil = mode >= 3 ? new StencilAttachment { RenderView = stencilView, Load = LoadOp.Clear, Clear = 77 } : default,
+                    Colors = [new GPUColorAttachment { RenderView = colorView, Load = LoadOp.Clear, Clear = Vector4.Zero }],
+                    Stencil = mode >= 3 ? new GPUStencilAttachment { RenderView = stencilView, Load = LoadOp.Clear, Clear = 77 } : default,
                 });
                 if (mode == 1) commands.SetViewport(new Viewport { Width = 8, Height = 8 });
                 if (mode >= 3) commands.SetDepthStencil(new DepthStencilState { StencilTest = true });
@@ -3607,9 +3607,9 @@ internal static unsafe class RegressionTests
             if (!sameTexture) uploaded.InitializeTexture(destination);
             if (clearSource)
             {
-                uploaded.BeginRenderPass(new RenderingDesc
+                uploaded.BeginRenderPass(new GPURenderingDesc
                 {
-                    Colors = [new ColorAttachment { RenderView = colorView, Load = LoadOp.Clear, Clear = new Vector4(1, 0, 1, 1) }],
+                    Colors = [new GPUColorAttachment { RenderView = colorView, Load = LoadOp.Clear, Clear = new Vector4(1, 0, 1, 1) }],
                 });
                 uploaded.EndRenderPass();
                 uploaded.Barrier(Stage.ColorOutput, Access.ColorWrite, Stage.Transfer, Access.TransferRead);

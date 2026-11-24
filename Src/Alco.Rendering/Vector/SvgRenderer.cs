@@ -4,7 +4,6 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 using Alco.Graphics;
-using Alco.Graphics.LowLevel;
 using NanoSvgSharp;
 using Buffer = Alco.Graphics.Buffer;
 
@@ -155,9 +154,9 @@ public sealed class SvgRenderer : AutoDisposable
         }
         catch
         {
-            if (!target.IsDestroyed)
+            if (!target.IsDisposed)
             {
-                target.Destroy();
+                target.Dispose();
             }
             throw;
         }
@@ -172,10 +171,10 @@ public sealed class SvgRenderer : AutoDisposable
         for (int index = 0; index < _geometryPool.Count; ++index)
         {
             PooledBuffer entry = _geometryPool[index];
-            if (entry.Context != null && !entry.Context.IsDestroyed && entry.Context.IsFramePending(entry.FrameId))
+            if (entry.Context != null && !entry.Context.IsDisposed && entry.Context.IsFramePending(entry.FrameId))
                 entry.Context.Wait();
-            if (!entry.Buffer.IsDestroyed)
-                entry.Buffer.Destroy();
+            if (!entry.Buffer.IsDisposed)
+                entry.Buffer.Dispose();
         }
         _geometryPool.Clear();
     }
@@ -185,13 +184,13 @@ public sealed class SvgRenderer : AutoDisposable
         for (int index = 0; index < _geometryPool.Count; ++index)
         {
             PooledBuffer entry = _geometryPool[index];
-            if (entry.Context != null && !entry.Context.IsDestroyed && entry.Context.IsFramePending(entry.FrameId))
+            if (entry.Context != null && !entry.Context.IsDisposed && entry.Context.IsFramePending(entry.FrameId))
                 continue;
 
             if (entry.Buffer.SizeBytes < requiredBytes)
             {
                 ulong grown = NextCapacity(Math.Max(requiredBytes, entry.Buffer.SizeBytes * 2));
-                entry.Buffer.Destroy();
+                entry.Buffer.Dispose();
                 entry.Buffer = _system.CreateBuffer(grown);
             }
 

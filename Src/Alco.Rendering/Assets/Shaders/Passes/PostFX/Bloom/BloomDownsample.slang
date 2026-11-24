@@ -13,8 +13,8 @@ import AlcoRendering_Bloom;
 [GPURoot]
 public struct BloomDownsampleRoot
 {
-    public GpuTextureId Source;
-    public GpuTextureId Dest;
+    public GPUTextureId Source;
+    public GPUTextureId Dest;
     public float2 InvSourceSize;
     public float2 InvDestSize;
     public uint2 DestSize;

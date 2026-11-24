@@ -35,7 +35,7 @@ public sealed class TestImGuiTextureId
             Assert.That(sampled.SampledIndex, Is.Not.EqualTo(0u));
             Assert.That(ImGui.GetTextureId(sampled), Is.EqualTo((IntPtr)sampled.SampledIndex));
 
-            sampled.Destroy();
+            sampled.Dispose();
             Assert.That(ImGui.GetTextureId(sampled), Is.EqualTo(IntPtr.Zero));
 
             attachmentOnly = system.CreateTexture(new TextureDesc
@@ -52,24 +52,24 @@ public sealed class TestImGuiTextureId
             Assert.That(utilityTex.SampledIndex, Is.Not.EqualTo(0u));
             Assert.That(ImGui.GetTextureId(utilityTex), Is.EqualTo((IntPtr)utilityTex.SampledIndex));
 
-            utilityTex.Destroy();
+            utilityTex.Dispose();
             Assert.That(ImGui.GetTextureId(utilityTex), Is.EqualTo(IntPtr.Zero));
         }
         finally
         {
-            if (utilityTex != null && !utilityTex.IsDestroyed)
+            if (utilityTex != null && !utilityTex.IsDisposed)
             {
-                utilityTex.Destroy();
+                utilityTex.Dispose();
             }
-            if (attachmentOnly != null && !attachmentOnly.IsDestroyed)
+            if (attachmentOnly != null && !attachmentOnly.IsDisposed)
             {
-                attachmentOnly.Destroy();
+                attachmentOnly.Dispose();
             }
-            if (sampled != null && !sampled.IsDestroyed)
+            if (sampled != null && !sampled.IsDisposed)
             {
-                sampled.Destroy();
+                sampled.Dispose();
             }
-            system.Destroy();
+            system.Dispose();
             device.Destroy();
         }
     }

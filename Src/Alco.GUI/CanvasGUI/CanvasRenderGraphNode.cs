@@ -1,6 +1,5 @@
 using System.Numerics;
 using Alco.Graphics;
-using Alco.Graphics.LowLevel;
 
 namespace Alco.GUI;
 
@@ -60,17 +59,10 @@ public sealed class CanvasRenderGraphNode : RenderGraphNode
     protected override void ExecutePass(in RenderGraphContext context)
     {
         _canvas.PrepareRender(context.DeltaTime);
-        Format colorFormat = context.GetFormat(_colorTarget);
-        GPURenderView colorView = context.GetRenderView(_colorTarget);
-        GPURenderView stencilView = context.GetRenderView(_stencilTarget);
-
         _canvas.Draw(
             context.RenderContext,
-            colorView,
-            colorFormat,
-            context.Viewport,
-            stencilView,
-            Format.S8Uint,
+            context.GetRenderTarget(_colorTarget),
+            context.GetRenderTarget(_stencilTarget),
             _colorLoadOp,
             _clearColor);
     }

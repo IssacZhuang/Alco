@@ -25,10 +25,13 @@ public sealed class Sampler : RenderingResource
     {
         get
         {
-            Debug.Assert(!IsDestroyed);
+            Debug.Assert(!IsDisposed);
             return _index;
         }
     }
+
+    /// <summary>The sampler descriptor handle.</summary>
+    public GPUSamplerId Id => new(Index);
 
     /// <summary>Converts the sampler to its descriptor heap index.</summary>
     /// <param name="sampler">The sampler; it must be alive.</param>

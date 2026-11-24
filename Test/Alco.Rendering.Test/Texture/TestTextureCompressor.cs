@@ -27,8 +27,8 @@ public unsafe class TestTextureCompressor
         public struct DecodeVerifyRoot
         {
             public GPUBufferView Output;
-            public GpuTextureId NativeView;
-            public GpuTextureId UnormView;
+            public GPUTextureId NativeView;
+            public GPUTextureId UnormView;
             public uint2 Extent;
         };
 
@@ -167,7 +167,7 @@ public unsafe class TestTextureCompressor
             // 1. All 11 BC formats at non-4-multiple extent (36x37 -> padded 36x40) with mip=1 and sentinel-guarded buffer offset.
             foreach (Format format in AllBcFormats)
             {
-                if (!TextureCompressor.CanCompressOnGpu(host.Device, format))
+                if (!TextureCompressor.CanCompressOnGpu(rendering, format))
                     continue;
 
                 VerifyFormatRoundTrip(rendering, compressor, decodeShader, format, new Extent2D(36, 37), sourceMip: 1);
@@ -249,27 +249,28 @@ public unsafe class TestTextureCompressor
             context.BeginFrame();
             using (RenderContext.ComputeScope compute = context.BeginCompute())
             {
-                compressor.Record(context, compute, format, source, sourceMip, blockBuffer.Range.Slice(guardBytes, encodedBytes));
+                compressor.Record(context, compute, format, source, sourceMip, blockBuffer.Slice(guardBytes, encodedBytes));
             }
 
             context.Barrier(Stage.Compute, Access.ShaderWrite, Stage.Transfer, Access.TransferRead | Access.TransferWrite);
-            context.CopyMemoryToTexture(blockBuffer.Range.Slice(guardBytes, encodedBytes), destination.NativeTexture);
+            context.CopyBufferToTexture(blockBuffer.Slice(guardBytes, encodedBytes), destination);
             context.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Compute, Access.ShaderRead);
 
             uint nativeSlot = destination.SampledIndex;
             uint unormSlot = IsSrgb(format) ? destination.GetSampledIndex(ToUnorm(format)) : nativeSlot;
             using (RenderContext.ComputeScope compute = context.BeginCompute())
             {
-                GPURange decodeRoot = context.AllocateRoot(new DecodeVerifyRoot
+                DecodeVerifyRoot decodeRoot = new()
                 {
                     Output = decodeBuffer.View,
                     NativeView = nativeSlot,
                     UnormView = unormSlot,
                     Extent = padded,
-                });
-                compute.Dispatch(decodeShader, decodeRoot, new Extent3D((padded.X + 7u) / 8u, (padded.Y + 7u) / 8u, 1u));
+                };
+                compute.Dispatch(decodeShader, in decodeRoot, new Extent3D((padded.X + 7u) / 8u, (padded.Y + 7u) / 8u, 1u));
             }
-            rendering.Submit([context]).Wait();
+            context.Submit();
+            rendering.WaitIdle();
 
             byte[] blockReadback = new byte[sentinelInit.Length];
             rendering.ReadBuffer(blockBuffer, blockReadback);
@@ -319,11 +320,11 @@ public unsafe class TestTextureCompressor
         finally
         {
             context.DiscardFrame();
-            context.Destroy();
-            decodeBuffer.Destroy();
-            blockBuffer.Destroy();
-            destination.Destroy();
-            source.Destroy();
+            context.Dispose();
+            decodeBuffer.Dispose();
+            blockBuffer.Dispose();
+            destination.Dispose();
+            source.Dispose();
         }
     }
 
@@ -395,12 +396,12 @@ public unsafe class TestTextureCompressor
         }
         finally
         {
-            bcFromNonMutable?.Destroy();
-            bcFromFloat?.Destroy();
-            bcFromMutable?.Destroy();
-            nonMutableSrgbSrc.Destroy();
-            linearFloatSrc.Destroy();
-            mutableSrgbSrc.Destroy();
+            bcFromNonMutable?.Dispose();
+            bcFromFloat?.Dispose();
+            bcFromMutable?.Dispose();
+            nonMutableSrgbSrc.Dispose();
+            linearFloatSrc.Dispose();
+            mutableSrgbSrc.Dispose();
         }
     }
 
@@ -433,7 +434,7 @@ public unsafe class TestTextureCompressor
         }
         finally
         {
-            source.Destroy();
+            source.Dispose();
         }
     }
 
@@ -457,27 +458,29 @@ public unsafe class TestTextureCompressor
             context.BeginFrame();
             using (RenderContext.ComputeScope compute = context.BeginCompute())
             {
-                compressor.Record(context, compute, Format.Bc7Unorm, source, 0, output.Range);
+                compressor.Record(context, compute, Format.Bc7Unorm, source, 0, output.Slice());
             }
-            rendering.Submit([context]).Wait();
+            context.Submit();
+            rendering.WaitIdle();
 
             long before = GC.GetAllocatedBytesForCurrentThread();
             context.BeginFrame();
             using (RenderContext.ComputeScope compute = context.BeginCompute())
             {
-                compressor.Record(context, compute, Format.Bc7Unorm, source.SampledIndex, 0, extent, output.Range);
+                compressor.Record(context, compute, Format.Bc7Unorm, source.SampledIndex, 0, extent, output.Slice());
             }
             long after = GC.GetAllocatedBytesForCurrentThread();
-            rendering.Submit([context]).Wait();
+            context.Submit();
+            rendering.WaitIdle();
 
             Assert.That(after - before, Is.EqualTo(0L), "Steady-state TextureCompressor.Record must allocate zero managed bytes.");
         }
         finally
         {
             context.DiscardFrame();
-            context.Destroy();
-            output.Destroy();
-            source.Destroy();
+            context.Dispose();
+            output.Dispose();
+            source.Dispose();
         }
     }
 
@@ -491,16 +494,17 @@ public unsafe class TestTextureCompressor
             context.BeginFrame();
             using (RenderContext.ComputeScope compute = context.BeginCompute())
             {
-                GPURange root = context.AllocateRoot(new DecodeVerifyRoot
+                DecodeVerifyRoot root = new()
                 {
                     Output = decodeBuffer.View,
                     NativeView = bcTexture.SampledIndex,
                     UnormView = bcTexture.SampledIndex,
                     Extent = extent,
-                });
-                compute.Dispatch(decodeShader, root, new Extent3D((extent.X + 7u) / 8u, (extent.Y + 7u) / 8u, 1u));
+                };
+                compute.Dispatch(decodeShader, in root, new Extent3D((extent.X + 7u) / 8u, (extent.Y + 7u) / 8u, 1u));
             }
-            rendering.Submit([context]).Wait();
+            context.Submit();
+            rendering.WaitIdle();
 
             Vector4[] raw = new Vector4[count * 2];
             rendering.ReadBuffer(decodeBuffer, MemoryMarshal.AsBytes(raw.AsSpan()));
@@ -509,8 +513,8 @@ public unsafe class TestTextureCompressor
         finally
         {
             context.DiscardFrame();
-            context.Destroy();
-            decodeBuffer.Destroy();
+            context.Dispose();
+            decodeBuffer.Dispose();
         }
     }
 

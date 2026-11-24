@@ -412,7 +412,7 @@ public abstract partial class GPUCommandBuffer
     /// <summary>Begins a render pass with the given attachments.</summary>
     /// <param name="desc">The render attachments and their operations.</param>
     /// <param name="flags">The render pass continuation flags.</param>
-    public abstract void BeginRenderPass(RenderingDesc desc, RenderingFlags flags = RenderingFlags.None);
+    public abstract void BeginRenderPass(GPURenderingDesc desc, RenderingFlags flags = RenderingFlags.None);
 
     /// <summary>Ends the current render pass.</summary>
     public abstract void EndRenderPass();

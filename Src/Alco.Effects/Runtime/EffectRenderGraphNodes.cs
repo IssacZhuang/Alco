@@ -1,7 +1,6 @@
 using System.Numerics;
 using System.Runtime.InteropServices;
 using Alco.Graphics;
-using Alco.Graphics.LowLevel;
 using Alco.Rendering;
 
 namespace Alco.Effects;
@@ -459,7 +458,7 @@ internal static class EffectNodeUtility
         RenderContext rc = context.RenderContext;
         ColorAttachment colorAttachment = new()
         {
-            RenderView = context.GetRenderView(colorTarget),
+            Target = context.GetRenderTarget(colorTarget),
             Load = colorLoadOp,
             Store = StoreOp.Store,
             Clear = clearColor,
@@ -469,7 +468,7 @@ internal static class EffectNodeUtility
         {
             Colors = MemoryMarshal.CreateReadOnlySpan(ref colorAttachment, 1),
             Depth = hasDepth
-                ? new DepthAttachment { RenderView = context.GetRenderView(depthTarget), Load = LoadOp.Load, Store = StoreOp.Store }
+                ? new DepthAttachment { Target = context.GetRenderTarget(depthTarget), Load = LoadOp.Load, Store = StoreOp.Store }
                 : default,
         };
 

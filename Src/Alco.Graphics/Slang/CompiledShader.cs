@@ -25,9 +25,7 @@ public sealed class CompiledShaderStage
     /// <summary>The compiled target bytecode or Metal source bytes.</summary>
     public required ReadOnlyMemory<byte> Code { get; init; }
 
-    /// <summary>Converts this compiled stage into a <see cref="Gpu.ShaderStage"/> descriptor.</summary>
-    /// <returns>A shader stage referencing <see cref="Code"/>, its target entry name, and resolved threadgroup size.</returns>
-    public ShaderStage ToGpuStage() => new()
+    internal ShaderStage ToGpuStage() => new()
     {
         Code = Code.Span,
         EntryPoint = CompiledEntryPoint,
@@ -110,21 +108,11 @@ public sealed class CompiledShader
     public CompiledShaderStage GetStage(string sourceEntryName) =>
         FindStage(sourceEntryName) ?? throw new InvalidOperationException($"Shader '{ModuleName}' does not contain entry point '{sourceEntryName}'.");
 
-    /// <summary>Converts the unique <paramref name="stage"/> into a <see cref="Gpu.ShaderStage"/> descriptor.</summary>
-    /// <param name="stage">The pipeline stage to convert.</param>
-    /// <returns>The core <see cref="Gpu.ShaderStage"/> ready for pipeline creation.</returns>
-    public ShaderStage GetGpuStage(ShaderStageKind stage) => GetStage(stage).ToGpuStage();
+    internal ShaderStage GetGpuStage(ShaderStageKind stage) => GetStage(stage).ToGpuStage();
 
-    /// <summary>Converts the stage named <paramref name="sourceEntryName"/> into a <see cref="Gpu.ShaderStage"/> descriptor.</summary>
-    /// <param name="sourceEntryName">The entry-point function name in shader source.</param>
-    /// <returns>The core <see cref="Gpu.ShaderStage"/> ready for pipeline creation.</returns>
-    public ShaderStage GetGpuStage(string sourceEntryName) => GetStage(sourceEntryName).ToGpuStage();
+    internal ShaderStage GetGpuStage(string sourceEntryName) => GetStage(sourceEntryName).ToGpuStage();
 
-    /// <summary>Attempts to convert a unique optional stage into a <see cref="Gpu.ShaderStage"/> descriptor.</summary>
-    /// <param name="stage">The optional stage kind.</param>
-    /// <param name="gpuStage">The converted stage when present; otherwise default.</param>
-    /// <returns>True when a unique stage of <paramref name="stage"/> exists; false when absent.</returns>
-    public bool TryGetGpuStage(ShaderStageKind stage, out ShaderStage gpuStage)
+    internal bool TryGetGpuStage(ShaderStageKind stage, out ShaderStage gpuStage)
     {
         CompiledShaderStage? found = FindStage(stage);
         if (found == null)

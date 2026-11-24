@@ -30,10 +30,10 @@ public enum MaterialFieldKind
     /// <summary>A shader <c>GPUBufferView</c> field written through <see cref="Material.SetBuffer"/>.</summary>
     Buffer,
 
-    /// <summary>A texture descriptor index field (<c>GpuTextureId</c>).</summary>
+    /// <summary>A texture descriptor index field (<c>GPUTextureId</c>).</summary>
     Texture,
 
-    /// <summary>A sampler descriptor index field (<c>GpuSamplerId</c>).</summary>
+    /// <summary>A sampler descriptor index field (<c>GPUSamplerId</c>).</summary>
     Sampler,
 }
 
@@ -113,6 +113,66 @@ public sealed class RootLayout
                 return ToRootField(nested);
         }
         return null;
+    }
+
+    /// <summary>Gets a strongly-typed handle for root field <paramref name="name"/>, validating size and kind against <typeparamref name="T"/>.</summary>
+    /// <typeparam name="T">The unmanaged type matching the shader field layout.</typeparam>
+    /// <param name="name">The field name or dot-separated nested path.</param>
+    /// <returns>The validated typed field handle.</returns>
+    /// <exception cref="InvalidOperationException">The field is missing, out of bounds, or mismatches <typeparamref name="T"/>.</exception>
+    public RootField<T> GetField<T>(string name) where T : unmanaged
+    {
+        ArgumentException.ThrowIfNullOrEmpty(name);
+        RootField found = Find(name)
+            ?? throw new InvalidOperationException($"Root layout does not declare field '{name}'.");
+        uint expectedSize = (uint)Unsafe.SizeOf<T>();
+        if (found.SizeBytes != expectedSize || found.Offset + found.SizeBytes > SizeBytes)
+        {
+            throw new InvalidOperationException(
+                $"Root field '{name}' has size {found.SizeBytes} at offset {found.Offset} (root {SizeBytes}B), expected {expectedSize}B for '{typeof(T).Name}'.");
+        }
+        MaterialFieldKind expectedKind = ExpectedKind<T>();
+        if (found.Kind != expectedKind)
+        {
+            throw new InvalidOperationException(
+                $"Root field '{name}' has kind {found.Kind}, expected {expectedKind} for '{typeof(T).Name}'.");
+        }
+        return new RootField<T>(found.Offset, found.SizeBytes);
+    }
+
+    /// <summary>Attempts to resolve a strongly-typed handle for root field <paramref name="name"/>.</summary>
+    /// <typeparam name="T">The unmanaged type matching the shader field layout.</typeparam>
+    /// <param name="name">The field name or dot-separated nested path.</param>
+    /// <param name="field">The resolved field handle when compatible; otherwise default.</param>
+    /// <returns><see langword="true"/> when found with matching size and kind.</returns>
+    public bool TryGetField<T>(string name, out RootField<T> field) where T : unmanaged
+    {
+        if (string.IsNullOrEmpty(name))
+        {
+            field = default;
+            return false;
+        }
+        RootField? found = Find(name);
+        uint expectedSize = (uint)Unsafe.SizeOf<T>();
+        if (found == null || found.SizeBytes != expectedSize || found.Offset + found.SizeBytes > SizeBytes ||
+            found.Kind != ExpectedKind<T>())
+        {
+            field = default;
+            return false;
+        }
+        field = new RootField<T>(found.Offset, found.SizeBytes);
+        return true;
+    }
+
+    private static MaterialFieldKind ExpectedKind<T>() where T : unmanaged
+    {
+        if (typeof(T) == typeof(GPUBufferView))
+            return MaterialFieldKind.Buffer;
+        if (typeof(T) == typeof(GPUTextureId))
+            return MaterialFieldKind.Texture;
+        if (typeof(T) == typeof(GPUSamplerId))
+            return MaterialFieldKind.Sampler;
+        return MaterialFieldKind.Data;
     }
 
     internal RootField? FindCompatibleLeaf(RootField field)
@@ -996,6 +1056,20 @@ public sealed class Shader : RenderingResource
     /// <summary>The full shader reflection snapshot of the default specialization variant.</summary>
     public ShaderReflection Reflection => DefaultVariant.Compiled.Reflection;
 
+    /// <summary>Gets a strongly-typed handle for root field <paramref name="name"/> in the default root layout.</summary>
+    /// <typeparam name="T">The unmanaged type matching the shader field layout.</typeparam>
+    /// <param name="name">The field name or dot-separated nested path.</param>
+    /// <returns>The validated typed field handle.</returns>
+    public RootField<T> GetRootField<T>(string name) where T : unmanaged => Root.GetField<T>(name);
+
+    /// <summary>Attempts to resolve a strongly-typed handle for root field <paramref name="name"/> in the default root layout.</summary>
+    /// <typeparam name="T">The unmanaged type matching the shader field layout.</typeparam>
+    /// <param name="name">The field name or dot-separated nested path.</param>
+    /// <param name="field">The resolved field handle when compatible; otherwise default.</param>
+    /// <returns><see langword="true"/> when found with matching size and kind.</returns>
+    public bool TryGetRootField<T>(string name, out RootField<T> field) where T : unmanaged =>
+        Root.TryGetField(name, out field);
+
     internal ShaderVariant DefaultVariant => _defaultVariant ??= GetOrCompileVariant([]);
 
     /// <summary>Creates a material over this shader pinned to the given specialization arguments.</summary>
@@ -1004,66 +1078,41 @@ public sealed class Shader : RenderingResource
     /// <returns>The material; it keeps this shader and its bound resources alive and needs no destruction.</returns>
     public Material CreateMaterial(string name = "", params ReadOnlySpan<object> specializations)
     {
-        Debug.Assert(!IsDestroyed);
+        Debug.Assert(!IsDisposed);
         return new Material(this, name, GetOrCompileVariant(NormalizeSpecializations(specializations)));
     }
 
-    /// <summary>Gets the compute pipeline for the given specialization arguments.</summary>
-    /// <param name="specializations">Optional specialization arguments.</param>
-    /// <returns>The compute pipeline owned by this shader.</returns>
-    public GPUPipeline GetComputePipeline(params ReadOnlySpan<object> specializations)
+    internal GPUPipeline GetComputePipeline(params ReadOnlySpan<object> specializations)
     {
-        Debug.Assert(!IsDestroyed);
+        Debug.Assert(!IsDisposed);
         ShaderVariant variant = specializations.IsEmpty ? DefaultVariant : GetOrCompileVariant(NormalizeSpecializations(specializations));
         return variant.GetComputePipeline();
     }
 
-    /// <summary>Gets or creates a shared graphics or mesh pipeline for the default variant.</summary>
-    /// <param name="state">The pipeline-defining material state.</param>
-    /// <param name="pass">The render-pass attachment signature.</param>
-    /// <returns>The pipeline; owned and destroyed by this shader.</returns>
-    public GPUPipeline GetPipeline(in PipelineState state, RenderPassSignature pass)
+    internal GPUPipeline GetPipeline(in PipelineState state, RenderPassSignature pass)
     {
-        Debug.Assert(!IsDestroyed);
+        Debug.Assert(!IsDisposed);
         return DefaultVariant.GetPipeline(in state, new PipelineStateKey(in state, Kind), in pass, out _);
     }
 
-    /// <summary>Gets or creates a shared graphics or mesh pipeline for a specific specialization.</summary>
-    /// <param name="state">The pipeline-defining material state.</param>
-    /// <param name="pass">The render-pass attachment signature.</param>
-    /// <param name="specializations">The specialization arguments for the variant.</param>
-    /// <returns>The pipeline; owned and destroyed by this shader.</returns>
-    public GPUPipeline GetPipeline(in PipelineState state, RenderPassSignature pass, params ReadOnlySpan<object> specializations)
+    internal GPUPipeline GetPipeline(in PipelineState state, RenderPassSignature pass, params ReadOnlySpan<object> specializations)
     {
-        Debug.Assert(!IsDestroyed);
+        Debug.Assert(!IsDisposed);
         ShaderVariant variant = specializations.IsEmpty ? DefaultVariant : GetOrCompileVariant(NormalizeSpecializations(specializations));
         return variant.GetPipeline(in state, new PipelineStateKey(in state, Kind), in pass, out _);
     }
 
-    /// <summary>Gets or creates a shared graphics or mesh pipeline for the default variant.</summary>
-    /// <param name="state">The pipeline-defining material state.</param>
-    /// <param name="colorFormats">The render pass color target formats.</param>
-    /// <param name="depthFormat">The render pass depth format.</param>
-    /// <param name="stencilFormat">The render pass stencil format.</param>
-    /// <returns>The pipeline; owned and destroyed by this shader.</returns>
-    public GPUPipeline GetPipeline(in PipelineState state, ReadOnlySpan<Format> colorFormats, Format depthFormat, Format stencilFormat)
+    internal GPUPipeline GetPipeline(in PipelineState state, ReadOnlySpan<Format> colorFormats, Format depthFormat, Format stencilFormat)
     {
-        Debug.Assert(!IsDestroyed);
+        Debug.Assert(!IsDisposed);
         return DefaultVariant.GetPipeline(in state, new PipelineStateKey(in state, Kind),
             new RenderPassSignature(colorFormats, depthFormat, stencilFormat), out _);
     }
 
-    /// <summary>Gets or creates a shared graphics or mesh pipeline for a specific specialization.</summary>
-    /// <param name="state">The pipeline-defining material state.</param>
-    /// <param name="colorFormats">The render pass color target formats.</param>
-    /// <param name="depthFormat">The render pass depth format.</param>
-    /// <param name="stencilFormat">The render pass stencil format.</param>
-    /// <param name="specializations">The specialization arguments for the variant.</param>
-    /// <returns>The pipeline; owned and destroyed by this shader.</returns>
-    public GPUPipeline GetPipeline(in PipelineState state, ReadOnlySpan<Format> colorFormats, Format depthFormat, Format stencilFormat,
+    internal GPUPipeline GetPipeline(in PipelineState state, ReadOnlySpan<Format> colorFormats, Format depthFormat, Format stencilFormat,
         params ReadOnlySpan<object> specializations)
     {
-        Debug.Assert(!IsDestroyed);
+        Debug.Assert(!IsDisposed);
         ShaderVariant variant = specializations.IsEmpty ? DefaultVariant : GetOrCompileVariant(NormalizeSpecializations(specializations));
         return variant.GetPipeline(in state, new PipelineStateKey(in state, Kind),
             new RenderPassSignature(colorFormats, depthFormat, stencilFormat), out _);
@@ -1099,7 +1148,7 @@ public sealed class Shader : RenderingResource
     {
         if (Kind == ShaderKind.Compute)
             throw new InvalidOperationException($"Compute shader '{Name}' has no raster pipeline.");
-        if (IsDestroyed)
+        if (IsDisposed)
             return Task.CompletedTask;
 
         string[] normalized = specializations.IsEmpty ? [] : NormalizeSpecializations(specializations);
@@ -1124,7 +1173,7 @@ public sealed class Shader : RenderingResource
 
     internal ShaderVariant GetOrCompileVariant(string[] normalizedSpecializations)
     {
-        Debug.Assert(!IsDestroyed);
+        Debug.Assert(!IsDisposed);
         ShaderVariant? cached = FindVariant(Volatile.Read(ref _variants), normalizedSpecializations);
         if (cached != null)
             return cached;
@@ -1150,7 +1199,7 @@ public sealed class Shader : RenderingResource
 
     internal ShaderVariant? TryGetOrCompileVariant(string[] normalizedSpecializations)
     {
-        if (Volatile.Read(ref _released) || IsDestroyed)
+        if (Volatile.Read(ref _released) || IsDisposed)
             return null;
         ShaderVariant? cached = FindVariant(Volatile.Read(ref _variants), normalizedSpecializations);
         if (cached != null)
@@ -1158,7 +1207,7 @@ public sealed class Shader : RenderingResource
 
         lock (_variantLock)
         {
-            if (_released || IsDestroyed)
+            if (_released || IsDisposed)
                 return null;
             VariantEntry[] variants = _variants;
             cached = FindVariant(variants, normalizedSpecializations);

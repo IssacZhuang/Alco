@@ -13,8 +13,8 @@ import AlcoRendering_Tonemap;
 [GPURoot]
 public struct TonemapRoot
 {
-    public GpuTextureId Source;
-    public GpuTextureId Dest;
+    public GPUTextureId Source;
+    public GPUTextureId Dest;
     public uint2 DestSize;
     public float2 InvDestSize;
     public float Exposure;

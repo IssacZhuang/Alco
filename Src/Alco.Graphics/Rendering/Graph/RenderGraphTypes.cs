@@ -408,14 +408,15 @@ public record struct RGBufferDesc
 /// <summary>A borrowed color output target for <see cref="RenderGraph.Execute"/>: either an acquired swapchain frame or a caller-owned texture.</summary>
 public readonly struct RenderGraphTarget
 {
-    /// <summary>The color attachment view, or null when headless/minimized.</summary>
-    public GPURenderView? RenderView { get; }
+    /// <summary>The underlying attachment render target.</summary>
+    public RenderTarget Target { get; }
 
-    /// <summary>The underlying native texture for attachment and transfer operations, or null when headless.</summary>
-    public GPUTexture? NativeTexture { get; }
+    internal GPURenderView? RenderView => Target.View;
 
-    /// <summary>The caller-owned texture wrapper when backed by a <see cref="Rendering.Texture"/>, or null for swapchain frames.</summary>
-    public Texture? Texture { get; }
+    internal GPUTexture? NativeTexture { get; }
+
+    /// <summary>The caller-owned texture wrapper when backed by a <see cref="Graphics.Texture"/>, or null for swapchain frames.</summary>
+    public Texture? Texture => Target.Texture;
 
     /// <summary>The target extent in pixels.</summary>
     public Extent2D Extent { get; }
@@ -424,26 +425,21 @@ public readonly struct RenderGraphTarget
     public Format Format { get; }
 
     /// <summary>Whether this target refers to a valid drawable output.</summary>
-    public bool IsValid => RenderView != null;
+    public bool IsValid => Target.IsValid;
 
-    private RenderGraphTarget(GPURenderView renderView, GPUTexture? nativeTexture, Texture? texture, Extent2D extent, Format format)
+    private RenderGraphTarget(RenderTarget target, GPUTexture? nativeTexture, Extent2D extent, Format format)
     {
-        RenderView = renderView;
+        Target = target;
         NativeTexture = nativeTexture;
-        Texture = texture;
         Extent = extent;
         Format = format;
     }
 
-    /// <summary>Wraps an acquired swapchain frame; returns <see langword="default"/> when the frame is unavailable.</summary>
-    /// <param name="frame">The acquired swapchain frame.</param>
-    /// <param name="format">The swapchain's color format.</param>
-    /// <returns>A target referencing the borrowed swapchain image, or an invalid target when minimized.</returns>
-    public static RenderGraphTarget FromSwapchain(SwapchainFrame frame, Format format)
+    internal static RenderGraphTarget FromSwapchain(SwapchainFrame frame, Format format)
     {
         if (frame.RenderView == null)
             return default;
-        return new RenderGraphTarget(frame.RenderView, frame.Texture, null, frame.Extent, format);
+        return new RenderGraphTarget(new RenderTarget(frame.RenderView, null, frame.Extent), frame.Texture, frame.Extent, format);
     }
 
     /// <summary>Wraps a caller-owned offscreen texture as a graph output target.</summary>
@@ -452,14 +448,14 @@ public readonly struct RenderGraphTarget
     public static RenderGraphTarget FromTexture(Texture texture)
     {
         ArgumentNullException.ThrowIfNull(texture);
-        Debug.Assert(!texture.IsDestroyed && (texture.Desc.Usage & TextureUsage.ColorAttachment) != 0);
-        return new RenderGraphTarget(texture.RenderView, texture.NativeTexture, texture,
+        Debug.Assert(!texture.IsDisposed && (texture.Desc.Usage & TextureUsage.ColorAttachment) != 0);
+        return new RenderGraphTarget(texture.GetRenderTarget(), texture.LowLevelTexture,
             new Extent2D(texture.Extent.X, texture.Extent.Y), texture.Format);
     }
 
     internal static RenderGraphTarget CreateDryRun(Extent2D extent, Format format)
     {
-        return new RenderGraphTarget(null!, null, null, extent, format);
+        return new RenderGraphTarget(default, null, extent, format);
     }
 
     internal bool IsDryRunTarget => RenderView == null && Extent.X != 0 && Extent.Y != 0 && Format != Format.Undefined;

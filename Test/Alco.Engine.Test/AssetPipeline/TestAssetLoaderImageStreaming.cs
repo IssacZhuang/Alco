@@ -143,7 +143,7 @@ public class TestAssetLoaderImageStreaming
         _imageUploadQueue?.Dispose();
         _lifeCycle?.Dispose();
         _fileSource?.Dispose();
-        _renderingSystem?.Destroy();
+        _renderingSystem?.Dispose();
         _device?.Destroy();
     }
 
@@ -269,7 +269,7 @@ public class TestAssetLoaderImageStreaming
         Assert.That(second, Is.SameAs(eventAsset));
         PumpUntilArrived(second);
         Assert.That(first.IsDisposed, Is.False);
-        Assert.That(first.Texture.IsDestroyed, Is.False);
+        Assert.That(first.Texture.IsDisposed, Is.False);
         first.Dispose();
     }
 

@@ -2,9 +2,9 @@
 
 using System.Diagnostics;
 
-using Alco.Graphics.LowLevel;
+using Alco.Graphics;
 
-namespace Alco.Graphics;
+namespace Alco.Graphics.LowLevel;
 
 /// <summary>Suballocates 16-byte-aligned ranges without owning the backing storage.</summary>
 public unsafe class BumpAllocator

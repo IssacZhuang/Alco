@@ -11,7 +11,7 @@ import AlcoRendering_TextureCompressionBc7;
 public struct TextureCompressionRoot
 {
     public GPUBufferView Output;
-    public GpuTextureId Source;
+    public GPUTextureId Source;
     public uint Mip;
     public uint2 Extent;
 };

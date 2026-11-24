@@ -529,7 +529,7 @@ public sealed class ShaderCompiler : IDisposable
             {
                 throw new ShaderCompilationException(
                     $"Shader '{moduleName}' declares global parameter '{global.Name}' (space {global.BindingSpace}, binding {global.BindingIndex}), " +
-                    "violating the Alco.Graphics bindless ABI. Move parameters, GPUBufferView, GpuTextureId, or GpuSamplerId fields into the [GPURoot] struct.",
+                    "violating the Alco.Graphics bindless ABI. Move parameters, GPUBufferView, GPUTextureId, or GPUSamplerId fields into the [GPURoot] struct.",
                     target, moduleName);
             }
         }
@@ -627,7 +627,7 @@ public sealed class ShaderCompiler : IDisposable
     private string BuildCacheKey(string moduleName, string? sourceHash, string selectorKey, ShaderCompileOptions? options)
     {
         StringBuilder sb = new(256);
-        sb.Append("alco-graphics-root-layout-2|").Append(CompilerVersionTag).Append('|')
+        sb.Append("alco-graphics-root-layout-3|").Append(CompilerVersionTag).Append('|')
             .Append((int)Target).Append('|')
             .Append((int)_options.Optimization).Append('|')
             .Append(options?.ValidateAbi ?? _options.ValidateAbi).Append('|')

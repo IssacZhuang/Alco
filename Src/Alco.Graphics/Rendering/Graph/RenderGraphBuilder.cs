@@ -1,6 +1,8 @@
 ﻿// Per-frame setup builder, pass access builder, and execution context for RenderGraph.
 
 using System.Diagnostics;
+using System.Numerics;
+using System.Runtime.InteropServices;
 using Alco.Graphics.LowLevel;
 
 namespace Alco.Graphics;
@@ -251,15 +253,83 @@ public readonly struct RenderGraphContext
     /// <returns>The backing texture, or null.</returns>
     public Texture? TryGetTexture(RGTexture handle) => _graph.TryResolveTexture(handle);
 
-    /// <summary>Resolves a texture handle (including <see cref="RenderGraphBuilder.Output"/>) to its mip-zero <see cref="GPURenderView"/>.</summary>
+    /// <summary>Resolves a texture handle (including <see cref="RenderGraphBuilder.Output"/>) to its mip-zero <see cref="RenderTarget"/>.</summary>
     /// <param name="handle">A valid texture handle.</param>
-    /// <returns>The attachment render view.</returns>
-    public GPURenderView GetRenderView(RGTexture handle) => _graph.ResolveRenderView(handle);
+    /// <returns>The attachment render target.</returns>
+    public RenderTarget GetRenderTarget(RGTexture handle) => _graph.ResolveRenderTarget(handle);
 
-    /// <summary>Resolves a texture handle (including <see cref="RenderGraphBuilder.Output"/>) to its native <see cref="GPUTexture"/>.</summary>
-    /// <param name="handle">A valid texture handle.</param>
-    /// <returns>The native GPU texture.</returns>
-    public GPUTexture GetNativeTexture(RGTexture handle) => _graph.ResolveNativeTexture(handle);
+    /// <summary>Resolves a texture handle to a specific mip level and array slice <see cref="RenderTarget"/>.</summary>
+    /// <param name="handle">A valid texture handle backed by a <see cref="Texture"/>.</param>
+    /// <param name="mipLevel">The zero-based mip level.</param>
+    /// <param name="arraySlice">The zero-based array slice.</param>
+    /// <returns>The attachment render target.</returns>
+    public RenderTarget GetRenderTarget(RGTexture handle, uint mipLevel, uint arraySlice = 0) =>
+        _graph.ResolveTexture(handle).GetRenderTarget(mipLevel, arraySlice);
+
+    /// <summary>Begins a single-color-target render pass over <paramref name="colorTarget"/>.</summary>
+    /// <param name="colorTarget">The color attachment handle.</param>
+    /// <param name="load">Color attachment load operation.</param>
+    /// <param name="store">Color attachment store operation.</param>
+    /// <param name="clearColor">Clear color when <paramref name="load"/> is <see cref="LoadOp.Clear"/>.</param>
+    /// <returns>The active render pass scope.</returns>
+    public RenderContext.RenderScope BeginRenderPass(RGTexture colorTarget, LoadOp load = LoadOp.Load,
+        StoreOp store = StoreOp.Store, Vector4 clearColor = default)
+    {
+        ColorAttachment color = new()
+        {
+            Target = GetRenderTarget(colorTarget),
+            Load = load,
+            Store = store,
+            Clear = clearColor,
+        };
+        return RenderContext.BeginRenderPass(new RenderingDesc
+        {
+            Colors = MemoryMarshal.CreateReadOnlySpan(ref color, 1),
+        });
+    }
+
+    /// <summary>Begins a color+depth (or depth-only when <paramref name="colorTarget"/> is invalid) render pass.</summary>
+    /// <param name="colorTarget">The color attachment handle, or default for depth-only rendering.</param>
+    /// <param name="depthTarget">The depth attachment handle, or default when absent.</param>
+    /// <param name="colorLoad">Color attachment load operation.</param>
+    /// <param name="colorStore">Color attachment store operation.</param>
+    /// <param name="clearColor">Clear color when <paramref name="colorLoad"/> is <see cref="LoadOp.Clear"/>.</param>
+    /// <param name="depthLoad">Depth attachment load operation.</param>
+    /// <param name="depthStore">Depth attachment store operation.</param>
+    /// <param name="clearDepth">Clear depth value when <paramref name="depthLoad"/> is <see cref="LoadOp.Clear"/>.</param>
+    /// <returns>The active render pass scope.</returns>
+    public RenderContext.RenderScope BeginRenderPass(RGTexture colorTarget, RGTexture depthTarget,
+        LoadOp colorLoad = LoadOp.Load, StoreOp colorStore = StoreOp.Store, Vector4 clearColor = default,
+        LoadOp depthLoad = LoadOp.Load, StoreOp depthStore = StoreOp.Store, float clearDepth = 1.0f)
+    {
+        ColorAttachment color = colorTarget.IsValid
+            ? new ColorAttachment
+            {
+                Target = GetRenderTarget(colorTarget),
+                Load = colorLoad,
+                Store = colorStore,
+                Clear = clearColor,
+            }
+            : default;
+        DepthAttachment depth = depthTarget.IsValid
+            ? new DepthAttachment
+            {
+                Target = GetRenderTarget(depthTarget),
+                Load = depthLoad,
+                Store = depthStore,
+                Clear = clearDepth,
+            }
+            : new DepthAttachment();
+        return RenderContext.BeginRenderPass(new RenderingDesc
+        {
+            Colors = colorTarget.IsValid ? MemoryMarshal.CreateReadOnlySpan(ref color, 1) : ReadOnlySpan<ColorAttachment>.Empty,
+            Depth = depth,
+        });
+    }
+
+    internal GPURenderView GetRenderViewInternal(RGTexture handle) => _graph.ResolveRenderView(handle);
+
+    internal GPUTexture GetNativeTextureInternal(RGTexture handle) => _graph.ResolveNativeTexture(handle);
 
     /// <summary>Gets the resolved texel extent of a texture handle.</summary>
     /// <param name="handle">A valid texture handle.</param>

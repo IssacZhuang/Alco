@@ -190,7 +190,7 @@ public unsafe class TestSpriteBatch2D
             batch.Upload(context);
             var passDesc = new RenderingDesc
             {
-                Colors = [new ColorAttachment { RenderView = target.RenderView, Load = LoadOp.Clear, Store = StoreOp.Store, Clear = Vector4.Zero }],
+                Colors = [new ColorAttachment { Target = target, Load = LoadOp.Clear, Store = StoreOp.Store, Clear = Vector4.Zero }],
             };
             SpriteBatch2DStats stats1;
             using (RenderContext.RenderScope render = context.BeginRenderPass(passDesc, passSig))
@@ -199,7 +199,8 @@ public unsafe class TestSpriteBatch2D
                 render.SetScissor(new Scissor { Width = 128, Height = 128 });
                 stats1 = batch.Record(context, in render, camera);
             }
-            context.Submit().Wait();
+            context.Submit();
+            rendering.WaitIdle();
 
             Assert.Multiple(() =>
             {
@@ -232,7 +233,8 @@ public unsafe class TestSpriteBatch2D
                 render.SetScissor(new Scissor { Width = 128, Height = 128 });
                 stats2 = batch.Record(context, in render, camera, time: 0.5f);
             }
-            context.Submit().Wait();
+            context.Submit();
+            rendering.WaitIdle();
 
             Assert.Multiple(() =>
             {
@@ -243,12 +245,12 @@ public unsafe class TestSpriteBatch2D
         }
         finally
         {
-            context.Destroy();
-            if (!target.IsDestroyed) target.Destroy();
-            if (!texA.IsDestroyed) texA.Destroy();
-            if (!texB.IsDestroyed) texB.Destroy();
-            if (!texC.IsDestroyed) texC.Destroy();
-            if (!texD.IsDestroyed) texD.Destroy();
+            context.Dispose();
+            if (!target.IsDisposed) target.Dispose();
+            if (!texA.IsDisposed) texA.Dispose();
+            if (!texB.IsDisposed) texB.Dispose();
+            if (!texC.IsDisposed) texC.Dispose();
+            if (!texD.IsDisposed) texD.Dispose();
         }
     }
 
@@ -350,7 +352,7 @@ public unsafe class TestSpriteBatch2D
                     [
                         new ColorAttachment
                         {
-                            RenderView = target.RenderView,
+                            Target = target,
                             Load = LoadOp.Clear,
                             Store = StoreOp.Store,
                             Clear = new Vector4(0f, 0f, 0f, 1f),
@@ -416,15 +418,15 @@ public unsafe class TestSpriteBatch2D
             }
             finally
             {
-                context.Destroy();
-                if (!target.IsDestroyed) target.Destroy();
-                if (!texRed.IsDestroyed) texRed.Destroy();
-                if (!texGreen.IsDestroyed) texGreen.Destroy();
-                if (!texBlue.IsDestroyed) texBlue.Destroy();
-                if (!texYellow.IsDestroyed) texYellow.Destroy();
-                if (!texPremul.IsDestroyed) texPremul.Destroy();
-                if (!texChecker.IsDestroyed) texChecker.Destroy();
-                if (!texNineSlice.IsDestroyed) texNineSlice.Destroy();
+                context.Dispose();
+                if (!target.IsDisposed) target.Dispose();
+                if (!texRed.IsDisposed) texRed.Dispose();
+                if (!texGreen.IsDisposed) texGreen.Dispose();
+                if (!texBlue.IsDisposed) texBlue.Dispose();
+                if (!texYellow.IsDisposed) texYellow.Dispose();
+                if (!texPremul.IsDisposed) texPremul.Dispose();
+                if (!texChecker.IsDisposed) texChecker.Dispose();
+                if (!texNineSlice.IsDisposed) texNineSlice.Dispose();
             }
         }
     }
@@ -539,9 +541,10 @@ public unsafe class TestSpriteBatch2D
         try
         {
             context.Barrier(Stage.ColorOutput, Access.ColorWrite, Stage.Transfer, Access.TransferRead);
-            context.CopyTextureToMemory(target.NativeTexture, readback.Range.GPURange);
+            context.CopyTextureToMemory(target.GetNativeTexture(), readback.Range.GPURange);
             context.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Host, Access.HostRead);
-            context.Submit().Wait();
+            context.Submit();
+            device.WaitIdle();
 
             byte[] pixels = new byte[(int)byteCount];
             new ReadOnlySpan<byte>(readback.Range.Cpu, (int)byteCount).CopyTo(pixels);

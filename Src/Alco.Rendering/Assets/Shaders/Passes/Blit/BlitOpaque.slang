@@ -9,7 +9,7 @@ import SharedSampler;
 [GPURoot]
 public struct BlitOpaqueRoot
 {
-    public GpuTextureId Texture;
+    public GPUTextureId Texture;
 };
 
 struct V2F

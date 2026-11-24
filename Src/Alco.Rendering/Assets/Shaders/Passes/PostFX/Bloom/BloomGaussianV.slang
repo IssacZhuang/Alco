@@ -13,9 +13,9 @@ import AlcoRendering_Bloom;
 [GPURoot]
 public struct BloomGaussianVRoot
 {
-    public GpuTextureId Source;
-    public GpuTextureId Additive;
-    public GpuTextureId Dest;
+    public GPUTextureId Source;
+    public GPUTextureId Additive;
+    public GPUTextureId Dest;
     public float2 InvDestSize;
     public uint2 Size;
     public float TintR;

@@ -22,8 +22,6 @@ public sealed unsafe class SpriteScene2D : AutoDisposable
         public uint VisibleBase;
     }
 
-    private readonly record struct RetiredBuffer(Alco.Graphics.Buffer Buffer, RenderContext? Context, ulong FrameId);
-
     [StructLayout(LayoutKind.Sequential)]
     private struct InstanceScatterRoot
     {
@@ -70,7 +68,6 @@ public sealed unsafe class SpriteScene2D : AutoDisposable
     private readonly Dictionary<int, List<BucketState>> _tiers = new();
     private SpriteSceneBucketMeta[] _bucketMetaStaging = new SpriteSceneBucketMeta[InitialBucketCapacity];
     private uint[] _bucketSlotIndices = BuildSequentialIndices(InitialBucketCapacity);
-    private readonly List<RetiredBuffer> _retiredBuffers = new();
 
     private Alco.Graphics.Buffer _bucketMetaBuffer;
     private Alco.Graphics.Buffer _drawArgsBuffer;
@@ -79,8 +76,6 @@ public sealed unsafe class SpriteScene2D : AutoDisposable
     private int _visibleSlotsCapacity;
     private bool _bucketsDirty = true;
     private int _drawCallsSubmitted;
-    private RenderContext? _lastContext;
-    private ulong _lastFrameId;
 
     /// <summary>Creates a GPU-driven 2D sprite scene backed by <paramref name="system"/>.</summary>
     /// <param name="system">The rendering system owning GPU buffers and descriptor heaps.</param>
@@ -281,7 +276,6 @@ public sealed unsafe class SpriteScene2D : AutoDisposable
         ObjectDisposedException.ThrowIf(IsDisposed, this);
 
         _drawCallsSubmitted = 0;
-        ReclaimRetiredBuffers();
 
         if (_buckets.Count == 0)
         {
@@ -309,13 +303,13 @@ public sealed unsafe class SpriteScene2D : AutoDisposable
                 _bucketsDirty = false;
             }
 
-            GPURange resetRoot = context.AllocateRoot(new SpriteSceneResetArgsRoot
+            SpriteSceneResetArgsRoot resetRoot = new()
             {
                 BucketMeta = _bucketMetaBuffer.View,
                 DrawArgs = _drawArgsBuffer.View,
                 BucketCount = (uint)_buckets.Count,
-            });
-            compute.Dispatch(_resetArgsShader, resetRoot, new Extent3D((uint)((_buckets.Count + 63) / 64), 1u, 1u));
+            };
+            compute.Dispatch(_resetArgsShader, in resetRoot, new Extent3D((uint)((_buckets.Count + 63) / 64), 1u, 1u));
 
             if (_pool.TotalSlots > 0)
             {
@@ -325,7 +319,7 @@ public sealed unsafe class SpriteScene2D : AutoDisposable
 
                 Vector2 vpMin = viewport.Min;
                 Vector2 vpMax = viewport.Max;
-                GPURange cullRoot = context.AllocateRoot(new SpriteSceneCullRoot
+                SpriteSceneCullRoot cullRoot = new()
                 {
                     Viewport = new Vector4(vpMin.X, vpMin.Y, vpMax.X, vpMax.Y),
                     Pool = _pool.PoolBuffer.View,
@@ -337,8 +331,8 @@ public sealed unsafe class SpriteScene2D : AutoDisposable
                     BucketCount = (uint)_buckets.Count,
                     CullMargin = cullMargin,
                     OriginOffset = originOffset,
-                });
-                compute.Dispatch(_cullShader, cullRoot, new Extent3D((uint)((_pool.TotalSlots + 63) / 64), 1u, 1u));
+                };
+                compute.Dispatch(_cullShader, in cullRoot, new Extent3D((uint)((_pool.TotalSlots + 63) / 64), 1u, 1u));
             }
         }
 
@@ -346,9 +340,6 @@ public sealed unsafe class SpriteScene2D : AutoDisposable
             Stage.Compute, Access.ShaderWrite,
             Stage.Indirect | Stage.Vertex,
             Access.IndirectRead | Access.ShaderRead);
-
-        _lastContext = context;
-        _lastFrameId = context.CurrentFrameId;
     }
 
     /// <summary>Records indirect draws for all non-empty buckets belonging to <paramref name="tier"/>.</summary>
@@ -427,24 +418,17 @@ public sealed unsafe class SpriteScene2D : AutoDisposable
             };
 
             uint rootSize = material.Root.SizeBytes;
-            GPUAllocation<byte> rootAlloc = context.FrameData.Allocate(rootSize);
-            if (rootAlloc.SizeBytes == 0)
-            {
-                throw new InvalidOperationException("The recording frame's root storage is exhausted.");
-            }
-
-            Span<byte> dest = rootAlloc.CpuSpan;
+            Span<byte> dest = context.AllocateTransient<byte>(checked((int)rootSize), out BufferSlice rootSlice);
             material.CopyRoot(dest);
             MemoryMarshal.Write(dest, in header);
 
             render.DrawIndirect(
                 material,
-                rootAlloc.GPURange,
+                rootSlice,
                 bucket.Desc.DepthStencil,
-                _drawArgsBuffer,
+                _drawArgsBuffer.Slice((ulong)bucket.Id * (ulong)sizeof(GpuDrawIndirectArgs)),
                 drawCount: 1u,
-                stride: 0u,
-                argumentByteOffset: (ulong)bucket.Id * (ulong)sizeof(GpuDrawIndirectArgs));
+                stride: 0u);
             ++submitted;
         }
 
@@ -463,28 +447,19 @@ public sealed unsafe class SpriteScene2D : AutoDisposable
         _pool.Dispose();
         _transientBuffers.Dispose();
 
-        for (int i = 0; i < _retiredBuffers.Count; ++i)
+        if (!_bucketMetaBuffer.IsDisposed)
         {
-            if (!_retiredBuffers[i].Buffer.IsDestroyed)
-            {
-                _retiredBuffers[i].Buffer.Destroy();
-            }
+            _bucketMetaBuffer.Dispose();
         }
 
-        _retiredBuffers.Clear();
-        if (!_bucketMetaBuffer.IsDestroyed)
+        if (!_drawArgsBuffer.IsDisposed)
         {
-            _bucketMetaBuffer.Destroy();
+            _drawArgsBuffer.Dispose();
         }
 
-        if (!_drawArgsBuffer.IsDestroyed)
+        if (!_visibleSlotsBuffer.IsDisposed)
         {
-            _drawArgsBuffer.Destroy();
-        }
-
-        if (!_visibleSlotsBuffer.IsDestroyed)
-        {
-            _visibleSlotsBuffer.Destroy();
+            _visibleSlotsBuffer.Dispose();
         }
     }
 
@@ -511,15 +486,15 @@ public sealed unsafe class SpriteScene2D : AutoDisposable
         patchBuf.SetData<SpriteSceneBucketMeta>(_bucketMetaStaging.AsSpan(0, count));
         slotBuf.SetData<uint>(_bucketSlotIndices.AsSpan(0, count));
 
-        GPURange scatterRoot = context.AllocateRoot(new InstanceScatterRoot
+        InstanceScatterRoot scatterRoot = new()
         {
             Patches = patchBuf.View,
             PatchSlots = slotBuf.View,
             Pool = _bucketMetaBuffer.View,
             PatchCount = (uint)count,
             WordsPerInstance = (uint)(sizeof(SpriteSceneBucketMeta) / 4),
-        });
-        compute.Dispatch(_scatterShader, scatterRoot, new Extent3D((uint)((count + 63) / 64), 1u, 1u));
+        };
+        compute.Dispatch(_scatterShader, in scatterRoot, new Extent3D((uint)((count + 63) / 64), 1u, 1u));
         compute.Barrier(
             Stage.Compute, Access.ShaderWrite,
             Stage.Compute, Access.ShaderRead);
@@ -535,8 +510,8 @@ public sealed unsafe class SpriteScene2D : AutoDisposable
 
         Array.Resize(ref _bucketMetaStaging, nextCapacity);
         _bucketSlotIndices = BuildSequentialIndices(nextCapacity);
-        _retiredBuffers.Add(new RetiredBuffer(_bucketMetaBuffer, _lastContext, _lastFrameId));
-        _retiredBuffers.Add(new RetiredBuffer(_drawArgsBuffer, _lastContext, _lastFrameId));
+        _bucketMetaBuffer.Dispose();
+        _drawArgsBuffer.Dispose();
         _bucketMetaBuffer = _system.CreateBuffer((ulong)nextCapacity * (ulong)sizeof(SpriteSceneBucketMeta));
         _drawArgsBuffer = _system.CreateBuffer((ulong)nextCapacity * (ulong)sizeof(GpuDrawIndirectArgs));
         _bucketCapacity = nextCapacity;
@@ -545,28 +520,9 @@ public sealed unsafe class SpriteScene2D : AutoDisposable
 
     private void ReplaceVisibleSlotsBuffer(int nextCapacity)
     {
-        _retiredBuffers.Add(new RetiredBuffer(_visibleSlotsBuffer, _lastContext, _lastFrameId));
+        _visibleSlotsBuffer.Dispose();
         _visibleSlotsCapacity = nextCapacity;
         _visibleSlotsBuffer = _system.CreateBuffer((ulong)nextCapacity * sizeof(uint));
-    }
-
-    private void ReclaimRetiredBuffers()
-    {
-        for (int i = _retiredBuffers.Count - 1; i >= 0; --i)
-        {
-            RetiredBuffer entry = _retiredBuffers[i];
-            if (entry.Context != null && !entry.Context.IsFrameCompleted(entry.FrameId))
-            {
-                continue;
-            }
-
-            if (!entry.Buffer.IsDestroyed)
-            {
-                entry.Buffer.Destroy();
-            }
-
-            _retiredBuffers.RemoveAt(i);
-        }
     }
 
     private void ValidateBucketId(uint bucketId)

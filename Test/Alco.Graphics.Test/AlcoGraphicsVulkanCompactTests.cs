@@ -35,8 +35,8 @@ public sealed class AlcoGraphicsVulkanCompactTests
         [GPURoot]
         struct QuadRoot
         {
-            GpuTextureId Albedo;
-            GpuSamplerId Sampler;
+            GPUTextureId Albedo;
+            GPUSamplerId Sampler;
             float4 Tint;
         };
 
@@ -100,15 +100,15 @@ public sealed class AlcoGraphicsVulkanCompactTests
                 compute.Dispatch(material, new Extent3D(4, 1, 1));
             }
             context.Barrier(Stage.Compute, Access.ShaderWrite, Stage.Host, Access.HostRead);
-            context.Submit().Wait();
+            context.SubmitWithCompletion().Wait();
 
             GPUHeap readback = device.AllocateGPUHeap(4 * (ulong)sizeof(Vector4), MemoryType.Readback);
             try
             {
                 context.BeginFrame();
-                context.CopyMemory(output.Range, readback.Range.GPURange);
+                context.CopyMemory(output.GetRange(), readback.Range.GPURange);
                 context.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Host, Access.HostRead);
-                context.Submit().Wait();
+                context.SubmitWithCompletion().Wait();
 
                 Vector4* results = (Vector4*)readback.Range.Cpu;
                 Assert.That(results[0], Is.EqualTo(new Vector4(1, 2, 3, 4)));
@@ -119,13 +119,13 @@ public sealed class AlcoGraphicsVulkanCompactTests
             finally
             {
                 readback.Destroy();
-                output.Destroy();
+                output.Dispose();
             }
         }
         finally
         {
-            context.Destroy();
-            system.Destroy();
+            context.Dispose();
+            system.Dispose();
             device.Destroy();
         }
     }
@@ -158,7 +158,7 @@ public sealed class AlcoGraphicsVulkanCompactTests
                 context.BeginFrame();
                 RenderingDesc passDesc = new()
                 {
-                    Colors = [new ColorAttachment { RenderView = target.RenderView, Load = LoadOp.Clear, Store = StoreOp.Store }],
+                    Colors = [new ColorAttachment { Target = target, Load = LoadOp.Clear, Store = StoreOp.Store }],
                 };
                 using (var render = context.BeginRenderPass(passDesc))
                 {
@@ -167,9 +167,9 @@ public sealed class AlcoGraphicsVulkanCompactTests
                     render.Draw(material, 3);
                 }
                 context.Barrier(Stage.ColorOutput, Access.ColorWrite, Stage.Transfer, Access.TransferRead);
-                context.CopyTextureToMemory(target.NativeTexture, readback.Range.GPURange);
+                context.CopyTextureToMemory(target.GetNativeTexture(), readback.Range.GPURange);
                 context.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Host, Access.HostRead);
-                context.Submit().Wait();
+                context.SubmitWithCompletion().Wait();
 
                 byte* pixels = readback.Range.Cpu;
                 Assert.That(pixels[0], Is.EqualTo(255));
@@ -180,13 +180,13 @@ public sealed class AlcoGraphicsVulkanCompactTests
             finally
             {
                 readback.Destroy();
-                target.Destroy();
+                target.Dispose();
             }
         }
         finally
         {
-            context.Destroy();
-            system.Destroy();
+            context.Dispose();
+            system.Dispose();
             device.Destroy();
         }
     }

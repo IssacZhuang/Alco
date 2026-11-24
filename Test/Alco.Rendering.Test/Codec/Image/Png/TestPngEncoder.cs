@@ -437,9 +437,9 @@ public unsafe class TestPngEncoder
         }
         finally
         {
-            if (!texture.IsDestroyed)
+            if (!texture.IsDisposed)
             {
-                texture.Destroy();
+                texture.Dispose();
             }
         }
     }

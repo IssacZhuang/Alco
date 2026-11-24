@@ -67,7 +67,7 @@ public sealed class TestSwapchainCapture
 
                 ColorAttachment color = new()
                 {
-                    RenderView = MainPresenter.CurrentFrame.RenderView,
+                    Target = MainPresenter.CurrentRenderTarget,
                     Load = LoadOp.Clear,
                     Store = StoreOp.Store,
                     Clear = _clearColor,
@@ -96,8 +96,8 @@ public sealed class TestSwapchainCapture
                 return;
             }
 
-            GraphicsDevice.WaitIdle();
-            _renderContext.Destroy();
+            RenderingSystem.WaitIdle();
+            _renderContext.Dispose();
             base.Dispose();
         }
     }

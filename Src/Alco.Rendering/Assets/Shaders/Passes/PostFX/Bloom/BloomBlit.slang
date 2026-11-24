@@ -16,8 +16,8 @@ public static const uint BLOOM_BLIT_SAMPLE_BLOOM = 1u << 1;
 [GPURoot]
 public struct BloomBlitRoot
 {
-    public GpuTextureId BloomTex;
-    public GpuTextureId SceneTex;
+    public GPUTextureId BloomTex;
+    public GPUTextureId SceneTex;
     public uint Flags;
 };
 

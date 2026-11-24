@@ -1,8 +1,8 @@
 ﻿// Configuration and capacity statistics shared by physical heap pools.
 
-using Alco.Graphics.LowLevel;
+using Alco.Graphics;
 
-namespace Alco.Graphics;
+namespace Alco.Graphics.LowLevel;
 
 /// <summary>Configures heap growth, backing capacity, and allocation metadata for a physical heap pool.</summary>
 public struct HeapPoolDesc

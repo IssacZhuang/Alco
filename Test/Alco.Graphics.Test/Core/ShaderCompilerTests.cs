@@ -44,8 +44,8 @@ internal static class ShaderCompilerTests
         struct SampleRoot
         {
             GPUBufferView Output;
-            GpuTextureId Albedo;
-            GpuSamplerId Sampler;
+            GPUTextureId Albedo;
+            GPUSamplerId Sampler;
             [Tag("weight-field", 3, 1.25)]
             float Weight;
             float2x3 Transform;
@@ -192,7 +192,7 @@ internal static class ShaderCompilerTests
             albedo?.Semantic == ShaderFieldSemantic.TextureId &&
             sampler?.Semantic == ShaderFieldSemantic.SamplerId &&
             weight?.Semantic == ShaderFieldSemantic.Data,
-            "ShaderFieldLayout classifies GPUBufferView, GpuTextureId, GpuSamplerId, and ordinary data semantics");
+            "ShaderFieldLayout classifies GPUBufferView, GPUTextureId, GPUSamplerId, and ordinary data semantics");
 
         check(weight != null && weight.OffsetBytes == (uint)Marshal.OffsetOf<ExpectedSampleRoot>(nameof(ExpectedSampleRoot.Weight)) &&
             weight.Attributes.Count == 1 && weight.Attributes[0].Name == "Tag" &&
@@ -639,8 +639,8 @@ internal static class ShaderCompilerTests
 
             public struct SurfaceAParams
             {
-                public GpuTextureId Albedo;
-                public GpuSamplerId Sampler;
+                public GPUTextureId Albedo;
+                public GPUSamplerId Sampler;
                 public float4 Tint;
             };
 

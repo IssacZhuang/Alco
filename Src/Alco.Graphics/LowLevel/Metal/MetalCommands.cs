@@ -474,7 +474,7 @@ internal sealed unsafe partial class MetalCommandBuffer : GPUCommandBuffer
     /// <summary>Begins a render pass with the given attachments.</summary>
     /// <param name="desc">The render attachments and their operations.</param>
     /// <param name="flags">The render pass continuation flags.</param>
-    public override void BeginRenderPass(RenderingDesc desc, RenderingFlags flags = RenderingFlags.None)
+    public override void BeginRenderPass(GPURenderingDesc desc, RenderingFlags flags = RenderingFlags.None)
     {
         using Mtl.NSAutoreleasePool autorelease = new();
         Debug.Assert(Recording && Render.NativePtr == 0 && Pool.Kind == MetalQueueKind.General && desc.Colors.Length <= 8);
@@ -486,7 +486,7 @@ internal sealed unsafe partial class MetalCommandBuffer : GPUCommandBuffer
             Mtl.MTLRenderPassColorAttachmentDescriptor attachment = pass.ColorAttachments.Object(i);
             if (i < (uint)desc.Colors.Length)
             {
-                ColorAttachment color = desc.Colors[(int)i];
+                GPUColorAttachment color = desc.Colors[(int)i];
                 MetalRenderView? view = (MetalRenderView?)color.RenderView;
                 area ??= view;
                 RenderAttachment(attachment, view, color.Load, color.Store);

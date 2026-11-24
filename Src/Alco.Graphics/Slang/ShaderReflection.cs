@@ -68,10 +68,10 @@ public enum ShaderFieldSemantic : byte
     /// <summary>An eight-byte <c>GPUBufferView</c> buffer handle.</summary>
     BufferView = 1,
 
-    /// <summary>A four-byte <c>GpuTextureId</c> descriptor index.</summary>
+    /// <summary>A four-byte <c>GPUTextureId</c> descriptor index.</summary>
     TextureId = 2,
 
-    /// <summary>A four-byte <c>GpuSamplerId</c> descriptor index.</summary>
+    /// <summary>A four-byte <c>GPUSamplerId</c> descriptor index.</summary>
     SamplerId = 3,
 }
 

@@ -275,7 +275,7 @@ internal abstract unsafe partial class VulkanCommandBuffer
     /// <summary>Begins a render pass with the given attachments.</summary>
     /// <param name="desc">The resource or operation description.</param>
     /// <param name="flags">The rendering behavior flags.</param>
-    public override void BeginRenderPass(RenderingDesc desc, RenderingFlags flags = RenderingFlags.None)
+    public override void BeginRenderPass(GPURenderingDesc desc, RenderingFlags flags = RenderingFlags.None)
     {
         Debug.Assert(desc.Colors.Length <= Backend.MaxColorAttachments);
         VulkanRenderView? depthView = (VulkanRenderView?)desc.Depth.RenderView;
@@ -288,7 +288,7 @@ internal abstract unsafe partial class VulkanCommandBuffer
         Vk.VkRenderingAttachmentInfo* colorAttachments = stackalloc Vk.VkRenderingAttachmentInfo[(int)Backend.MaxColorAttachments];
         for (int index = 0; index < desc.Colors.Length; ++index)
         {
-            ColorAttachment attachment = desc.Colors[index];
+            GPUColorAttachment attachment = desc.Colors[index];
             VulkanRenderView? view = (VulkanRenderView?)attachment.RenderView;
             Debug.Assert(view != null);
             VulkanRenderView? resolveView = (VulkanRenderView?)attachment.ResolveView;

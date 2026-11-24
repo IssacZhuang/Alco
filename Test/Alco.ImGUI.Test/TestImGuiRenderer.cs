@@ -67,7 +67,7 @@ public sealed class TestImGuiRenderer
 
                     ColorAttachment color = new()
                     {
-                        RenderView = MainPresenter.CurrentFrame.RenderView,
+                        Target = MainPresenter.CurrentRenderTarget,
                         Load = LoadOp.Clear,
                         Store = StoreOp.Store,
                         Clear = new Vector4(0.0f, 0.0f, 0.0f, 1.0f),
@@ -103,8 +103,8 @@ public sealed class TestImGuiRenderer
                 return;
             }
 
-            GraphicsDevice.WaitIdle();
-            _renderContext.Destroy();
+            RenderingSystem.WaitIdle();
+            _renderContext.Dispose();
             base.Dispose();
         }
     }
@@ -160,7 +160,7 @@ public sealed class TestImGuiRenderer
             Assert.That(renderer.HasDrawData, Is.True);
 
             context.BeginFrame();
-            renderer.Draw(context, offscreen.RenderView, new Extent2D(128, 128));
+            renderer.Draw(context, offscreen);
             context.Submit();
 
             // Rebuild font atlas while the previous frame is recorded/pending, then verify safe deferred retirement.
@@ -184,14 +184,15 @@ public sealed class TestImGuiRenderer
             context.BeginFrame();
             using (RenderContext.RenderScope pass = context.BeginRenderPass(new RenderingDesc
             {
-                Colors = [new ColorAttachment { RenderView = offscreen.RenderView, Load = LoadOp.Clear, Store = StoreOp.Store }],
+                Colors = [new ColorAttachment { Target = offscreen, Load = LoadOp.Clear, Store = StoreOp.Store }],
             }))
             {
                 renderer.Draw(in pass, context, new Extent2D(128, 128));
             }
-            context.Submit().Wait();
+            context.Submit();
+            system.WaitIdle();
 
-            // Frame 3: reclaim retired font texture after Wait() and exercise secondary language merge.
+            // Frame 3: verify post-Wait font rebuild and secondary language merge.
             renderer.AddFontForLanguage(fontBytes, FontLanguage.Chinese);
             renderer.Begin(128, 128, 1.0f / 60.0f);
             ImGui.SetNextWindowPos(Vector2.Zero);
@@ -204,27 +205,28 @@ public sealed class TestImGuiRenderer
             renderer.Render();
             Assert.That(renderer.HasDrawData, Is.True);
             context.BeginFrame();
-            renderer.Draw(context, offscreen.RenderView, new Extent2D(128, 128));
-            context.Submit().Wait();
+            renderer.Draw(context, offscreen);
+            context.Submit();
+            system.WaitIdle();
         }
         finally
         {
             renderer?.Dispose();
-            if (imageTex != null && !imageTex.IsDestroyed)
+            if (imageTex != null && !imageTex.IsDisposed)
             {
-                imageTex.Destroy();
+                imageTex.Dispose();
             }
-            if (offscreen != null && !offscreen.IsDestroyed)
+            if (offscreen != null && !offscreen.IsDisposed)
             {
-                offscreen.Destroy();
+                offscreen.Dispose();
             }
-            if (rawSampled != null && !rawSampled.IsDestroyed)
+            if (rawSampled != null && !rawSampled.IsDisposed)
             {
-                rawSampled.Destroy();
+                rawSampled.Dispose();
             }
-            context.Destroy();
+            context.Dispose();
             shaderSystem.Dispose();
-            system.Destroy();
+            system.Dispose();
             device.Destroy();
         }
     }
@@ -319,15 +321,16 @@ public sealed class TestImGuiRenderer
             context.BeginFrame();
             using (context.BeginRenderPass(new RenderingDesc
             {
-                Colors = [new ColorAttachment { RenderView = target.RenderView, Load = LoadOp.Clear, Store = StoreOp.Store, Clear = new Vector4(0f, 0f, 0f, 1f) }],
+                Colors = [new ColorAttachment { Target = target, Load = LoadOp.Clear, Store = StoreOp.Store, Clear = new Vector4(0f, 0f, 0f, 1f) }],
             }))
             {
             }
-            renderer.Draw(context, target.RenderView, new Extent2D(targetSize, targetSize));
+            renderer.Draw(context, target);
             context.Barrier(Stage.ColorOutput, Access.ColorWrite, Stage.Transfer, Access.TransferRead);
-            context.CopyTextureToMemory(target.NativeTexture, readback.Range.GPURange);
+            context.CopyTextureToMemory(target.GetNativeTexture(), readback.Range.GPURange);
             context.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Host, Access.HostRead);
-            context.Submit().Wait();
+            context.Submit();
+            system.WaitIdle();
 
             ReadOnlySpan<byte> pixels = readback.Range.CpuSpan;
             AssertPixel(pixels, targetSize, 8, 16, 255, 0, 0, 255, "unclipped red rectangle");
@@ -341,18 +344,18 @@ public sealed class TestImGuiRenderer
             device.WaitIdle();
             context?.DiscardFrame();
             renderer?.Dispose();
-            if (greenTex != null && !greenTex.IsDestroyed)
+            if (greenTex != null && !greenTex.IsDisposed)
             {
-                greenTex.Destroy();
+                greenTex.Dispose();
             }
-            if (target != null && !target.IsDestroyed)
+            if (target != null && !target.IsDisposed)
             {
-                target.Destroy();
+                target.Dispose();
             }
             readback.Destroy();
-            context?.Destroy();
+            context?.Dispose();
             shaderSystem?.Dispose();
-            system?.Destroy();
+            system?.Dispose();
             device.Destroy();
         }
     }

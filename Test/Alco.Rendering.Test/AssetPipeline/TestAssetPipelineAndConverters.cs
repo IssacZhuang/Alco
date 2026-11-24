@@ -151,8 +151,8 @@ public class TestAssetPipelineAndConverters
             Assert.That(geom32.IndexType, Is.EqualTo(IndexType.UInt32));
             Assert.That(geom32.LocalBoundsMin, Is.EqualTo(min));
             Assert.That(geom32.LocalBoundsMax, Is.EqualTo(max));
-            Assert.That(geom32.VertexBuffer.IsDestroyed, Is.False);
-            Assert.That(geom32.IndexBuffer.IsDestroyed, Is.False);
+            Assert.That(geom32.VertexBuffer.IsDisposed, Is.False);
+            Assert.That(geom32.IndexBuffer.IsDisposed, Is.False);
         }
 
         using (ModelGeometry geom16 = ModelGeometry.Create<VertexPBR>(rendering, vertices, indices16, min, max, "tri16"))
@@ -203,10 +203,10 @@ public class TestAssetPipelineAndConverters
             Assert.That(atlas.Count, Is.EqualTo(1));
             Assert.That(atlas.TryGetSprite("hero", out Sprite? resolved), Is.True);
             Assert.That(resolved, Is.SameAs(heroSprite));
-            Assert.That(atlasTexture.IsDestroyed, Is.False);
+            Assert.That(atlasTexture.IsDisposed, Is.False);
         }
 
-        Assert.That(atlasTexture.IsDestroyed, Is.True);
+        Assert.That(atlasTexture.IsDisposed, Is.True);
     }
 
     private sealed class MinimalAssetHost : IAssetSystemHost, IDisposable

@@ -269,7 +269,8 @@ public unsafe class TestSpriteScene2D
                 bool membershipChanged = pool.SyncToGpu(context, compute);
                 Assert.That(membershipChanged, Is.True);
             }
-            context.Submit().Wait();
+            context.Submit();
+            rendering.WaitIdle();
 
             Assert.Multiple(() =>
             {
@@ -301,7 +302,8 @@ public unsafe class TestSpriteScene2D
             {
                 _ = pool.SyncToGpu(context, compute);
             }
-            context.Submit().Wait();
+            context.Submit();
+            rendering.WaitIdle();
             Assert.That(pool.LastDirtyPatchCount, Is.EqualTo(initialCount));
 
             // Same-frame detach 100 handles + register 50 replacements reuses freed slots without advancing TotalSlots.
@@ -330,7 +332,8 @@ public unsafe class TestSpriteScene2D
             {
                 _ = pool.SyncToGpu(context, compute);
             }
-            context.Submit().Wait();
+            context.Submit();
+            rendering.WaitIdle();
 
             Assert.Multiple(() =>
             {
@@ -352,7 +355,8 @@ public unsafe class TestSpriteScene2D
             {
                 _ = pool.SyncToGpu(context, compute);
             }
-            context.Submit().Wait();
+            context.Submit();
+            rendering.WaitIdle();
 
             // Run one more Flush/SyncToGpu after frame completion to reclaim retired texture entry.
             context.BeginFrame();
@@ -360,7 +364,8 @@ public unsafe class TestSpriteScene2D
             {
                 _ = pool.SyncToGpu(context, compute);
             }
-            context.Submit().Wait();
+            context.Submit();
+            rendering.WaitIdle();
 
             Assert.That(pool.ActiveTextureCount, Is.EqualTo(2));
         }
@@ -371,10 +376,10 @@ public unsafe class TestSpriteScene2D
                 handles[i].Dispose();
             }
 
-            context.Destroy();
-            if (!tex0.IsDestroyed) tex0.Destroy();
-            if (!tex1.IsDestroyed) tex1.Destroy();
-            if (!tex2.IsDestroyed) tex2.Destroy();
+            context.Dispose();
+            if (!tex0.IsDisposed) tex0.Dispose();
+            if (!tex1.IsDisposed) tex1.Dispose();
+            if (!tex2.IsDisposed) tex2.Dispose();
         }
     }
 
@@ -466,8 +471,8 @@ public unsafe class TestSpriteScene2D
                 scene.PrepareAndCull(context, camera.GetViewport(), cullMargin: 0f);
                 var passDesc = new RenderingDesc
                 {
-                    Colors = [new ColorAttachment { RenderView = colorTarget.RenderView, Load = LoadOp.Clear, Store = StoreOp.Store, Clear = new Vector4(0f, 0f, 0f, 1f) }],
-                    Depth = new DepthAttachment { RenderView = depthTarget.RenderView, Load = LoadOp.Clear, Store = StoreOp.Store, Clear = 1f },
+                    Colors = [new ColorAttachment { Target = colorTarget, Load = LoadOp.Clear, Store = StoreOp.Store, Clear = new Vector4(0f, 0f, 0f, 1f) }],
+                    Depth = new DepthAttachment { Target = depthTarget, Load = LoadOp.Clear, Store = StoreOp.Store, Clear = 1f },
                 };
                 int drawCalls1;
                 using (RenderContext.RenderScope render = context.BeginRenderPass(passDesc, passSig))
@@ -574,13 +579,13 @@ public unsafe class TestSpriteScene2D
                     handles[i].Dispose();
                 }
 
-                context.Destroy();
-                if (!colorTarget.IsDestroyed) colorTarget.Destroy();
-                if (!depthTarget.IsDestroyed) depthTarget.Destroy();
-                if (!swapTexture.IsDestroyed) swapTexture.Destroy();
+                context.Dispose();
+                if (!colorTarget.IsDisposed) colorTarget.Dispose();
+                if (!depthTarget.IsDisposed) depthTarget.Dispose();
+                if (!swapTexture.IsDisposed) swapTexture.Dispose();
                 for (int i = 0; i < textures.Length; ++i)
                 {
-                    if (!textures[i].IsDestroyed) textures[i].Destroy();
+                    if (!textures[i].IsDisposed) textures[i].Dispose();
                 }
             }
         }
@@ -700,8 +705,8 @@ public unsafe class TestSpriteScene2D
 
                 var passDesc = new RenderingDesc
                 {
-                    Colors = [new ColorAttachment { RenderView = colorTarget.RenderView, Load = LoadOp.Clear, Store = StoreOp.Store, Clear = new Vector4(0f, 0f, 0f, 1f) }],
-                    Depth = new DepthAttachment { RenderView = depthTarget.RenderView, Load = LoadOp.Clear, Store = StoreOp.Store, Clear = 1f },
+                    Colors = [new ColorAttachment { Target = colorTarget, Load = LoadOp.Clear, Store = StoreOp.Store, Clear = new Vector4(0f, 0f, 0f, 1f) }],
+                    Depth = new DepthAttachment { Target = depthTarget, Load = LoadOp.Clear, Store = StoreOp.Store, Clear = 1f },
                 };
                 using (RenderContext.RenderScope render = context.BeginRenderPass(passDesc, passSig))
                 {
@@ -748,16 +753,16 @@ public unsafe class TestSpriteScene2D
             }
             finally
             {
-                context.Destroy();
-                customParamsBuffer.Destroy();
-                if (!colorTarget.IsDestroyed) colorTarget.Destroy();
-                if (!depthTarget.IsDestroyed) depthTarget.Destroy();
-                if (!texWhite.IsDestroyed) texWhite.Destroy();
-                if (!texRed.IsDestroyed) texRed.Destroy();
-                if (!texGreen.IsDestroyed) texGreen.Destroy();
-                if (!texBlue.IsDestroyed) texBlue.Destroy();
-                if (!texYellow.IsDestroyed) texYellow.Destroy();
-                if (!texSplitMask.IsDestroyed) texSplitMask.Destroy();
+                context.Dispose();
+                customParamsBuffer.Dispose();
+                if (!colorTarget.IsDisposed) colorTarget.Dispose();
+                if (!depthTarget.IsDisposed) depthTarget.Dispose();
+                if (!texWhite.IsDisposed) texWhite.Dispose();
+                if (!texRed.IsDisposed) texRed.Dispose();
+                if (!texGreen.IsDisposed) texGreen.Dispose();
+                if (!texBlue.IsDisposed) texBlue.Dispose();
+                if (!texYellow.IsDisposed) texYellow.Dispose();
+                if (!texSplitMask.IsDisposed) texSplitMask.Dispose();
             }
         }
     }
@@ -818,8 +823,8 @@ public unsafe class TestSpriteScene2D
 
                 var passDesc = new RenderingDesc
                 {
-                    Colors = [new ColorAttachment { RenderView = colorTarget.RenderView, Load = LoadOp.Clear, Store = StoreOp.Store, Clear = new Vector4(0f, 0f, 0f, 1f) }],
-                    Depth = new DepthAttachment { RenderView = depthTarget.RenderView, Load = LoadOp.Clear, Store = StoreOp.Store, Clear = 1f },
+                    Colors = [new ColorAttachment { Target = colorTarget, Load = LoadOp.Clear, Store = StoreOp.Store, Clear = new Vector4(0f, 0f, 0f, 1f) }],
+                    Depth = new DepthAttachment { Target = depthTarget, Load = LoadOp.Clear, Store = StoreOp.Store, Clear = 1f },
                 };
                 int drawCalls;
                 using (RenderContext.RenderScope render = context.BeginRenderPass(passDesc, passSig))
@@ -850,11 +855,11 @@ public unsafe class TestSpriteScene2D
                     handles[i].Dispose();
                 }
 
-                context.Destroy();
-                if (!colorTarget.IsDestroyed) colorTarget.Destroy();
-                if (!depthTarget.IsDestroyed) depthTarget.Destroy();
-                if (!texRed.IsDestroyed) texRed.Destroy();
-                if (!texGreen.IsDestroyed) texGreen.Destroy();
+                context.Dispose();
+                if (!colorTarget.IsDisposed) colorTarget.Dispose();
+                if (!depthTarget.IsDisposed) depthTarget.Dispose();
+                if (!texRed.IsDisposed) texRed.Dispose();
+                if (!texGreen.IsDisposed) texGreen.Dispose();
             }
         }
     }
@@ -974,9 +979,10 @@ public unsafe class TestSpriteScene2D
         try
         {
             context.Barrier(Stage.Compute | Stage.Indirect, Access.ShaderWrite | Access.IndirectRead, Stage.Transfer, Access.TransferRead);
-            context.CopyMemory(drawArgsBuffer.Range, readback.Range.GPURange);
+            context.CopyMemory(drawArgsBuffer.GetRange(), readback.Range.GPURange);
             context.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Host, Access.HostRead);
-            context.Submit().Wait();
+            context.Submit();
+            device.WaitIdle();
 
             GpuDrawIndirectArgs[] result = new GpuDrawIndirectArgs[bucketCount];
             var src = new ReadOnlySpan<GpuDrawIndirectArgs>(readback.Range.Cpu, bucketCount);
@@ -998,9 +1004,10 @@ public unsafe class TestSpriteScene2D
         {
             context.BeginFrame();
             context.Barrier(Stage.AllCommands, Access.ColorWrite, Stage.Transfer, Access.TransferRead);
-            context.CopyTextureToMemory(target.NativeTexture, readback.Range.GPURange);
+            context.CopyTextureToMemory(target.GetNativeTexture(), readback.Range.GPURange);
             context.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Host, Access.HostRead);
-            context.Submit().Wait();
+            context.Submit();
+            device.WaitIdle();
 
             byte[] pixels = new byte[(int)byteCount];
             new ReadOnlySpan<byte>(readback.Range.Cpu, (int)byteCount).CopyTo(pixels);
@@ -1008,7 +1015,7 @@ public unsafe class TestSpriteScene2D
         }
         finally
         {
-            context.Destroy();
+            context.Dispose();
             readback.Destroy();
         }
     }

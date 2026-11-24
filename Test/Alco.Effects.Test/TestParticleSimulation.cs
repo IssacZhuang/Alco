@@ -86,7 +86,7 @@ public class TestParticleSimulation
         }
         finally
         {
-            context.Destroy();
+            context.Dispose();
         }
     }
 
@@ -111,38 +111,43 @@ public class TestParticleSimulation
         {
             context.BeginFrame();
             system.RecordSimulation(context, 0.1f);
-            context.Submit().Wait();
+            context.Submit();
+            _engine.RenderingSystem.WaitIdle();
             Assert.That(system.PlannedDrawBatchCount, Is.EqualTo(1));
 
             instance.IsVisible = false;
             context.BeginFrame();
             system.RecordSimulation(context, 0.001f);
-            context.Submit().Wait();
+            context.Submit();
+            _engine.RenderingSystem.WaitIdle();
             Assert.That(system.PlannedDrawBatchCount, Is.Zero);
 
             instance.IsVisible = true;
             instance.SetGroupVisible(0, false);
             context.BeginFrame();
             system.RecordSimulation(context, 0.001f);
-            context.Submit().Wait();
+            context.Submit();
+            _engine.RenderingSystem.WaitIdle();
             Assert.That(system.PlannedDrawBatchCount, Is.Zero);
 
             instance.SetGroupVisible(0, true);
             context.BeginFrame();
             system.RecordSimulation(context, 0.001f);
-            context.Submit().Wait();
+            context.Submit();
+            _engine.RenderingSystem.WaitIdle();
             Assert.That(system.PlannedDrawBatchCount, Is.EqualTo(1));
 
             instance.Restart();
             Assert.That(system.Pool.HasPendingKills, Is.True);
             context.BeginFrame();
             system.RecordSimulation(context, 0.001f);
-            context.Submit().Wait();
+            context.Submit();
+            _engine.RenderingSystem.WaitIdle();
             Assert.That(system.Pool.HasPendingKills, Is.False);
         }
         finally
         {
-            context.Destroy();
+            context.Dispose();
         }
     }
 
@@ -193,13 +198,14 @@ public class TestParticleSimulation
         {
             context.BeginFrame();
             system.RecordSimulation(context, 0.1f);
-            context.Submit().Wait();
+            context.Submit();
+            _engine.RenderingSystem.WaitIdle();
             Assert.That(system.PlannedEmitBlockCount, Is.GreaterThan(0));
             Assert.That(parms.SpawnCount + instance.GetGroupParams(0).SpawnCount, Is.GreaterThan(0u));
         }
         finally
         {
-            context.Destroy();
+            context.Dispose();
         }
     }
 
@@ -255,7 +261,8 @@ public class TestParticleSimulation
             {
                 context.BeginFrame();
                 system.RecordSimulation(context, 0.1f);
-                context.Submit().Wait();
+                context.Submit();
+                _engine.RenderingSystem.WaitIdle();
             }
             Assert.That(oneShot.IsActive, Is.False);
 
@@ -264,7 +271,8 @@ public class TestParticleSimulation
             system.SimulationInterval = 1.0f;
             context.BeginFrame();
             system.RecordSimulation(context, 1.0f);
-            context.Submit().Wait();
+            context.Submit();
+            _engine.RenderingSystem.WaitIdle();
             Assert.That(system.PlannedDrawBatchCount, Is.EqualTo(1));
             Assert.That(system.PlannedDrawGroupCount, Is.EqualTo(2));
 
@@ -275,7 +283,8 @@ public class TestParticleSimulation
 
             context.BeginFrame();
             system.RecordSimulation(context, 0.001f);
-            context.Submit().Wait();
+            context.Submit();
+            _engine.RenderingSystem.WaitIdle();
             Assert.Multiple(() =>
             {
                 Assert.That(loop.Time, Is.EqualTo(timeBeforeOneShotDispose));
@@ -285,7 +294,8 @@ public class TestParticleSimulation
             // Once the simulation interval elapses, simulation runs and drains the deferred kill.
             context.BeginFrame();
             system.RecordSimulation(context, 1.0f);
-            context.Submit().Wait();
+            context.Submit();
+            _engine.RenderingSystem.WaitIdle();
             Assert.Multiple(() =>
             {
                 Assert.That(loop.Time, Is.GreaterThan(timeBeforeOneShotDispose));
@@ -296,36 +306,41 @@ public class TestParticleSimulation
             activeVictim.Dispose();
             context.BeginFrame();
             system.RecordSimulation(context, 0.001f);
-            context.Submit().Wait();
+            context.Submit();
+            _engine.RenderingSystem.WaitIdle();
             Assert.That(system.PlannedDrawGroupCount, Is.EqualTo(1));
 
             // Accumulator resets to 0 when plan invalidation triggers an early step.
             context.BeginFrame();
             system.RecordSimulation(context, 0.4f);
-            context.Submit().Wait();
+            context.Submit();
+            _engine.RenderingSystem.WaitIdle();
             loop.IsVisible = false;
             float timeAfterAccum = loop.Time;
 
             context.BeginFrame();
             system.RecordSimulation(context, 0.05f);
-            context.Submit().Wait();
+            context.Submit();
+            _engine.RenderingSystem.WaitIdle();
             loop.IsVisible = true;
             context.BeginFrame();
             system.RecordSimulation(context, 0.05f);
-            context.Submit().Wait();
+            context.Submit();
+            _engine.RenderingSystem.WaitIdle();
             float timeAfterInvalidated = loop.Time;
             Assert.That(timeAfterInvalidated, Is.GreaterThan(timeAfterAccum));
 
             // Next sub-interval 0.7f call must still be rate-limited (0.7 < 1.0, proving 0.4 was consumed/reset).
             context.BeginFrame();
             system.RecordSimulation(context, 0.7f);
-            context.Submit().Wait();
+            context.Submit();
+            _engine.RenderingSystem.WaitIdle();
             Assert.That(loop.Time, Is.EqualTo(timeAfterInvalidated));
         }
         finally
         {
             oneShot.Dispose();
-            context.Destroy();
+            context.Dispose();
         }
     }
 
@@ -380,7 +395,8 @@ public class TestParticleSimulation
             {
                 context.BeginFrame();
                 system.RecordSimulation(context, 0.1f);
-                context.Submit().Wait();
+                context.Submit();
+                _engine.RenderingSystem.WaitIdle();
             }
             Assert.That(oneShot.IsActive, Is.False);
 
@@ -388,7 +404,8 @@ public class TestParticleSimulation
             system.SimulationInterval = 1.0f;
             context.BeginFrame();
             system.RecordSimulation(context, 1.0f);
-            context.Submit().Wait();
+            context.Submit();
+            _engine.RenderingSystem.WaitIdle();
             Assert.That(system.PlannedDrawGroupCount, Is.EqualTo(2));
 
             float timeBeforeOneShotDispose = loop.Time;
@@ -397,7 +414,8 @@ public class TestParticleSimulation
 
             context.BeginFrame();
             system.RecordSimulation(context, 0.001f);
-            context.Submit().Wait();
+            context.Submit();
+            _engine.RenderingSystem.WaitIdle();
             Assert.Multiple(() =>
             {
                 Assert.That(loop.Time, Is.EqualTo(timeBeforeOneShotDispose));
@@ -406,7 +424,8 @@ public class TestParticleSimulation
 
             context.BeginFrame();
             system.RecordSimulation(context, 1.0f);
-            context.Submit().Wait();
+            context.Submit();
+            _engine.RenderingSystem.WaitIdle();
             Assert.Multiple(() =>
             {
                 Assert.That(loop.Time, Is.GreaterThan(timeBeforeOneShotDispose));
@@ -416,13 +435,14 @@ public class TestParticleSimulation
             activeVictim.Dispose();
             context.BeginFrame();
             system.RecordSimulation(context, 0.001f);
-            context.Submit().Wait();
+            context.Submit();
+            _engine.RenderingSystem.WaitIdle();
             Assert.That(system.PlannedDrawGroupCount, Is.EqualTo(1));
         }
         finally
         {
             oneShot.Dispose();
-            context.Destroy();
+            context.Dispose();
         }
     }
 }

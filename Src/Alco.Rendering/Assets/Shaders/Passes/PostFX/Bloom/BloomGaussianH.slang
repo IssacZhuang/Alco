@@ -12,8 +12,8 @@ import AlcoRendering_Bloom;
 [GPURoot]
 public struct BloomGaussianHRoot
 {
-    public GpuTextureId Source;
-    public GpuTextureId Dest;
+    public GPUTextureId Source;
+    public GPUTextureId Dest;
     public uint2 Size;
     public float SigmaRadius;
     public int IntegerRadius;

@@ -2,7 +2,6 @@ using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using Alco.Graphics;
-using Alco.Graphics.LowLevel;
 using Buffer = Alco.Graphics.Buffer;
 
 namespace Alco.Rendering;
@@ -69,16 +68,16 @@ public sealed unsafe class TextureCompressor
     /// <returns><c>true</c> for BC1-BC5 and BC7 formats; otherwise <c>false</c>.</returns>
     public static bool IsSupportedFormat(Format format) => TryGetSlot(format, out _);
 
-    /// <summary>Returns whether <paramref name="device"/> supports both compute BC compression and textures in <paramref name="format"/>.</summary>
-    /// <param name="device">The target GPU device.</param>
+    /// <summary>Returns whether <paramref name="rendering"/> supports both compute BC compression and textures in <paramref name="format"/>.</summary>
+    /// <param name="rendering">The target rendering system.</param>
     /// <param name="format">The compressed texture format.</param>
     /// <returns><c>true</c> if the device can encode and upload <paramref name="format"/> textures.</returns>
-    public static bool CanCompressOnGpu(GPUDevice device, Format format)
+    public static bool CanCompressOnGpu(RenderingSystem rendering, Format format)
     {
-        ArgumentNullException.ThrowIfNull(device);
-        return device.Caps.TextureCompressionBc &&
+        ArgumentNullException.ThrowIfNull(rendering);
+        return rendering.Caps.TextureCompressionBc &&
                IsSupportedFormat(format) &&
-               device.SupportsTextureFormat(format, TextureUsage.Sampled | TextureUsage.TransferDestination);
+               rendering.SupportsTextureFormat(format, TextureUsage.Sampled | TextureUsage.TransferDestination);
     }
 
     /// <summary>Returns the minimum 4x4 block-aligned extent required when allocating a GPU BC texture for <paramref name="extent"/>.</summary>
@@ -102,7 +101,7 @@ public sealed unsafe class TextureCompressor
         if (extent.X == 0 || extent.Y == 0)
             throw new ArgumentOutOfRangeException(nameof(extent), extent, "Texture extent must be positive.");
 
-        TextureFormatInfo info = Gpu.GetTextureFormatInfo(format);
+        TextureFormatInfo info = Texture.GetFormatInfo(format);
         uint blocksX = (extent.X + 3u) / 4u;
         uint blocksY = (extent.Y + 3u) / 4u;
         return (ulong)blocksX * blocksY * info.BytesPerBlock;
@@ -146,7 +145,7 @@ public sealed unsafe class TextureCompressor
     /// <param name="sourceDescriptorSlot">The bindless sampled texture descriptor slot to read from.</param>
     /// <param name="sourceMip">The zero-based mip level relative to <paramref name="sourceDescriptorSlot"/>.</param>
     /// <param name="extent">The logical extent of the compressed mip.</param>
-    /// <param name="outputRange">The output buffer range sized to at least <see cref="GetCompressedSizeBytes"/>.</param>
+    /// <param name="outputSlice">The output buffer slice sized to at least <see cref="GetCompressedSizeBytes"/>.</param>
     /// <param name="convertLinearToSrgb">Whether to apply linear-to-sRGB conversion before encoding.</param>
     public void Record(
         RenderContext context,
@@ -155,7 +154,7 @@ public sealed unsafe class TextureCompressor
         uint sourceDescriptorSlot,
         uint sourceMip,
         Extent2D extent,
-        GPURange outputRange,
+        BufferSlice outputSlice,
         bool convertLinearToSrgb = false)
     {
         ArgumentNullException.ThrowIfNull(context);
@@ -163,26 +162,26 @@ public sealed unsafe class TextureCompressor
             throw new ArgumentOutOfRangeException(nameof(destinationFormat), destinationFormat, "Unsupported block-compressed texture format.");
         if (sourceDescriptorSlot == Texture.NoIndex)
             throw new ArgumentOutOfRangeException(nameof(sourceDescriptorSlot), sourceDescriptorSlot, "Source descriptor slot is invalid.");
-        GPUBufferView outputView = outputRange.View;
+        GPUBufferView outputView = outputSlice.View;
         if (outputView.Index == 0)
-            throw new ArgumentException("Output range must reference a shader-visible GPU buffer.", nameof(outputRange));
+            throw new ArgumentException("Output slice must reference a shader-visible GPU buffer.", nameof(outputSlice));
 
         ulong requiredBytes = GetCompressedSizeBytes(destinationFormat, extent);
-        if (outputRange.Size < requiredBytes)
+        if (outputSlice.SizeBytes < requiredBytes)
             throw new ArgumentException(
-                $"Output buffer range ({outputRange.Size} bytes) is smaller than required ({requiredBytes} bytes).",
-                nameof(outputRange));
+                $"Output buffer slice ({outputSlice.SizeBytes} bytes) is smaller than required ({requiredBytes} bytes).",
+                nameof(outputSlice));
 
         Material material = GetOrCreateMaterial(slot, convertLinearToSrgb);
-        GPURange rootRange = context.AllocateRoot(new TextureCompressionRoot
+        TextureCompressionRoot root = new()
         {
             Output = outputView,
             Source = sourceDescriptorSlot,
             Mip = sourceMip,
             Extent = extent,
-        });
+        };
         Extent3D groupCount = new((extent.X + 31u) / 32u, (extent.Y + 31u) / 32u, 1u);
-        compute.Dispatch(material, rootRange, groupCount);
+        compute.Dispatch(material, in root, groupCount);
     }
 
     /// <summary>Records one 2D mip block-compression dispatch reading from <paramref name="source"/>.</summary>
@@ -191,7 +190,7 @@ public sealed unsafe class TextureCompressor
     /// <param name="destinationFormat">The target BC format.</param>
     /// <param name="source">The sampled source texture belonging to this compressor's rendering system.</param>
     /// <param name="sourceMip">The zero-based mip level to compress.</param>
-    /// <param name="outputRange">The destination GPU buffer range.</param>
+    /// <param name="outputSlice">The destination GPU buffer slice.</param>
     /// <param name="inputColorSpace">Controls sRGB code preservation versus linear-to-sRGB conversion.</param>
     public void Record(
         RenderContext context,
@@ -199,7 +198,7 @@ public sealed unsafe class TextureCompressor
         Format destinationFormat,
         Texture source,
         uint sourceMip,
-        GPURange outputRange,
+        BufferSlice outputSlice,
         CompressionInputColorSpace inputColorSpace = CompressionInputColorSpace.Auto)
     {
         ArgumentNullException.ThrowIfNull(source);
@@ -208,7 +207,7 @@ public sealed unsafe class TextureCompressor
 
         ResolveSourceInput(source, destinationFormat, inputColorSpace, out uint descriptorSlot, out bool convertLinearToSrgb);
         Extent2D mipExtent = GetMipExtent(new Extent2D(source.Extent.X, source.Extent.Y), sourceMip);
-        Record(context, compute, destinationFormat, descriptorSlot, sourceMip, mipExtent, outputRange, convertLinearToSrgb);
+        Record(context, compute, destinationFormat, descriptorSlot, sourceMip, mipExtent, outputSlice, convertLinearToSrgb);
     }
 
     /// <summary>Synchronously compresses <paramref name="source"/> on the GPU into a newly allocated BC texture.</summary>
@@ -265,7 +264,7 @@ public sealed unsafe class TextureCompressor
                     Extent2D mipExtent = GetMipExtent(logicalExtent, mip);
                     ulong mipBytes = GetCompressedSizeBytes(targetFormat, mipExtent);
                     Record(context, compute, targetFormat, descriptorSlot, mip, mipExtent,
-                        scratch.Range.Slice(byteOffset, mipBytes), convertLinearToSrgb);
+                        scratch.Slice(byteOffset, mipBytes), convertLinearToSrgb);
                     byteOffset += mipBytes;
                 }
             }
@@ -280,9 +279,9 @@ public sealed unsafe class TextureCompressor
             {
                 Extent2D mipExtent = GetMipExtent(logicalExtent, mip);
                 ulong mipBytes = GetCompressedSizeBytes(targetFormat, mipExtent);
-                context.CopyMemoryToTexture(
-                    scratch.Range.Slice(byteOffset, mipBytes),
-                    destination.NativeTexture,
+                context.CopyBufferToTexture(
+                    scratch.Slice(byteOffset, mipBytes),
+                    destination,
                     new TextureCopyDesc { MipLevel = mip });
                 byteOffset += mipBytes;
             }
@@ -292,7 +291,8 @@ public sealed unsafe class TextureCompressor
                 Stage.AllCommands,
                 Access.ShaderRead | Access.TransferRead | Access.TransferWrite);
 
-            _rendering.Submit([context]).Wait();
+            context.Submit();
+            _rendering.WaitIdle();
             Texture result = destination;
             destination = null;
             return result;
@@ -300,9 +300,9 @@ public sealed unsafe class TextureCompressor
         finally
         {
             context?.DiscardFrame();
-            context?.Destroy();
-            scratch?.Destroy();
-            destination?.Destroy();
+            context?.Dispose();
+            scratch?.Dispose();
+            destination?.Dispose();
         }
     }
 
@@ -352,20 +352,21 @@ public sealed unsafe class TextureCompressor
                     Extent2D mipExtent = GetMipExtent(baseExtent, mip);
                     ulong mipBytes = GetCompressedSizeBytes(targetFormat, mipExtent);
                     Record(context, compute, targetFormat, descriptorSlot, mip, mipExtent,
-                        scratch.Range.Slice(byteOffset, mipBytes), convertLinearToSrgb);
+                        scratch.Slice(byteOffset, mipBytes), convertLinearToSrgb);
                     byteOffset += mipBytes;
                 }
             }
 
-            _rendering.Submit([context]).Wait();
+            context.Submit();
+            _rendering.WaitIdle();
             _rendering.ReadBuffer(scratch, output);
             return output;
         }
         finally
         {
             context?.DiscardFrame();
-            context?.Destroy();
-            scratch?.Destroy();
+            context?.Dispose();
+            scratch?.Dispose();
         }
     }
 

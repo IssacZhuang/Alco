@@ -17,7 +17,7 @@ internal sealed class RenderingTestHost : IDisposable
     public void Dispose()
     {
         Device.WaitIdle();
-        RenderingSystem.Destroy();
+        RenderingSystem.Dispose();
         Device.Destroy();
     }
 }

@@ -23,8 +23,8 @@ internal static class MaterialTests
         struct MaterialRoot
         {
             GPUBufferView vertices;
-            GpuTextureId albedo;
-            GpuSamplerId sampler;
+            GPUTextureId albedo;
+            GPUSamplerId sampler;
             float4 tint;
             float4x4 transform;
         };
@@ -270,15 +270,15 @@ internal static class MaterialTests
             context.Barrier(Stage.DepthStencilTests, Access.DepthStencilWrite, Stage.DepthStencilTests, Access.DepthStencilWrite);
             using (RenderContext.RenderScope pass = context.BeginRenderPass(new RenderingDesc
             {
-                Colors = [new() { RenderView = target.RenderView, Load = LoadOp.Clear }],
-                Depth = new DepthAttachment { RenderView = depth.RenderView, Load = LoadOp.Clear, Store = StoreOp.Discard },
+                Colors = [new() { Target = target, Load = LoadOp.Clear }],
+                Depth = new DepthAttachment { Target = depth, Load = LoadOp.Clear, Store = StoreOp.Discard },
             }, [Format.Rgba8Unorm], Format.D32Float))
             {
                 pass.SetViewport(new Viewport { Width = 64, Height = 64 });
                 pass.SetScissor(new Scissor { Width = 64, Height = 64 });
 
-                GPUAllocation<byte> firstRoot = checkerMaterial.AllocateRoot(context.FrameData);
-                GPUAllocation<byte> secondRoot = flatMaterial.AllocateRoot(context.FrameData);
+                GPUAllocation<byte> firstRoot = checkerMaterial.AllocateRoot(context.GetFrameData());
+                GPUAllocation<byte> secondRoot = flatMaterial.AllocateRoot(context.GetFrameData());
                 check(firstRoot.Buffer != null && ReferenceEquals(firstRoot.Buffer, secondRoot.Buffer) && firstRoot.Offset % 16 == 0 &&
                     secondRoot.Offset % 16 == 0 && firstRoot.Offset != secondRoot.Offset &&
                     firstRoot.SizeBytes == root.SizeBytes && secondRoot.SizeBytes == root.SizeBytes,
@@ -288,7 +288,7 @@ internal static class MaterialTests
                 pass.DrawIndexed(flatMaterial, indices, IndexType.UInt16, 36);
             }
             context.Barrier(Stage.ColorOutput, Access.ColorWrite, Stage.Transfer, Access.TransferRead);
-            context.CopyTextureToMemory(target.NativeTexture, readback.Range.GPURange);
+            context.CopyTextureToMemory(target.GetNativeTexture(), readback.Range.GPURange);
             context.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Host, Access.HostRead);
             context.Submit();
             context.Wait();
@@ -313,8 +313,8 @@ internal static class MaterialTests
             context.Barrier(Stage.DepthStencilTests, Access.DepthStencilWrite, Stage.DepthStencilTests, Access.DepthStencilWrite);
             using (RenderContext.RenderScope pass = context.BeginRenderPass(new RenderingDesc
             {
-                Colors = [new() { RenderView = target.RenderView, Load = LoadOp.Clear }],
-                Depth = new DepthAttachment { RenderView = depth.RenderView, Load = LoadOp.Clear, Store = StoreOp.Discard },
+                Colors = [new() { Target = target, Load = LoadOp.Clear }],
+                Depth = new DepthAttachment { Target = depth, Load = LoadOp.Clear, Store = StoreOp.Discard },
             }, [Format.Rgba8Unorm], Format.D32Float))
             {
                 pass.SetViewport(new Viewport { Width = 64, Height = 64 });
@@ -322,7 +322,7 @@ internal static class MaterialTests
                 pass.DrawIndexed(checkerMaterial, indices, IndexType.UInt16, 36);
             }
             context.Barrier(Stage.ColorOutput, Access.ColorWrite, Stage.Transfer, Access.TransferRead);
-            context.CopyTextureToMemory(target.NativeTexture, readback.Range.GPURange);
+            context.CopyTextureToMemory(target.GetNativeTexture(), readback.Range.GPURange);
             context.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Host, Access.HostRead);
             context.Submit();
             context.Wait();
@@ -336,7 +336,7 @@ internal static class MaterialTests
             CheckParallelRecording(device, system, shader, check);
             CheckRenderBundles(device, system, shader, checker, nearest, check);
             CheckMaterialInstances(device, system, shader, check);
-            CheckFrameLifecycle(device, system, target.RenderView, check);
+            CheckFrameLifecycle(device, system, target.GetRenderView(), check);
             CheckSlotWait(device, system, check);
             CheckGcFallback(device, check);
             CheckRecordedBufferLifetime(device, check);
@@ -358,15 +358,15 @@ internal static class MaterialTests
         {
             device.WaitIdle();
             context?.DiscardFrame();
-            context?.Destroy();
-            shader?.Destroy();
-            depth?.Destroy();
-            target?.Destroy();
-            checker?.Destroy();
-            nearest?.Destroy();
-            indices?.Destroy();
-            vertices?.Destroy();
-            system?.Destroy();
+            context?.Dispose();
+            shader?.Dispose();
+            depth?.Dispose();
+            target?.Dispose();
+            checker?.Dispose();
+            nearest?.Dispose();
+            indices?.Dispose();
+            vertices?.Dispose();
+            system?.Dispose();
             readback.Destroy();
         }
     }
@@ -377,7 +377,7 @@ internal static class MaterialTests
         const Format format = Format.Rgba8Unorm;
         const uint halfWidth = RecordingSize / 2;
         const int warmups = 4;
-        GPUDevice device = system.Device;
+        GPUDevice device = system.GetDevice();
         Shader? graphics = null;
         Shader? direct = null;
         Shader? indirect = null;
@@ -435,7 +435,7 @@ internal static class MaterialTests
                 Format = format,
                 Usage = TextureUsage.ColorAttachment | TextureUsage.TransferSource,
             });
-            ColorAttachment[] colors = [new() { RenderView = target.RenderView, Load = LoadOp.Clear }];
+            ColorAttachment[] colors = [new() { Target = target, Load = LoadOp.Clear }];
             readback = device.CreateGPUHeap(RecordingSize * RecordingSize * 4, MemoryType.Readback);
             completion = new TimelinePoint { Semaphore = device.CreateTimelineSemaphore(), Value = 1 };
             context = new RenderContext(system, 1024);
@@ -444,7 +444,7 @@ internal static class MaterialTests
             for (int iteration = 0; iteration <= warmups; ++iteration)
             {
                 context.BeginFrame();
-                GPUAllocation<ScopeRoot> packed = context.FrameData.Allocate<ScopeRoot>();
+                GPUAllocation<ScopeRoot> packed = context.GetFrameData().Allocate<ScopeRoot>();
                 *packed.Cpu = new ScopeRoot { Values = values.View, Index = 2, Value = 192 };
 
                 long before = GC.GetAllocatedBytesForCurrentThread();
@@ -476,7 +476,7 @@ internal static class MaterialTests
 
                 check(allocated == 0, $"warmed compute and render scopes record without managed allocations (actual={allocated})");
                 context.Barrier(Stage.ColorOutput, Access.ColorWrite, Stage.Transfer, Access.TransferRead);
-                context.CopyTextureToMemory(target.NativeTexture, readback.Range.GPURange);
+                context.CopyTextureToMemory(target.GetNativeTexture(), readback.Range.GPURange);
                 context.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Host, Access.HostRead);
                 GPUCommandBuffer commands = context.EndFrame();
                 device.Submit(new SubmitDesc { Commands = [commands], Completion = completion });
@@ -495,9 +495,9 @@ internal static class MaterialTests
             }
 
             context.BeginFrame();
-            GPURange packedWrite = context.AllocateRoot(new ScopeRoot { Values = values.View, Index = 0, Value = 32 });
-            GPURange packedIndirectMaterial = context.AllocateRoot(new ScopeRoot { Values = values.View, Index = 1, Value = 48 });
-            GPURange packedIndirectShader = context.AllocateRoot(new ScopeRoot { Values = values.View, Index = 2, Value = 80 });
+            GPURange packedWrite = context.AllocateRootRange(new ScopeRoot { Values = values.View, Index = 0, Value = 32 });
+            GPURange packedIndirectMaterial = context.AllocateRootRange(new ScopeRoot { Values = values.View, Index = 1, Value = 48 });
+            GPURange packedIndirectShader = context.AllocateRootRange(new ScopeRoot { Values = values.View, Index = 2, Value = 80 });
             using (RenderContext.ComputeScope compute = context.BeginCompute())
             {
                 compute.Dispatch(write, packedWrite, oneGroup);
@@ -512,9 +512,9 @@ internal static class MaterialTests
                 pass.Draw(draw, 3);
             }
             context.Barrier(Stage.ColorOutput, Access.ColorWrite, Stage.Transfer, Access.TransferRead);
-            context.CopyTextureToMemory(target.NativeTexture, readback.Range.GPURange);
+            context.CopyTextureToMemory(target.GetNativeTexture(), readback.Range.GPURange);
             context.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Host, Access.HostRead);
-            context.Submit().Wait();
+            context.SubmitWithCompletion().Wait();
             Vector4 expectedPacked = new Vector4(32, 96, 160, 255) / 255;
             check(PixelMatches(readback.Range, format, halfWidth / 2, halfWidth, expectedPacked),
                 "ComputeScope prepacked root Dispatch and DispatchIndirect overloads execute on Material and Shader");
@@ -523,16 +523,16 @@ internal static class MaterialTests
         {
             device.WaitIdle();
             context?.DiscardFrame();
-            context?.Destroy();
+            context?.Dispose();
             completion.Semaphore?.Destroy();
             readback.Destroy();
-            target?.Destroy();
-            arguments?.Destroy();
-            values?.Destroy();
-            mesh?.Destroy();
-            indirect?.Destroy();
-            direct?.Destroy();
-            graphics?.Destroy();
+            target?.Dispose();
+            arguments?.Dispose();
+            values?.Dispose();
+            mesh?.Dispose();
+            indirect?.Dispose();
+            direct?.Dispose();
+            graphics?.Dispose();
         }
     }
 
@@ -590,7 +590,7 @@ internal static class MaterialTests
                     Format = formats[index],
                     Usage = TextureUsage.ColorAttachment | TextureUsage.TransferSource,
                 });
-                views[index] = targets[index].RenderView;
+                views[index] = targets[index].GetRenderView();
                 contexts[index] = new RenderContext(system, 16 * 1024);
                 bundles[index] = new RenderBundle(system, [formats[index]]);
                 pixels[index] = results.Allocate(RecordingSize * RecordingSize * 4);
@@ -631,10 +631,10 @@ internal static class MaterialTests
                         bool snapshotsMatch = true;
                         RenderContext context = contexts[worker];
                         context.BeginFrame();
-                        BumpAllocator frameData = context.FrameData;
-                        using (RenderContext.RenderScope pass = context.BeginRenderPass(new RenderingDesc
+                        BumpAllocator frameData = context.GetFrameData();
+                        using (RenderContext.RenderScope pass = context.BeginRenderPass(new GPURenderingDesc
                         {
-                            Colors = [new() { RenderView = views[worker], Load = LoadOp.Clear }],
+                            Colors = [new GPUColorAttachment { RenderView = views[worker], Load = LoadOp.Clear }],
                         }, [formats[worker]]))
                         {
                             pass.SetViewport(new Viewport { Width = RecordingSize, Height = RecordingSize });
@@ -671,7 +671,7 @@ internal static class MaterialTests
                         {
                             context.Barrier(Stage.ColorOutput, Access.ColorWrite, Stage.Transfer, Access.TransferRead);
                             for (int targetIndex = 0; targetIndex < workerCount; ++targetIndex)
-                                context.CopyTextureToMemory(targets[targetIndex].NativeTexture, pixels[targetIndex].GPURange);
+                                context.CopyTextureToMemory(targets[targetIndex].GetNativeTexture(), pixels[targetIndex].GPURange);
                             context.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Host, Access.HostRead);
                         }
                         recorded[worker] = true;
@@ -709,7 +709,7 @@ internal static class MaterialTests
             timestamps.Fill(ulong.MaxValue);
             reused.WriteTimestamp(timestamps[..1]);
             other.WriteTimestamp(timestamps[1..]);
-            TimelinePoint batch = system.Submit([other, reused]);
+            TimelinePoint batch = system.Submit([other, reused], default);
             reused.Wait();
             other.Wait();
             bool retired = batch.Semaphore != null && batch.Value > 0 && batch.Semaphore.CompletedValue >= batch.Value &&
@@ -728,7 +728,7 @@ internal static class MaterialTests
             other.WriteTimestamp(timestamps[1..]);
             reused.BeginFrame();
             reused.WriteTimestamp(timestamps[..1]);
-            TimelinePoint firstSubmission = reused.Submit();
+            TimelinePoint firstSubmission = reused.SubmitWithCompletion();
             reused.BeginFrame();
             reused.DiscardFrame();
             TimelinePoint secondSubmission = other.Submit([firstSubmission]);
@@ -748,9 +748,9 @@ internal static class MaterialTests
             system.PipelineMissPolicy = PipelineMissPolicy.Throw;
             try
             {
-                using (RenderContext.RenderScope pass = reused.BeginRenderPass(new RenderingDesc
+                using (RenderContext.RenderScope pass = reused.BeginRenderPass(new GPURenderingDesc
                 {
-                    Colors = [new() { RenderView = views[0], Load = LoadOp.Clear }],
+                    Colors = [new GPUColorAttachment { RenderView = views[0], Load = LoadOp.Clear }],
                 }, [Format.Rgba8Unorm]))
                 {
                     pass.SetViewport(new Viewport { Width = RecordingSize, Height = RecordingSize });
@@ -770,7 +770,7 @@ internal static class MaterialTests
                 system.PipelineMissPolicy = PipelineMissPolicy.Create;
             }
             reused.Barrier(Stage.ColorOutput, Access.ColorWrite, Stage.Transfer, Access.TransferRead);
-            reused.CopyTextureToMemory(targets[0].NativeTexture, pixels[0].GPURange);
+            reused.CopyTextureToMemory(targets[0].GetNativeTexture(), pixels[0].GPURange);
             reused.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Host, Access.HostRead);
             GPUCommandBuffer commands = reused.EndFrame();
             completion.Value++;
@@ -785,9 +785,9 @@ internal static class MaterialTests
             material.WriteMask = 0xf;
             reused.BeginFrame();
             reused.Barrier(Stage.Transfer, Access.TransferRead, Stage.ColorOutput, Access.ColorWrite);
-            using (RenderContext.RenderScope pass = reused.BeginRenderPass(new RenderingDesc
+            using (RenderContext.RenderScope pass = reused.BeginRenderPass(new GPURenderingDesc
             {
-                Colors = [new() { RenderView = views[0], Load = LoadOp.Clear }],
+                Colors = [new GPUColorAttachment { RenderView = views[0], Load = LoadOp.Clear }],
             }, [Format.Rgba8Unorm]))
             {
                 pass.SetViewport(new Viewport { Width = RecordingSize, Height = RecordingSize });
@@ -798,13 +798,13 @@ internal static class MaterialTests
                 pass.DrawIndexed(material, indices, IndexType.UInt16, 3, firstIndex: 1, byteOffset: 2 * sizeof(ushort));
             }
             reused.Barrier(Stage.ColorOutput, Access.ColorWrite, Stage.Transfer, Access.TransferRead);
-            reused.CopyTextureToMemory(targets[0].NativeTexture, pixels[0].GPURange);
+            reused.CopyTextureToMemory(targets[0].GetNativeTexture(), pixels[0].GPURange);
             reused.Barrier(Stage.Transfer, Access.TransferRead, Stage.ColorOutput, Access.ColorWrite);
             Vector4 changedTint = new(0.75f, 0.25f, 0.5f, 1);
             material.SetData("tint", ref changedTint);
-            using (RenderContext.RenderScope pass = reused.BeginRenderPass(new RenderingDesc
+            using (RenderContext.RenderScope pass = reused.BeginRenderPass(new GPURenderingDesc
             {
-                Colors = [new() { RenderView = views[0], Load = LoadOp.Clear }],
+                Colors = [new GPUColorAttachment { RenderView = views[0], Load = LoadOp.Clear }],
             }, [Format.Rgba8Unorm]))
             {
                 pass.SetViewport(new Viewport { Width = RecordingSize, Height = RecordingSize });
@@ -812,7 +812,7 @@ internal static class MaterialTests
                 pass.Draw(material, 3);
             }
             reused.Barrier(Stage.ColorOutput, Access.ColorWrite, Stage.Transfer, Access.TransferRead);
-            reused.CopyTextureToMemory(targets[0].NativeTexture, pixels[1].GPURange);
+            reused.CopyTextureToMemory(targets[0].GetNativeTexture(), pixels[1].GPURange);
             reused.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Host, Access.HostRead);
             commands = reused.EndFrame();
             check(material.GetPipeline([Format.Rgba8Unorm], Format.Undefined) == redOnly,
@@ -835,22 +835,22 @@ internal static class MaterialTests
             for (int frame = 0; frame < frameCommands.Length; ++frame)
             {
                 reused.BeginFrame();
-                GPUAllocation<byte> frameStart = reused.FrameData.Allocate(16);
+                GPUAllocation<byte> frameStart = reused.GetFrameData().Allocate(16);
                 frameRanges[frame] = frameStart.GPURange;
                 reused.Barrier(Stage.Transfer, Access.TransferRead, Stage.ColorOutput, Access.ColorWrite);
-                using (RenderContext.RenderScope pass = reused.BeginRenderPass(new RenderingDesc
+                using (RenderContext.RenderScope pass = reused.BeginRenderPass(new GPURenderingDesc
                 {
-                    Colors = [new() { RenderView = views[0], Load = LoadOp.Clear }],
+                    Colors = [new GPUColorAttachment { RenderView = views[0], Load = LoadOp.Clear }],
                 }, [Format.Rgba8Unorm]))
                 {
                     pass.SetViewport(new Viewport { Width = RecordingSize, Height = RecordingSize });
                     pass.SetScissor(new Scissor { Width = RecordingSize, Height = RecordingSize });
                     pass.DrawIndexed(material, indices, IndexType.UInt16, 3, firstIndex: 1, byteOffset: 2 * sizeof(ushort));
-                    GPUAllocation<byte> frameEnd = reused.FrameData.Allocate(16);
+                    GPUAllocation<byte> frameEnd = reused.GetFrameData().Allocate(16);
                     unchangedRoots &= ReferenceEquals(frameEnd.Buffer, frameStart.Buffer) && frameEnd.Offset - frameStart.Offset == 16 + rootStride;
                 }
                 reused.Barrier(Stage.ColorOutput, Access.ColorWrite, Stage.Transfer, Access.TransferRead);
-                reused.CopyTextureToMemory(targets[0].NativeTexture, pixels[0].GPURange);
+                reused.CopyTextureToMemory(targets[0].GetNativeTexture(), pixels[0].GPURange);
                 reused.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Host, Access.HostRead);
                 commands = reused.EndFrame();
                 frameCommands[frame] = commands;
@@ -882,16 +882,16 @@ internal static class MaterialTests
                 reused.BeginFrame();
                 if (submitBatch) other.BeginFrame();
                 reused.Barrier(Stage.Transfer | Stage.ColorOutput, Access.TransferRead | Access.ColorWrite, Stage.ColorOutput, Access.ColorWrite);
-                using (RenderContext.RenderScope pass = reused.BeginRenderPass(new RenderingDesc
+                using (RenderContext.RenderScope pass = reused.BeginRenderPass(new GPURenderingDesc
                 {
-                    Colors = [new() { RenderView = views[0], Load = LoadOp.Clear }],
+                    Colors = [new GPUColorAttachment { RenderView = views[0], Load = LoadOp.Clear }],
                 }, [Format.Rgba8Unorm]))
                 {
                     pass.SetViewport(new Viewport { Width = RecordingSize, Height = RecordingSize });
                     pass.SetScissor(new Scissor { Width = RecordingSize, Height = RecordingSize });
                     pass.DrawIndexed(material, indices, IndexType.UInt16, 3, firstIndex: 1, byteOffset: 2 * sizeof(ushort));
                 }
-                TimelinePoint point = submitBatch ? system.Submit(contexts, preceding) : reused.Submit();
+                TimelinePoint point = submitBatch ? system.Submit(contexts, preceding) : reused.SubmitWithCompletion();
                 long frameAllocated = GC.GetAllocatedBytesForCurrentThread() - before;
                 if (frame >= 12)
                 {
@@ -920,9 +920,9 @@ internal static class MaterialTests
                 long beforeAlternating = GC.GetAllocatedBytesForCurrentThread();
                 reused.BeginFrame();
                 reused.Barrier(Stage.Transfer | Stage.ColorOutput, Access.TransferRead | Access.ColorWrite, Stage.ColorOutput, Access.ColorWrite);
-                using (RenderContext.RenderScope pass = reused.BeginRenderPass(new RenderingDesc
+                using (RenderContext.RenderScope pass = reused.BeginRenderPass(new GPURenderingDesc
                 {
-                    Colors = [new() { RenderView = views[0], Load = LoadOp.Clear }],
+                    Colors = [new GPUColorAttachment { RenderView = views[0], Load = LoadOp.Clear }],
                 }, [Format.Rgba8Unorm]))
                 {
                     pass.SetViewport(new Viewport { Width = RecordingSize, Height = RecordingSize });
@@ -931,7 +931,7 @@ internal static class MaterialTests
                         pass.DrawIndexed(draw % 2 == 0 ? material : alternate, indices, IndexType.UInt16, 3, firstIndex: 1, byteOffset: 2 * sizeof(ushort));
                 }
                 reused.Barrier(Stage.ColorOutput, Access.ColorWrite, Stage.Transfer, Access.TransferRead);
-                reused.CopyTextureToMemory(targets[0].NativeTexture, pixels[0].GPURange);
+                reused.CopyTextureToMemory(targets[0].GetNativeTexture(), pixels[0].GPURange);
                 reused.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Host, Access.HostRead);
                 submission[0] = reused.EndFrame();
                 completion.Value++;
@@ -950,13 +950,13 @@ internal static class MaterialTests
             for (int index = 0; index < workerCount; ++index)
             {
                 contexts[index]?.DiscardFrame();
-                contexts[index]?.Destroy();
-                bundles[index]?.Destroy();
-                targets[index]?.Destroy();
+                contexts[index]?.Dispose();
+                bundles[index]?.Dispose();
+                targets[index]?.Dispose();
             }
             timeline?.Destroy();
-            indices?.Destroy();
-            vertices?.Destroy();
+            indices?.Dispose();
+            vertices?.Dispose();
             readback.Destroy();
         }
     }
@@ -1071,12 +1071,12 @@ internal static class MaterialTests
                 {
                     pass.ExecuteBundle(empty);
                     for (int draw = 0; draw < 8; ++draw) pass.ExecuteBundle(bundle);
-                    GPUAllocation<byte> beforeRoots = context.FrameData.Allocate(16);
+                    GPUAllocation<byte> beforeRoots = context.GetFrameData().Allocate(16);
                     long before = GC.GetAllocatedBytesForCurrentThread();
                     for (int draw = 0; draw < 32; ++draw) pass.ExecuteBundle(bundle);
                     long frameAllocated = GC.GetAllocatedBytesForCurrentThread() - before;
                     if (frame >= 2) allocated += frameAllocated;
-                    GPUAllocation<byte> afterRoots = context.FrameData.Allocate(16);
+                    GPUAllocation<byte> afterRoots = context.GetFrameData().Allocate(16);
                     noRoots &= ReferenceEquals(afterRoots.Buffer, beforeRoots.Buffer) && afterRoots.Offset == beforeRoots.Offset + 16;
                 }
                 CopyBundlePassOutput(context, targets[0], pixels[1]);
@@ -1180,9 +1180,9 @@ internal static class MaterialTests
             bool emptyUsedNoRoots;
             using (RenderContext.RenderScope pass = BeginBundlePass(context, targets[0], depths[0]))
             {
-                GPUAllocation<byte> beforeEmpty = context.FrameData.Allocate(16);
+                GPUAllocation<byte> beforeEmpty = context.GetFrameData().Allocate(16);
                 pass.ExecuteBundle(empty);
-                GPUAllocation<byte> afterEmpty = context.FrameData.Allocate(16);
+                GPUAllocation<byte> afterEmpty = context.GetFrameData().Allocate(16);
                 emptyUsedNoRoots = ReferenceEquals(afterEmpty.Buffer, beforeEmpty.Buffer) && afterEmpty.Offset == beforeEmpty.Offset + 16;
             }
             CopyBundlePassOutput(context, targets[0], pixels[4]);
@@ -1276,18 +1276,18 @@ internal static class MaterialTests
             for (int index = 0; index < contexts.Length; ++index)
             {
                 contexts[index]?.DiscardFrame();
-                contexts[index]?.Destroy();
-                depths[index]?.Destroy();
-                targets[index]?.Destroy();
+                contexts[index]?.Dispose();
+                depths[index]?.Dispose();
+                targets[index]?.Dispose();
             }
-            grouped?.Destroy();
-            depthBundle?.Destroy();
-            empty?.Destroy();
-            bundle?.Destroy();
+            grouped?.Dispose();
+            depthBundle?.Dispose();
+            empty?.Dispose();
+            bundle?.Dispose();
             timeline?.Destroy();
-            replacement?.Destroy();
-            indices?.Destroy();
-            vertices?.Destroy();
+            replacement?.Dispose();
+            indices?.Dispose();
+            vertices?.Dispose();
             readback.Destroy();
         }
     }
@@ -1412,7 +1412,7 @@ internal static class MaterialTests
             context.Barrier(Stage.Transfer | Stage.ColorOutput, Access.TransferRead | Access.ColorWrite, Stage.ColorOutput, Access.ColorWrite);
             using (RenderContext.RenderScope pass = context.BeginRenderPass(new RenderingDesc
             {
-                Colors = [new() { RenderView = target.RenderView, Load = LoadOp.Clear }],
+                Colors = [new() { Target = target, Load = LoadOp.Clear }],
             }, [Format.Rgba8Unorm]))
             {
                 pass.SetViewport(new Viewport { Width = RecordingSize, Height = RecordingSize });
@@ -1423,7 +1423,7 @@ internal static class MaterialTests
                 pass.Draw(second, 3);
             }
             context.Barrier(Stage.ColorOutput, Access.ColorWrite, Stage.Transfer, Access.TransferRead);
-            context.CopyTextureToMemory(target.NativeTexture, pixels[0].GPURange);
+            context.CopyTextureToMemory(target.GetNativeTexture(), pixels[0].GPURange);
             context.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Host, Access.HostRead);
 
             RenderBundle[] snapshots = [bundle, updatedBundle];
@@ -1432,7 +1432,7 @@ internal static class MaterialTests
                 context.Barrier(Stage.Transfer | Stage.ColorOutput, Access.TransferRead | Access.ColorWrite, Stage.ColorOutput, Access.ColorWrite);
                 using (RenderContext.RenderScope pass = context.BeginRenderPass(new RenderingDesc
                 {
-                    Colors = [new() { RenderView = target.RenderView, Load = LoadOp.Clear }],
+                    Colors = [new() { Target = target, Load = LoadOp.Clear }],
                 }, [Format.Rgba8Unorm]))
                 {
                     pass.SetViewport(new Viewport { Width = RecordingSize, Height = RecordingSize });
@@ -1440,7 +1440,7 @@ internal static class MaterialTests
                     pass.ExecuteBundle(snapshots[index]);
                 }
                 context.Barrier(Stage.ColorOutput, Access.ColorWrite, Stage.Transfer, Access.TransferRead);
-                context.CopyTextureToMemory(target.NativeTexture, pixels[index + 1].GPURange);
+                context.CopyTextureToMemory(target.GetNativeTexture(), pixels[index + 1].GPURange);
                 context.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Host, Access.HostRead);
             }
             GPUCommandBuffer commands = context.EndFrame();
@@ -1461,13 +1461,13 @@ internal static class MaterialTests
         {
             device.WaitIdle();
             context?.DiscardFrame();
-            context?.Destroy();
-            updatedBundle?.Destroy();
-            bundle?.Destroy();
+            context?.Dispose();
+            updatedBundle?.Dispose();
+            bundle?.Dispose();
             timeline?.Destroy();
-            target?.Destroy();
-            spare?.Destroy();
-            vertices?.Destroy();
+            target?.Dispose();
+            spare?.Dispose();
+            vertices?.Dispose();
             readback.Destroy();
             NativeMemory.AlignedFree(rootStorage);
         }
@@ -1614,10 +1614,10 @@ internal static class MaterialTests
         }
         finally
         {
-            localSampler?.Destroy();
-            parentSampler?.Destroy();
-            storage?.Destroy();
-            replacement?.Destroy();
+            localSampler?.Dispose();
+            parentSampler?.Dispose();
+            storage?.Dispose();
+            replacement?.Dispose();
         }
     }
 
@@ -1641,8 +1641,8 @@ internal static class MaterialTests
         context.Barrier(Stage.DepthStencilTests, Access.DepthStencilWrite, Stage.DepthStencilTests, Access.DepthStencilRead | Access.DepthStencilWrite);
         RenderContext.RenderScope pass = context.BeginRenderPass(new RenderingDesc
         {
-            Colors = [new() { RenderView = target.RenderView, Load = LoadOp.Clear }],
-            Depth = new DepthAttachment { RenderView = depth.RenderView, Load = LoadOp.Clear, Store = StoreOp.Discard },
+            Colors = [new() { Target = target, Load = LoadOp.Clear }],
+            Depth = new DepthAttachment { Target = depth, Load = LoadOp.Clear, Store = StoreOp.Discard },
         }, [Format.Rgba8Unorm], Format.D32Float);
         pass.SetViewport(new Viewport { Width = RecordingSize, Height = RecordingSize });
         pass.SetScissor(new Scissor { Width = RecordingSize, Height = RecordingSize });
@@ -1652,7 +1652,7 @@ internal static class MaterialTests
     private static void CopyBundlePassOutput(RenderContext context, Texture target, GPUAllocation<byte> pixels)
     {
         context.Barrier(Stage.ColorOutput, Access.ColorWrite, Stage.Transfer, Access.TransferRead);
-        context.CopyTextureToMemory(target.NativeTexture, pixels.GPURange);
+        context.CopyTextureToMemory(target.GetNativeTexture(), pixels.GPURange);
         context.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Host, Access.HostRead);
     }
 
@@ -1693,7 +1693,7 @@ internal static class MaterialTests
             context.Wait();
             context.DiscardFrame();
             context.BeginFrame();
-            GPUAllocation<byte> first = context.FrameData.Allocate(16);
+            GPUAllocation<byte> first = context.GetFrameData().Allocate(16);
             first.CpuSpan.Fill(0x5a);
             context.WriteTimestamp(timestamps[..1]);
             context.CopyMemory(first.GPURange, readback.Range.GPURange);
@@ -1710,15 +1710,15 @@ internal static class MaterialTests
             context.MarkSubmitted(completion);
 
             context.BeginFrame();
-            BumpAllocator activeData = context.FrameData;
+            BumpAllocator activeData = context.GetFrameData();
             GPUAllocation<byte> second = activeData.Allocate(16);
             second.CpuSpan.Fill(0xa5);
             context.WriteTimestamp(timestamps[1..]);
             context.Wait();
-            GPUAllocation<byte> afterWait = context.FrameData.Allocate(16);
+            GPUAllocation<byte> afterWait = context.GetFrameData().Allocate(16);
             bool firstCopy = true;
             foreach (byte value in readback.Range.CpuSpan) firstCopy &= value == 0x5a;
-            check(context.FrameData == activeData && ReferenceEquals(afterWait.Buffer, second.Buffer) && afterWait.Offset == second.Offset + 16 &&
+            check(context.GetFrameData() == activeData && ReferenceEquals(afterWait.Buffer, second.Buffer) && afterWait.Offset == second.Offset + 16 &&
                 timestamps[0] != ulong.MaxValue && timestamps[1] == ulong.MaxValue && firstCopy,
                 "Wait reads prior submitted timestamps and copies without ending, submitting, or resetting the active frame");
             context.CopyMemory(second.GPURange, readback.Range.GPURange);
@@ -1733,27 +1733,27 @@ internal static class MaterialTests
             check(timestamps[1] != ulong.MaxValue && secondCopy, "a frame remains recordable after Wait and is read back only after external submission");
 
             context.BeginFrame();
-            GPURange discardedRange = context.FrameData.Allocate(16).GPURange;
+            GPURange discardedRange = context.GetFrameData().Allocate(16).GPURange;
             GPUCommandBuffer pending = context.EndFrame();
             context.DiscardFrame();
             context.DiscardFrame();
             context.BeginFrame();
-            check(context.FrameData.Allocate(16).GPURange.Equals(discardedRange),
+            check(context.GetFrameData().Allocate(16).GPURange.Equals(discardedRange),
                 "discarding a pending frame and an idle context preserves the slot and resets its root allocator");
             context.DiscardFrame();
             context.BeginFrame();
-            check(context.FrameData.Allocate(16).GPURange.Equals(discardedRange),
+            check(context.GetFrameData().Allocate(16).GPURange.Equals(discardedRange),
                 "discarding an active frame allows recording the same slot from its root base");
 
-            ReadOnlySpan<ColorAttachment> colors = [new() { RenderView = renderView, Load = LoadOp.Clear }];
-            RenderingDesc desc = new() { Colors = colors };
+            ReadOnlySpan<GPUColorAttachment> colors = [new() { RenderView = renderView, Load = LoadOp.Clear }];
+            GPURenderingDesc desc = new() { Colors = colors };
             context.Barrier(Stage.Transfer, Access.TransferRead, Stage.ColorOutput, Access.ColorWrite);
             using (RenderContext.RenderScope discardedPass = context.BeginRenderPass(desc, [Format.Rgba8Unorm]))
             {
                 RenderContext.RenderScope stale = discardedPass;
                 context.DiscardFrame();
                 context.BeginFrame();
-                GPURange afterDiscard = context.FrameData.Allocate(16).GPURange;
+                GPURange afterDiscard = context.GetFrameData().Allocate(16).GPURange;
                 context.Barrier(Stage.Transfer, Access.TransferRead, Stage.ColorOutput, Access.ColorWrite);
                 using (RenderContext.RenderScope pass = context.BeginRenderPass(desc, [Format.Rgba8Unorm]))
                 {
@@ -1773,7 +1773,7 @@ internal static class MaterialTests
             {
                 long before = GC.GetAllocatedBytesForCurrentThread();
                 context.BeginFrame();
-                context.FrameData.Allocate(16).CpuSpan.Clear();
+                context.GetFrameData().Allocate(16).CpuSpan.Clear();
                 submission[0] = context.EndFrame();
                 completion.Value++;
                 device.Submit(new SubmitDesc { Commands = submission, Completion = completion });
@@ -1788,7 +1788,7 @@ internal static class MaterialTests
         {
             device.WaitIdle();
             context?.DiscardFrame();
-            context?.Destroy();
+            context?.Dispose();
             timeline?.Destroy();
             readback.Destroy();
         }
@@ -1826,7 +1826,7 @@ internal static class MaterialTests
             TimelinePoint firstActual = new() { Semaphore = firstTimeline, Value = 1 };
             TimelinePoint firstRetired = new() { Semaphore = firstTimeline, Value = 2 };
             context.BeginFrame();
-            firstRange = context.FrameData.Allocate(16).GPURange;
+            firstRange = context.GetFrameData().Allocate(16).GPURange;
             context.WriteTimestamp(timestamp);
             firstCommands = context.EndFrame();
             device.Submit(new SubmitDesc { Commands = [firstCommands], Completion = firstActual });
@@ -1839,14 +1839,14 @@ internal static class MaterialTests
                 try
                 {
                     recording.BeginFrame();
-                    secondRange = recording.FrameData.Allocate(16).GPURange;
+                    secondRange = recording.GetFrameData().Allocate(16).GPURange;
                     secondCommands = recording.EndFrame();
                     secondReady.Set();
                     allowThird.Wait();
                     if (!probeThird) return;
                     thirdEntered.Set();
                     recording.BeginFrame();
-                    thirdRange = recording.FrameData.Allocate(16).GPURange;
+                    thirdRange = recording.GetFrameData().Allocate(16).GPURange;
                     thirdCommands = recording.EndFrame();
                     thirdReady.Set();
                 }
@@ -1886,7 +1886,7 @@ internal static class MaterialTests
             worker?.Join();
             device.WaitIdle();
             context?.DiscardFrame();
-            context?.Destroy();
+            context?.Dispose();
             firstTimeline?.Destroy();
             secondTimeline?.Destroy();
         }
@@ -1933,8 +1933,8 @@ internal static class MaterialTests
             recycled = system.CreateSampler(new SamplerDesc());
             check(replacement.SampledIndex == leaked.TextureSlot && recycled.Index == leaked.SamplerSlot,
                 "finalized texture and sampler wrappers release their slots behind their covering submission");
-            replacement.Destroy();
-            recycled.Destroy();
+            replacement.Dispose();
+            recycled.Dispose();
             replacement = null;
             recycled = null;
 
@@ -1955,7 +1955,7 @@ internal static class MaterialTests
                 });
                 check(other.SampledIndex != retained.TextureSlot, "a material keeps its bound texture and descriptor slot alive");
                 check(retained.Buffer.IsAlive, "a material keeps its bound buffer alive without a caller-owned reference");
-                other.Destroy();
+                other.Dispose();
                 other = null;
 
                 s_retainedMaterial = null;
@@ -1971,11 +1971,11 @@ internal static class MaterialTests
                 });
                 check(reclaimed.SampledIndex == retained.TextureSlot, "dropping a material and its shader releases the retained texture and cached pipelines");
                 reclaimedBuffer = system.CreateBuffer(128);
-                check(!retained.Buffer.IsAlive && reclaimedBuffer.Range.Equals(retained.BufferRange),
+                check(!retained.Buffer.IsAlive && reclaimedBuffer.GetRange().Equals(retained.BufferRange),
                     "dropping a material releases its buffer allocation for reuse");
-                reclaimedBuffer.Destroy();
+                reclaimedBuffer.Dispose();
                 reclaimedBuffer = null;
-                reclaimed.Destroy();
+                reclaimed.Dispose();
                 reclaimed = null;
             }
 
@@ -1995,14 +1995,14 @@ internal static class MaterialTests
         {
             device.WaitIdle();
             context?.DiscardFrame();
-            context?.Destroy();
+            context?.Dispose();
             timeline?.Destroy();
-            reclaimedBuffer?.Destroy();
-            reclaimed?.Destroy();
-            other?.Destroy();
-            recycled?.Destroy();
-            replacement?.Destroy();
-            system?.Destroy();
+            reclaimedBuffer?.Dispose();
+            reclaimed?.Dispose();
+            other?.Dispose();
+            recycled?.Dispose();
+            replacement?.Dispose();
+            system?.Dispose();
         }
     }
 
@@ -2064,9 +2064,9 @@ internal static class MaterialTests
             timeline = device.CreateTimelineSemaphore();
 
             (WeakReference Vertices, WeakReference Indices, GPURange VertexRange, GPURange IndexRange, WeakReference? Bundle) recorded =
-                RecordBufferPair(system, context, material, replacement, target.RenderView, bundleDraw, restoreOverride);
+                RecordBufferPair(system, context, material, replacement, target.GetRenderView(), bundleDraw, restoreOverride);
             context.Barrier(Stage.ColorOutput, Access.ColorWrite, Stage.Transfer, Access.TransferRead);
-            context.CopyTextureToMemory(target.NativeTexture, readback.Range.GPURange);
+            context.CopyTextureToMemory(target.GetNativeTexture(), readback.Range.GPURange);
             context.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Host, Access.HostRead);
             GPUCommandBuffer commands = context.EndFrame();
             GC.Collect(2, GCCollectionMode.Forced, blocking: true);
@@ -2080,7 +2080,7 @@ internal static class MaterialTests
             // Never submit stale GPU ranges when the retention regression fails.
             if (!retained) return;
             spare = system.CreateBuffer(128);
-            check(!spare.Range.Equals(recorded.VertexRange) && !spare.Range.Equals(recorded.IndexRange),
+            check(!spare.GetRange().Equals(recorded.VertexRange) && !spare.GetRange().Equals(recorded.IndexRange),
                 "pre-MarkSubmitted collection cannot recycle recorded vertex or index storage");
 
             TimelinePoint actual = new() { Semaphore = timeline, Value = 2 };
@@ -2113,7 +2113,7 @@ internal static class MaterialTests
             check(exhausted && timeline.CompletedValue == actual.Value, bundleDraw
                 ? "a finalized bundle keeps captured buffer storage unavailable until its registered covering completion retires"
                 : "finalized recorded buffers keep their allocations until the registered covering completion retires");
-            unexpected?.Destroy();
+            unexpected?.Dispose();
             unexpected = null;
             device.Submit(new SubmitDesc { Completion = retirement });
             context.Wait();
@@ -2139,17 +2139,17 @@ internal static class MaterialTests
             }
             firstRecycled = system.CreateBuffer(128);
             secondRecycled = system.CreateBuffer(128);
-            check((firstRecycled.Range.Equals(recorded.VertexRange) && secondRecycled.Range.Equals(recorded.IndexRange)) ||
-                (firstRecycled.Range.Equals(recorded.IndexRange) && secondRecycled.Range.Equals(recorded.VertexRange)),
+            check((firstRecycled.GetRange().Equals(recorded.VertexRange) && secondRecycled.GetRange().Equals(recorded.IndexRange)) ||
+                (firstRecycled.GetRange().Equals(recorded.IndexRange) && secondRecycled.GetRange().Equals(recorded.VertexRange)),
                 "registered completion retirement returns both recorded buffer allocations");
-            firstRecycled.Destroy();
+            firstRecycled.Dispose();
             firstRecycled = null;
-            secondRecycled.Destroy();
+            secondRecycled.Dispose();
             secondRecycled = null;
 
             for (int ended = 0; ended < 2; ++ended)
             {
-                recorded = RecordBufferPair(system, context, material, replacement, target.RenderView, bundleDraw, restoreOverride);
+                recorded = RecordBufferPair(system, context, material, replacement, target.GetRenderView(), bundleDraw, restoreOverride);
                 if (ended != 0) context.EndFrame();
                 GC.Collect(2, GCCollectionMode.Forced, blocking: true);
                 GC.WaitForPendingFinalizers();
@@ -2173,12 +2173,12 @@ internal static class MaterialTests
                 if (!released) return;
                 firstRecycled = system.CreateBuffer(128);
                 secondRecycled = system.CreateBuffer(128);
-                check((firstRecycled.Range.Equals(recorded.VertexRange) && secondRecycled.Range.Equals(recorded.IndexRange)) ||
-                    (firstRecycled.Range.Equals(recorded.IndexRange) && secondRecycled.Range.Equals(recorded.VertexRange)),
+                check((firstRecycled.GetRange().Equals(recorded.VertexRange) && secondRecycled.GetRange().Equals(recorded.IndexRange)) ||
+                    (firstRecycled.GetRange().Equals(recorded.IndexRange) && secondRecycled.GetRange().Equals(recorded.VertexRange)),
                     "discarded buffer storage is immediately recyclable after collection and Tick");
-                firstRecycled.Destroy();
+                firstRecycled.Dispose();
                 firstRecycled = null;
-                secondRecycled.Destroy();
+                secondRecycled.Dispose();
                 secondRecycled = null;
             }
             GC.KeepAlive(material);
@@ -2189,14 +2189,14 @@ internal static class MaterialTests
                 device.Submit(new SubmitDesc { Completion = retirement });
             device.WaitIdle();
             context?.DiscardFrame();
-            context?.Destroy();
-            shader?.Destroy();
-            target?.Destroy();
-            unexpected?.Destroy();
-            secondRecycled?.Destroy();
-            firstRecycled?.Destroy();
-            spare?.Destroy();
-            replacement?.Destroy();
+            context?.Dispose();
+            shader?.Dispose();
+            target?.Dispose();
+            unexpected?.Dispose();
+            secondRecycled?.Dispose();
+            firstRecycled?.Dispose();
+            spare?.Dispose();
+            replacement?.Dispose();
             timeline?.Destroy();
             readback.Destroy();
             for (int collection = 0; collection < (bundleDraw ? 3 : 1); ++collection)
@@ -2205,7 +2205,7 @@ internal static class MaterialTests
                 GC.WaitForPendingFinalizers();
                 system?.Tick();
             }
-            system?.Destroy();
+            system?.Dispose();
         }
     }
 
@@ -2237,9 +2237,9 @@ internal static class MaterialTests
         }
         context.BeginFrame();
         context.Barrier(Stage.Transfer | Stage.ColorOutput, Access.TransferRead | Access.ColorWrite, Stage.ColorOutput, Access.ColorWrite);
-        using (RenderContext.RenderScope pass = context.BeginRenderPass(new RenderingDesc
+        using (RenderContext.RenderScope pass = context.BeginRenderPass(new GPURenderingDesc
         {
-            Colors = [new() { RenderView = renderView, Load = LoadOp.Clear }],
+            Colors = [new GPUColorAttachment { RenderView = renderView, Load = LoadOp.Clear }],
         }, [Format.Rgba8Unorm]))
         {
             pass.SetViewport(new Viewport { Width = RecordingSize, Height = RecordingSize });
@@ -2249,14 +2249,14 @@ internal static class MaterialTests
             recordedMaterial.SetBuffer("vertices", restoreOverride ? null : replacement);
         }
         return (new WeakReference(vertices, trackResurrection: true), new WeakReference(indices, trackResurrection: true),
-            vertices.Range, indices.Range, bundle == null ? null : new WeakReference(bundle, trackResurrection: true));
+            vertices.GetRange(), indices.GetRange(), bundle == null ? null : new WeakReference(bundle, trackResurrection: true));
     }
 
     private static bool IsNotDestroyed(WeakReference? reference) =>
-        reference?.Target is RenderingResource { IsDestroyed: false };
+        reference?.Target is RenderingResource { IsReleased: false };
 
     private static bool IsReclaimed(WeakReference? reference) =>
-        reference?.Target is null or RenderingResource { IsDestroyed: true };
+        reference?.Target is null or RenderingResource { IsReleased: true };
 
     private static void CheckReverseSubmissionRetirement(GPUDevice device, bool sharedTimeline, bool registerBeforeTick, Action<bool, string> check)
     {
@@ -2343,19 +2343,19 @@ internal static class MaterialTests
                 device.Submit(new SubmitDesc { Completion = laterRetirement });
             device.WaitIdle();
             first?.DiscardFrame();
-            first?.Destroy();
+            first?.Dispose();
             second?.DiscardFrame();
-            second?.Destroy();
+            second?.Dispose();
             later?.DiscardFrame();
-            later?.Destroy();
+            later?.Dispose();
             firstTimeline?.Destroy();
             secondTimeline?.Destroy();
             laterTimeline?.Destroy();
-            recycledSampler?.Destroy();
-            recycledTexture?.Destroy();
-            blockedSampler?.Destroy();
-            blockedTexture?.Destroy();
-            system?.Destroy();
+            recycledSampler?.Dispose();
+            recycledTexture?.Dispose();
+            blockedSampler?.Dispose();
+            blockedTexture?.Dispose();
+            system?.Dispose();
         }
     }
 
@@ -2439,17 +2439,17 @@ internal static class MaterialTests
         finally
         {
             device.WaitIdle();
-            if (context != null && !context.IsDestroyed)
+            if (context != null && !context.IsDisposed)
             {
                 context.DiscardFrame();
-                context.Destroy();
+                context.Dispose();
             }
             reuseTimeline?.Destroy();
-            firstSampler?.Destroy();
-            secondSampler?.Destroy();
-            firstTexture?.Destroy();
-            secondTexture?.Destroy();
-            system?.Destroy();
+            firstSampler?.Dispose();
+            secondSampler?.Dispose();
+            firstTexture?.Dispose();
+            secondTexture?.Dispose();
+            system?.Dispose();
         }
     }
 
@@ -2484,7 +2484,7 @@ internal static class MaterialTests
             device.Submit(new SubmitDesc { Completion = retired });
             retired.Wait();
             marker?.Wait();
-            marker?.Destroy();
+            marker?.Dispose();
             marker = null;
             switch (retirement)
             {
@@ -2496,7 +2496,7 @@ internal static class MaterialTests
                     context.DiscardFrame();
                     break;
                 case TimelineRetirement.Destroy:
-                    context.Destroy();
+                    context.Dispose();
                     break;
             }
             WeakReference reference = new(timeline);
@@ -2513,8 +2513,8 @@ internal static class MaterialTests
                     device.Submit(new SubmitDesc { Completion = new TimelinePoint { Semaphore = timeline, Value = 2 } });
                 device.WaitIdle();
                 marker?.DiscardFrame();
-                marker?.Destroy();
-                if (!context.IsDestroyed)
+                marker?.Dispose();
+                if (!context.IsDisposed)
                 {
                     context.DiscardFrame();
                     context.Wait();
@@ -2523,8 +2523,8 @@ internal static class MaterialTests
             }
             if (!leakLater)
             {
-                laterSampler?.Destroy();
-                laterTexture?.Destroy();
+                laterSampler?.Dispose();
+                laterTexture?.Dispose();
             }
         }
     }
@@ -2599,7 +2599,7 @@ internal static class MaterialTests
         material.SetTexture("albedo", retained);
         material.GetPipeline([Format.Rgba8Unorm], Format.Undefined);
         s_retainedMaterial = material;
-        return (retained.SampledIndex, new WeakReference(buffer), buffer.Range);
+        return (retained.SampledIndex, new WeakReference(buffer), buffer.GetRange());
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
@@ -2789,15 +2789,15 @@ internal static class MaterialTests
             {
                 public uint Padding;
                 public GPUBufferView Values;
-                public GpuTextureId Albedo;
+                public GPUTextureId Albedo;
             };
             public struct LargeParams
             {
                 public uint Padding[3];
-                public GpuTextureId Detail;
+                public GPUTextureId Detail;
                 public GPUBufferView Values;
-                public GpuTextureId Albedo;
-                public GpuSamplerId Sampler;
+                public GPUTextureId Albedo;
+                public GPUSamplerId Sampler;
             };
             public struct SmallShape : IShape { public typedef SmallParams Params; };
             public struct LargeShape : IShape { public typedef LargeParams Params; };
@@ -2988,8 +2988,8 @@ internal static class MaterialTests
 
             public struct TestSurfaceParams
             {
-                public GpuTextureId Albedo;
-                public GpuSamplerId Sampler;
+                public GPUTextureId Albedo;
+                public GPUSamplerId Sampler;
                 public float4 Tint;
             };
 
@@ -3058,7 +3058,7 @@ internal static class MaterialTests
                 "MaterialInstance overrides specializations independently of its parent");
 
             context = new RenderContext(system);
-            readback = system.Device.CreateGPUHeap(64, MemoryType.Readback);
+            readback = system.GetDevice().CreateGPUHeap(64, MemoryType.Readback);
             context.BeginFrame();
             using (RenderContext.ComputeScope compute = context.BeginCompute())
             {
@@ -3066,7 +3066,7 @@ internal static class MaterialTests
                 compute.Dispatch(instance, new Extent3D(1, 1, 1));
             }
             context.Barrier(Stage.Compute, Access.ShaderWrite, Stage.Transfer, Access.TransferRead);
-            context.CopyMemory(outputBuffer.Range, readback.Range.GPURange);
+            context.CopyMemory(outputBuffer.GetRange(), readback.Range.GPURange);
             context.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Host, Access.HostRead);
             context.Submit();
             context.Wait();
@@ -3083,7 +3083,7 @@ internal static class MaterialTests
             using (RenderContext.ComputeScope compute = context.BeginCompute())
                 compute.Dispatch(computeMat, new Extent3D(1, 1, 1));
             context.Barrier(Stage.Compute, Access.ShaderWrite, Stage.Transfer, Access.TransferRead);
-            context.CopyMemory(outputBuffer.Range, readback.Range.GPURange);
+            context.CopyMemory(outputBuffer.GetRange(), readback.Range.GPURange);
             context.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Host, Access.HostRead);
             context.Submit();
             context.Wait();
@@ -3108,10 +3108,10 @@ internal static class MaterialTests
             graphicsComposed.GetPipeline(gfxMat.State, [Format.Rgba8Unorm], Format.Undefined, Format.Undefined, true);
 
             context.BeginFrame();
-            GPURange packedRoot = gfxMat.AllocateRoot(context.FrameData).GPURange;
+            GPURange packedRoot = gfxMat.AllocateRoot(context.GetFrameData()).GPURange;
             using (RenderContext.RenderScope pass = context.BeginRenderPass(new RenderingDesc
             {
-                Colors = [new() { RenderView = target.RenderView, Load = LoadOp.Clear }],
+                Colors = [new() { Target = target, Load = LoadOp.Clear }],
             }, [Format.Rgba8Unorm]))
             {
                 pass.SetViewport(new Viewport { Width = 4, Height = 4 });
@@ -3122,7 +3122,7 @@ internal static class MaterialTests
                 pass.Draw(gfxMat, 3);
             }
             context.Barrier(Stage.ColorOutput, Access.ColorWrite, Stage.Transfer, Access.TransferRead);
-            context.CopyTextureToMemory(target.NativeTexture, readback.Range.GPURange);
+            context.CopyTextureToMemory(target.GetNativeTexture(), readback.Range.GPURange);
             context.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Host, Access.HostRead);
             context.Submit();
             context.Wait();
@@ -3137,11 +3137,11 @@ internal static class MaterialTests
         }
         finally
         {
-            system.Device.WaitIdle();
+            system.GetDevice().WaitIdle();
             context?.DiscardFrame();
-            context?.Destroy();
-            target?.Destroy();
-            outputBuffer?.Destroy();
+            context?.Dispose();
+            target?.Dispose();
+            outputBuffer?.Dispose();
             readback.Destroy();
         }
     }
@@ -3238,20 +3238,20 @@ internal static class MaterialTests
                 SampleCount = 4,
             });
 
-            check(target.RenderView.Format == Format.Rgba8Unorm && target.RenderView.SampleCount == 1 &&
-                depth.RenderView.Format == Format.D32Float && depth.RenderView.SampleCount == 1 &&
-                msaaTarget.RenderView.Format == Format.Rgba8Unorm && msaaTarget.RenderView.SampleCount == 4,
+            check(target.GetRenderView().Format == Format.Rgba8Unorm && target.GetRenderView().SampleCount == 1 &&
+                depth.GetRenderView().Format == Format.D32Float && depth.GetRenderView().SampleCount == 1 &&
+                msaaTarget.GetRenderView().Format == Format.Rgba8Unorm && msaaTarget.GetRenderView().SampleCount == 4,
                 "GPURenderView exposes underlying attachment format and sample count");
 
             RenderingDesc autoPassDesc = new()
             {
-                Colors = [new() { RenderView = target.RenderView, Load = LoadOp.Clear }],
-                Depth = new DepthAttachment { RenderView = depth.RenderView, Load = LoadOp.Clear, Store = StoreOp.Discard },
+                Colors = [new() { Target = target, Load = LoadOp.Clear }],
+                Depth = new DepthAttachment { Target = depth, Load = LoadOp.Clear, Store = StoreOp.Discard },
             };
             RenderPassSignature derivedSig = RenderPassSignature.From(in autoPassDesc);
             RenderingDesc msaaPassDesc = new()
             {
-                Colors = [new() { RenderView = msaaTarget.RenderView, Load = LoadOp.Clear }],
+                Colors = [new() { Target = msaaTarget, Load = LoadOp.Clear }],
             };
             RenderPassSignature msaaDerivedSig = RenderPassSignature.From(in msaaPassDesc);
             check(derivedSig.ColorCount == 1 && derivedSig.GetColorFormat(0) == Format.Rgba8Unorm &&
@@ -3287,8 +3287,8 @@ internal static class MaterialTests
             context.Barrier(Stage.DepthStencilTests, Access.DepthStencilWrite, Stage.DepthStencilTests, Access.DepthStencilWrite);
             using (RenderContext.RenderScope pass = context.BeginRenderPass(new RenderingDesc
             {
-                Colors = [new() { RenderView = target.RenderView, Load = LoadOp.Clear }],
-                Depth = new DepthAttachment { RenderView = depth.RenderView, Load = LoadOp.Clear, Store = StoreOp.Discard },
+                Colors = [new() { Target = target, Load = LoadOp.Clear }],
+                Depth = new DepthAttachment { Target = depth, Load = LoadOp.Clear, Store = StoreOp.Discard },
             }))
             {
                 pass.SetViewport(new Viewport { Width = RecordingSize, Height = RecordingSize });
@@ -3296,9 +3296,9 @@ internal static class MaterialTests
                 pass.Draw(material, 3);
             }
             context.Barrier(Stage.ColorOutput, Access.ColorWrite, Stage.Transfer, Access.TransferRead);
-            context.CopyTextureToMemory(target.NativeTexture, readback.Range.GPURange);
+            context.CopyTextureToMemory(target.GetNativeTexture(), readback.Range.GPURange);
             context.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Host, Access.HostRead);
-            context.Submit().Wait();
+            context.SubmitWithCompletion().Wait();
             check(PixelMatches(readback.Range, Format.Rgba8Unorm, 8, 8, tint),
                 "unprepared material draws automatically using BeginRenderPass(desc) without calling GetPipeline");
 
@@ -3311,8 +3311,8 @@ internal static class MaterialTests
                 context.Barrier(Stage.Transfer | Stage.ColorOutput, Access.TransferRead | Access.ColorWrite, Stage.ColorOutput, Access.ColorWrite);
                 using (RenderContext.RenderScope pass = context.BeginRenderPass(new RenderingDesc
                 {
-                    Colors = [new() { RenderView = target.RenderView, Load = LoadOp.Clear }],
-                    Depth = new DepthAttachment { RenderView = depth.RenderView, Load = LoadOp.Clear, Store = StoreOp.Discard },
+                    Colors = [new() { Target = target, Load = LoadOp.Clear }],
+                    Depth = new DepthAttachment { Target = depth, Load = LoadOp.Clear, Store = StoreOp.Discard },
                 }))
                 {
                     pass.SetViewport(new Viewport { Width = RecordingSize, Height = RecordingSize });
@@ -3346,8 +3346,8 @@ internal static class MaterialTests
                 context.Barrier(Stage.ColorOutput, Access.ColorWrite, Stage.ColorOutput, Access.ColorWrite);
                 using (RenderContext.RenderScope pass = context.BeginRenderPass(new RenderingDesc
                 {
-                    Colors = [new() { RenderView = target.RenderView, Load = LoadOp.Clear }],
-                    Depth = new DepthAttachment { RenderView = depth.RenderView, Load = LoadOp.Clear, Store = StoreOp.Discard },
+                    Colors = [new() { Target = target, Load = LoadOp.Clear }],
+                    Depth = new DepthAttachment { Target = depth, Load = LoadOp.Clear, Store = StoreOp.Discard },
                 }))
                 {
                     pass.SetViewport(new Viewport { Width = RecordingSize, Height = RecordingSize });
@@ -3355,7 +3355,7 @@ internal static class MaterialTests
                     pass.Draw(material, 3);
                     pass.Draw(material, 3);
                 }
-                context.Submit().Wait();
+                context.SubmitWithCompletion().Wait();
             }
             finally
             {
@@ -3395,8 +3395,8 @@ internal static class MaterialTests
                 context.Barrier(Stage.ColorOutput, Access.ColorWrite, Stage.ColorOutput, Access.ColorWrite);
                 using (RenderContext.RenderScope pass = context.BeginRenderPass(new RenderingDesc
                 {
-                    Colors = [new() { RenderView = target.RenderView, Load = LoadOp.Clear }],
-                    Depth = new DepthAttachment { RenderView = depth.RenderView, Load = LoadOp.Clear, Store = StoreOp.Discard },
+                    Colors = [new() { Target = target, Load = LoadOp.Clear }],
+                    Depth = new DepthAttachment { Target = depth, Load = LoadOp.Clear, Store = StoreOp.Discard },
                 }))
                 {
                     pass.SetViewport(new Viewport { Width = RecordingSize, Height = RecordingSize });
@@ -3404,9 +3404,9 @@ internal static class MaterialTests
                     pass.Draw(material, 3);
                 }
                 context.Barrier(Stage.ColorOutput, Access.ColorWrite, Stage.Transfer, Access.TransferRead);
-                context.CopyTextureToMemory(target.NativeTexture, readback.Range.GPURange);
+                context.CopyTextureToMemory(target.GetNativeTexture(), readback.Range.GPURange);
                 context.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Host, Access.HostRead);
-                context.Submit().Wait();
+                context.SubmitWithCompletion().Wait();
             }
             finally
             {
@@ -3462,8 +3462,8 @@ internal static class MaterialTests
                 context.Barrier(Stage.Transfer, Access.TransferRead, Stage.ColorOutput, Access.ColorWrite);
                 using (RenderContext.RenderScope pass = context.BeginRenderPass(new RenderingDesc
                 {
-                    Colors = [new() { RenderView = target.RenderView, Load = LoadOp.Clear }],
-                    Depth = new DepthAttachment { RenderView = depth.RenderView, Load = LoadOp.Clear, Store = StoreOp.Discard },
+                    Colors = [new() { Target = target, Load = LoadOp.Clear }],
+                    Depth = new DepthAttachment { Target = depth, Load = LoadOp.Clear, Store = StoreOp.Discard },
                 }))
                 {
                     pass.SetViewport(new Viewport { Width = RecordingSize, Height = RecordingSize });
@@ -3471,9 +3471,9 @@ internal static class MaterialTests
                     pass.Draw(specMat, 3);
                 }
                 context.Barrier(Stage.ColorOutput, Access.ColorWrite, Stage.Transfer, Access.TransferRead);
-                context.CopyTextureToMemory(target.NativeTexture, readback.Range.GPURange);
+                context.CopyTextureToMemory(target.GetNativeTexture(), readback.Range.GPURange);
                 context.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Host, Access.HostRead);
-                context.Submit().Wait();
+                context.SubmitWithCompletion().Wait();
             }
             finally
             {
@@ -3495,12 +3495,12 @@ internal static class MaterialTests
                     PipelineState state = new() { WriteMask = (byte)(index + 1) };
                     shutdownTasks.Add(systemOwnedShader.WarmUpPipeline(in state, rgbaPass, index + 1));
                 }
-                shutdownSystem.Destroy();
+                shutdownSystem.Dispose();
                 shutdownSystem = null;
             }
             finally
             {
-                shutdownSystem?.Destroy();
+                shutdownSystem?.Dispose();
             }
 
             RenderingSystem? standaloneSystem = new(device, 2 * 1024 * 1024);
@@ -3517,15 +3517,15 @@ internal static class MaterialTests
                         PipelineState state = new() { WriteMask = (byte)(index + 5) };
                         shutdownTasks.Add(standaloneShader.WarmUpPipeline(in state, rgbaPass, index + 1));
                     }
-                    standaloneShader.Destroy();
+                    standaloneShader.Dispose();
                     standaloneShader = null;
-                    standaloneSystem.Destroy();
+                    standaloneSystem.Dispose();
                     standaloneSystem = null;
                 }
                 finally
                 {
-                    standaloneShader?.Destroy();
-                    standaloneSystem?.Destroy();
+                    standaloneShader?.Dispose();
+                    standaloneSystem?.Dispose();
                 }
             }
             check(shutdownTasks.TrueForAll(task => task.IsCompleted), "destroying the rendering systems completes all queued warmup tasks");
@@ -3536,13 +3536,13 @@ internal static class MaterialTests
             Gpu.SetErrorCallback(previousCallback);
             device.WaitIdle();
             context?.DiscardFrame();
-            context?.Destroy();
-            shader?.Destroy();
-            vertices?.Destroy();
-            msaaTarget?.Destroy();
-            depth?.Destroy();
-            target?.Destroy();
-            system?.Destroy();
+            context?.Dispose();
+            shader?.Dispose();
+            vertices?.Dispose();
+            msaaTarget?.Dispose();
+            depth?.Dispose();
+            target?.Dispose();
+            system?.Dispose();
             readback.Destroy();
         }
     }
@@ -3580,7 +3580,7 @@ internal static class MaterialTests
             Vector4 expectedTint = new(0.25f, 0.75f, 0.5f, 1.0f);
 
             context.BeginFrame();
-            GPUAllocation<PrepackedMaterialRoot> root = context.FrameData.Allocate<PrepackedMaterialRoot>();
+            GPUAllocation<PrepackedMaterialRoot> root = context.GetFrameData().Allocate<PrepackedMaterialRoot>();
             *root.Cpu = new PrepackedMaterialRoot
             {
                 Vertices = vertices.View.OffsetBy((uint)sizeof(TestVertex)),
@@ -3592,7 +3592,7 @@ internal static class MaterialTests
 
             using (RenderContext.RenderScope pass = context.BeginRenderPass(new RenderingDesc
             {
-                Colors = [new() { RenderView = target.RenderView, Load = LoadOp.Clear }],
+                Colors = [new() { Target = target, Load = LoadOp.Clear }],
             }))
             {
                 pass.SetViewport(new Viewport { Width = RecordingSize, Height = RecordingSize });
@@ -3600,9 +3600,9 @@ internal static class MaterialTests
                 pass.DrawIndexed(material, root.GPURange, default, indices, IndexType.UInt16, 3, firstIndex: 1, byteOffset: sizeof(ushort));
             }
             context.Barrier(Stage.ColorOutput, Access.ColorWrite, Stage.Transfer, Access.TransferRead);
-            context.CopyTextureToMemory(target.NativeTexture, readback.Range.GPURange);
+            context.CopyTextureToMemory(target.GetNativeTexture(), readback.Range.GPURange);
             context.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Host, Access.HostRead);
-            context.Submit().Wait();
+            context.SubmitWithCompletion().Wait();
 
             check(PixelMatches(readback.Range, Format.Rgba8Unorm, 8, 8, expectedTint),
                 "RenderScope.DrawIndexed with prepacked GPURange root and Buffer.View.OffsetBy renders expected pixels");
@@ -3611,10 +3611,10 @@ internal static class MaterialTests
         {
             device.WaitIdle();
             context?.DiscardFrame();
-            context?.Destroy();
-            target?.Destroy();
-            indices?.Destroy();
-            vertices?.Destroy();
+            context?.Dispose();
+            target?.Dispose();
+            indices?.Dispose();
+            vertices?.Dispose();
             readback.Destroy();
         }
     }

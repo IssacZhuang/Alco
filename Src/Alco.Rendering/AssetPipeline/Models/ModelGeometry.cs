@@ -142,9 +142,9 @@ public sealed class ModelGeometry : AutoDisposable
         }
         catch
         {
-            if (!vertexBuffer.IsDestroyed)
+            if (!vertexBuffer.IsDisposed)
             {
-                vertexBuffer.Destroy();
+                vertexBuffer.Dispose();
             }
             throw;
         }
@@ -158,13 +158,13 @@ public sealed class ModelGeometry : AutoDisposable
             return;
         }
 
-        if (!VertexBuffer.IsDestroyed)
+        if (!VertexBuffer.IsDisposed)
         {
-            VertexBuffer.Destroy();
+            VertexBuffer.Dispose();
         }
-        if (!IndexBuffer.IsDestroyed)
+        if (!IndexBuffer.IsDisposed)
         {
-            IndexBuffer.Destroy();
+            IndexBuffer.Dispose();
         }
     }
 }

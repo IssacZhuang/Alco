@@ -12,7 +12,7 @@ import AlcoParticles_Surface;
 
 public struct ParticleDefaultParams
 {
-    public GpuTextureId texture;
+    public GPUTextureId texture;
 };
 
 public struct Surface : IParticleSurface

@@ -3,7 +3,6 @@ using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Text;
 using Alco.Graphics;
-using Alco.Graphics.LowLevel;
 using Alco.Rendering;
 using Buffer = Alco.Graphics.Buffer;
 
@@ -689,26 +688,20 @@ internal sealed unsafe class UIBatchRenderer : AutoDisposable
             {
                 Debug.Assert(_activeMeshVertexBuffer != null && _activeMeshIndexBuffer != null);
                 DepthStencilState ds = BuildDepthStencilState(hasStencil, DrawOp.Content, run.StencilDepth);
-                GPUAllocation<UIMeshRoot> meshRoot = context.FrameData.Allocate<UIMeshRoot>();
-                *meshRoot.Cpu = new UIMeshRoot
+                UIMeshRoot meshRoot = new()
                 {
-                    Vertices = new GPUBufferView
-                    {
-                        Index = _activeMeshVertexBuffer.View.Index,
-                        Offset = checked((uint)(_activeMeshVertexBuffer.View.Offset + (ulong)run.First * (ulong)sizeof(UIMeshVertex))),
-                    },
+                    Vertices = _activeMeshVertexBuffer.Slice((ulong)run.First * (ulong)sizeof(UIMeshVertex)).View,
                     ClipScale = clipScale,
                     TextureIndex = run.MeshTextureIndex,
                     Kind = run.MeshKind,
                 };
                 render.DrawIndexed(
                     _meshMaterial,
-                    meshRoot.GPURange,
+                    in meshRoot,
                     ds,
-                    _activeMeshIndexBuffer,
+                    _activeMeshIndexBuffer.Slice((ulong)run.IndexFirst * sizeof(ushort)),
                     IndexType.UInt16,
-                    (uint)run.IndexCount,
-                    byteOffset: (ulong)run.IndexFirst * sizeof(ushort));
+                    (uint)run.IndexCount);
                 ++meshDraws;
                 continue;
             }
@@ -717,32 +710,25 @@ internal sealed unsafe class UIBatchRenderer : AutoDisposable
             Material drawMaterial = isMaskOp ? _maskMaterial : (run.Material ?? _defaultMaterial);
             DepthStencilState depthStencil = BuildDepthStencilState(hasStencil, run.Op, run.StencilDepth);
 
-            GPUBufferView quadSlice = new()
+            UIPassHeader header = new()
             {
-                Index = _activeQuadBuffer.View.Index,
-                Offset = checked((uint)(_activeQuadBuffer.View.Offset + (ulong)run.First * (ulong)sizeof(UIQuad))),
+                Quads = _activeQuadBuffer.Slice((ulong)run.First * (ulong)sizeof(UIQuad)).View,
+                ClipScale = clipScale,
             };
-            UIPassHeader header = new() { Quads = quadSlice, ClipScale = clipScale };
 
-            GPURange rootRange;
             if (run.Material == null || isMaskOp)
             {
-                GPUAllocation<UIPassHeader> headerAlloc = context.FrameData.Allocate<UIPassHeader>();
-                *headerAlloc.Cpu = header;
-                rootRange = headerAlloc.GPURange;
+                render.Draw(drawMaterial, in header, depthStencil, 6, (uint)run.Count, firstVertex: 0, firstInstance: 0);
             }
             else
             {
-                GPUAllocation<byte> customAlloc = context.FrameData.Allocate((ulong)run.RootSize);
-                Span<byte> dest = customAlloc.CpuSpan;
+                Span<byte> dest = context.AllocateTransient<byte>(run.RootSize, out BufferSlice rootSlice);
                 MemoryMarshal.Write(dest, in header);
                 int tailLen = run.RootSize - sizeof(UIPassHeader);
                 if (tailLen > 0)
                     _materialSnapshotArena.AsSpan(run.SnapshotOffset, tailLen).CopyTo(dest.Slice(sizeof(UIPassHeader), tailLen));
-                rootRange = customAlloc.GPURange;
+                render.Draw(drawMaterial, rootSlice, depthStencil, 6, (uint)run.Count, firstVertex: 0, firstInstance: 0);
             }
-
-            render.Draw(drawMaterial, rootRange, depthStencil, 6, (uint)run.Count, firstVertex: 0, firstInstance: 0);
             if (isMaskOp)
                 ++maskDraws;
             else
@@ -991,13 +977,13 @@ internal sealed unsafe class UIBatchRenderer : AutoDisposable
         for (int i = 0; i < pool.Count; ++i)
         {
             PooledBuffer entry = pool[i];
-            if (entry.Context != null && !entry.Context.IsDestroyed && entry.Context.IsFramePending(entry.FrameId))
+            if (entry.Context != null && !entry.Context.IsDisposed && entry.Context.IsFramePending(entry.FrameId))
                 continue;
 
             if (entry.Buffer.SizeBytes < requiredBytes)
             {
                 ulong grown = NextCapacity(Math.Max(requiredBytes, Math.Max(minBytes, entry.Buffer.SizeBytes * 2)));
-                entry.Buffer.Destroy();
+                entry.Buffer.Dispose();
                 entry.Buffer = _system.CreateBuffer(grown);
             }
 
@@ -1017,10 +1003,10 @@ internal sealed unsafe class UIBatchRenderer : AutoDisposable
         for (int i = 0; i < pool.Count; ++i)
         {
             PooledBuffer entry = pool[i];
-            if (entry.Context != null && !entry.Context.IsDestroyed && entry.Context.IsFramePending(entry.FrameId))
+            if (entry.Context != null && !entry.Context.IsDisposed && entry.Context.IsFramePending(entry.FrameId))
                 entry.Context.Wait();
-            if (!entry.Buffer.IsDestroyed)
-                entry.Buffer.Destroy();
+            if (!entry.Buffer.IsDisposed)
+                entry.Buffer.Dispose();
         }
         pool.Clear();
     }

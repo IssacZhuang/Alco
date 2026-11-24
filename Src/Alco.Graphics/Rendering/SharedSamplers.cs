@@ -45,7 +45,7 @@ public sealed class SharedSamplers
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
             for (int index = created - 1; index >= 0; --index)
-                samplers[index].Destroy();
+                samplers[index].DestroyImmediate();
             throw;
         }
         _samplers = samplers;
@@ -75,6 +75,6 @@ public sealed class SharedSamplers
     internal void Destroy()
     {
         for (int index = _samplers.Length - 1; index >= 0; --index)
-            _samplers[index].Destroy();
+            _samplers[index].DestroyImmediate();
     }
 }

@@ -43,6 +43,15 @@ public sealed class PngReadbackPipeline : IDisposable
     public PngEncodeMode EncodingMode { get; init; } = PngEncodeMode.Balanced;
 
     /// <summary>
+    /// Creates the pipeline targeting <paramref name="renderingSystem"/>.
+    /// </summary>
+    /// <param name="renderingSystem">The rendering system readbacks submit to.</param>
+    public PngReadbackPipeline(RenderingSystem renderingSystem)
+        : this((renderingSystem ?? throw new ArgumentNullException(nameof(renderingSystem))).GetDevice())
+    {
+    }
+
+    /// <summary>
     /// Creates the pipeline.
     /// </summary>
     /// <param name="device">The graphics device readbacks submit to.</param>
@@ -70,13 +79,13 @@ public sealed class PngReadbackPipeline : IDisposable
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(onCompleted);
 
-        if (source.IsDestroyed)
+        if (source.IsDisposed)
         {
             failure = RenderCaptureResult.CreateFailure("Capture texture is destroyed.", nameof(ObjectDisposedException));
             return false;
         }
 
-        return TryBeginRead(source.NativeTexture, source.Desc, onCompleted, out failure);
+        return TryBeginRead(source.GetNativeTexture(), source.Desc, onCompleted, out failure);
     }
 
     /// <summary>

@@ -2,9 +2,9 @@
 
 using System.Diagnostics;
 
-using Alco.Graphics.LowLevel;
+using Alco.Graphics;
 
-namespace Alco.Graphics;
+namespace Alco.Graphics.LowLevel;
 
 /// <summary>Reusable readback state; externally synchronize access and reset only after completion or safe queue destruction.</summary>
 public sealed class ReadbackRequest

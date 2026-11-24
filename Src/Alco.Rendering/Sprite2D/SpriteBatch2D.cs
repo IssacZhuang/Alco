@@ -3,7 +3,6 @@ using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Text;
 using Alco.Graphics;
-using Alco.Graphics.LowLevel;
 
 namespace Alco.Rendering;
 
@@ -677,20 +676,13 @@ public sealed unsafe class SpriteBatch2D : AutoDisposable
                 Time = time,
             };
 
-            GPURange rootRange;
             if (!run.IsCustomMaterial)
             {
-                rootRange = context.AllocateRoot(in header);
+                render.Draw(run.Material, in header, run.DepthStencil, vertexCount: 6u, instanceCount: (uint)run.Count);
             }
             else
             {
-                GPUAllocation<byte> customAlloc = context.FrameData.Allocate((ulong)run.RootSize);
-                if (customAlloc.SizeBytes == 0)
-                {
-                    throw new InvalidOperationException("The recording frame's root storage is exhausted.");
-                }
-
-                Span<byte> dest = customAlloc.CpuSpan;
+                Span<byte> dest = context.AllocateTransient<byte>(run.RootSize, out BufferSlice rootSlice);
                 MemoryMarshal.Write(dest, in header);
                 int tailLen = run.RootSize - sizeof(Sprite2DPassHeader);
                 if (tailLen > 0)
@@ -699,11 +691,9 @@ public sealed unsafe class SpriteBatch2D : AutoDisposable
                         .CopyTo(dest.Slice(sizeof(Sprite2DPassHeader), tailLen));
                 }
 
-                rootRange = customAlloc.GPURange;
+                render.Draw(run.Material, rootSlice, run.DepthStencil, vertexCount: 6u, instanceCount: (uint)run.Count);
                 ++customMaterialDraws;
             }
-
-            render.Draw(run.Material, rootRange, run.DepthStencil, vertexCount: 6u, instanceCount: (uint)run.Count);
             ++drawCalls;
         }
 

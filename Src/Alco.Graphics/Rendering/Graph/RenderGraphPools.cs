@@ -96,12 +96,6 @@ internal sealed class RenderGraphPools
         internal bool InUseThisFrame;
     }
 
-    private struct RetiredResource
-    {
-        internal RenderingResource Resource;
-        internal FrameUse LastUsed;
-    }
-
     private readonly RenderingSystem? _system;
     private PooledTextureEntry[] _textures = new PooledTextureEntry[8];
     private int _textureCount;
@@ -116,9 +110,6 @@ internal sealed class RenderGraphPools
     private ExternalSyncEntry[] _externals = new ExternalSyncEntry[8];
     private int _externalCount;
 
-    private RetiredResource[] _retired = new RetiredResource[8];
-    private int _retiredCount;
-
     private PhysicalSyncState _swapchainSync;
 
     internal RenderGraphPools(RenderingSystem? system)
@@ -130,7 +121,7 @@ internal sealed class RenderGraphPools
 
     internal int TotalPooledBufferCount => _bufferCount;
 
-    internal int RetiredResourceCount => _retiredCount;
+    internal int RetiredResourceCount => 0;
 
     internal int ActivePhysicalTextureCount
     {
@@ -162,7 +153,6 @@ internal sealed class RenderGraphPools
 
     internal void BeginFrame()
     {
-        ReclaimRetired();
         _freedTextureCount = 0;
         for (int index = 0; index < _textureCount; ++index)
         {
@@ -406,7 +396,6 @@ internal sealed class RenderGraphPools
             _externals[index].Sync.Reset();
         }
         _swapchainSync.Reset();
-        DestroyAllRetired();
     }
 
     internal void RetireViewportRelativeTextures(RenderGraph owner)
@@ -417,7 +406,6 @@ internal sealed class RenderGraphPools
                 continue;
             RetireTextureAt(index, owner);
         }
-        ReclaimRetired();
     }
 
     internal void EvictIdleResources(ulong frameNumber, int idleThreshold, RenderGraph owner)
@@ -447,7 +435,7 @@ internal sealed class RenderGraphPools
         {
             if (_externals[index].InUseThisFrame)
                 continue;
-            bool destroyed = _externals[index].Key is RenderingResource resource && resource.IsDestroyed;
+            bool destroyed = _externals[index].Key is RenderingResource resource && resource.IsDisposed;
             bool completed = _externals[index].LastUsed.IsCompleted;
             if (destroyed || (frameNumber > _externals[index].LastUsedFrame + 1 && completed))
             {
@@ -462,46 +450,23 @@ internal sealed class RenderGraphPools
                 _externals[index].LastUsed = default;
             }
         }
-        ReclaimRetired();
-    }
-
-    internal void ReclaimRetired()
-    {
-        int keep = 0;
-        for (int index = 0; index < _retiredCount; ++index)
-        {
-            RetiredResource entry = _retired[index];
-            if (entry.LastUsed.IsCompleted)
-            {
-                if (!entry.Resource.IsDestroyed)
-                    entry.Resource.Destroy();
-            }
-            else
-            {
-                _retired[keep++] = entry;
-            }
-        }
-        for (int index = keep; index < _retiredCount; ++index)
-            _retired[index] = default;
-        _retiredCount = keep;
     }
 
     internal void Destroy()
     {
-        DestroyAllRetired();
         for (int index = 0; index < _textureCount; ++index)
         {
             Texture? texture = _textures[index].Texture;
-            if (texture != null && !texture.IsDestroyed)
-                texture.Destroy();
+            if (texture != null && !texture.IsDisposed)
+                texture.Dispose();
             _textures[index] = default;
         }
         _textureCount = 0;
         for (int index = 0; index < _bufferCount; ++index)
         {
             Buffer? buffer = _buffers[index].Buffer;
-            if (buffer != null && !buffer.IsDestroyed)
-                buffer.Destroy();
+            if (buffer != null && !buffer.IsDisposed)
+                buffer.Dispose();
             _buffers[index] = default;
         }
         _bufferCount = 0;
@@ -514,8 +479,8 @@ internal sealed class RenderGraphPools
     private void RetireTextureAt(int index, RenderGraph owner)
     {
         PooledTextureEntry entry = _textures[index];
-        if (entry.Texture != null)
-            EnqueueRetired(entry.Texture, in entry.LastUsed);
+        if (entry.Texture != null && !entry.Texture.IsDisposed)
+            entry.Texture.Dispose();
         int last = --_textureCount;
         if (index != last)
             _textures[index] = _textures[last];
@@ -526,38 +491,13 @@ internal sealed class RenderGraphPools
     private void RetireBufferAt(int index, RenderGraph owner)
     {
         PooledBufferEntry entry = _buffers[index];
-        if (entry.Buffer != null)
-            EnqueueRetired(entry.Buffer, in entry.LastUsed);
+        if (entry.Buffer != null && !entry.Buffer.IsDisposed)
+            entry.Buffer.Dispose();
         int last = --_bufferCount;
         if (index != last)
             _buffers[index] = _buffers[last];
         _buffers[last] = default;
         owner.OnPooledBufferRetired(index, last);
-    }
-
-    private void EnqueueRetired(RenderingResource resource, in FrameUse lastUsed)
-    {
-        if (lastUsed.IsCompleted)
-        {
-            if (!resource.IsDestroyed)
-                resource.Destroy();
-            return;
-        }
-        if (_retiredCount == _retired.Length)
-            Array.Resize(ref _retired, _retired.Length * 2);
-        _retired[_retiredCount++] = new RetiredResource { Resource = resource, LastUsed = lastUsed };
-    }
-
-    private void DestroyAllRetired()
-    {
-        for (int index = 0; index < _retiredCount; ++index)
-        {
-            RenderingResource resource = _retired[index].Resource;
-            if (!resource.IsDestroyed)
-                resource.Destroy();
-            _retired[index] = default;
-        }
-        _retiredCount = 0;
     }
 
     private void ClaimTexture(int index, bool viewportRelative, ulong frameNumber, in FrameUse frameUse)

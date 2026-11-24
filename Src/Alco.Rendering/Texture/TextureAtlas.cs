@@ -53,9 +53,9 @@ public sealed class TextureAtlas : AutoDisposable
 
     protected override void Dispose(bool disposing)
     {
-        if (disposing && !Texture.IsDestroyed)
+        if (disposing && !Texture.IsDisposed)
         {
-            Texture.Destroy();
+            Texture.Dispose();
         }
         _sprites.Clear();
     }

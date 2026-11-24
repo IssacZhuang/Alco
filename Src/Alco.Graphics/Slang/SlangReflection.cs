@@ -658,8 +658,8 @@ internal static unsafe class SlangLayoutReader
     private static ShaderFieldSemantic SemanticOf(string? typeName) => typeName switch
     {
         "GPUBufferView" => ShaderFieldSemantic.BufferView,
-        "GpuTextureId" => ShaderFieldSemantic.TextureId,
-        "GpuSamplerId" => ShaderFieldSemantic.SamplerId,
+        "GPUTextureId" => ShaderFieldSemantic.TextureId,
+        "GPUSamplerId" => ShaderFieldSemantic.SamplerId,
         _ => ShaderFieldSemantic.Data,
     };
 

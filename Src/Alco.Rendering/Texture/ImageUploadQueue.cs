@@ -1,6 +1,5 @@
 using System.Runtime.InteropServices;
 using Alco.Graphics;
-using Alco.Graphics.LowLevel;
 
 namespace Alco.Rendering;
 
@@ -171,7 +170,7 @@ public sealed unsafe class ImageUploadQueue : AutoDisposable
             bool aborted = false;
             lock (active.Image.UploadLock)
             {
-                if (active.Image.IsDisposed || active.Image.Texture.IsDestroyed)
+                if (active.Image.IsDisposed || active.Image.Texture.IsDisposed)
                 {
                     aborted = true;
                 }

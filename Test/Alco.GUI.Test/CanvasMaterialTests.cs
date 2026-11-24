@@ -69,8 +69,9 @@ public class CanvasMaterialTests
             canvas.Tick(0f);
             canvas.PrepareRender(0f);
             host.Context.BeginFrame();
-            UIFrameStats merged = canvas.Draw(host.Context, target.RenderView, Format.Rgba8Unorm, new Extent2D(128, 128), stencil.RenderView, Format.S8Uint);
-            host.Context.Submit().Wait();
+            UIFrameStats merged = canvas.Draw(host.Context, target, stencil);
+            host.Context.Submit();
+            host.RenderingSystem.WaitIdle();
             Assert.That(merged.QuadCount, Is.EqualTo(2));
             Assert.That(merged.ContentDraws, Is.EqualTo(1), "Consecutive identical custom material bytes must merge.");
 
@@ -88,15 +89,16 @@ public class CanvasMaterialTests
             canvas.Tick(0f);
             canvas.PrepareRender(0f);
             host.Context.BeginFrame();
-            UIFrameStats split = canvas.Draw(host.Context, target.RenderView, Format.Rgba8Unorm, new Extent2D(128, 128), stencil.RenderView, Format.S8Uint);
-            host.Context.Submit().Wait();
+            UIFrameStats split = canvas.Draw(host.Context, target, stencil);
+            host.Context.Submit();
+            host.RenderingSystem.WaitIdle();
             Assert.That(split.QuadCount, Is.EqualTo(2));
             Assert.That(split.ContentDraws, Is.EqualTo(2), "Mid-frame mutation on shared Material must snapshot per run and split draw.");
         }
         finally
         {
-            stencil.Destroy();
-            target.Destroy();
+            stencil.Dispose();
+            target.Dispose();
         }
     }
 
@@ -119,8 +121,9 @@ public class CanvasMaterialTests
 
             canvas.PrepareRender(0f);
             host.Context.BeginFrame();
-            UIFrameStats s1 = canvas.Draw(host.Context, target.RenderView, Format.Rgba8Unorm, new Extent2D(128, 128), stencil.RenderView, Format.S8Uint);
-            host.Context.Submit().Wait();
+            UIFrameStats s1 = canvas.Draw(host.Context, target, stencil);
+            host.Context.Submit();
+            host.RenderingSystem.WaitIdle();
             Assert.That(s1.ScissorMaskCount, Is.EqualTo(1));
             Assert.That(s1.StencilMaskCount, Is.EqualTo(0));
             Assert.That(s1.MaskDraws, Is.EqualTo(0));
@@ -133,8 +136,9 @@ public class CanvasMaterialTests
 
             canvas.PrepareRender(0f);
             host.Context.BeginFrame();
-            UIFrameStats s2 = canvas.Draw(host.Context, target.RenderView, Format.Rgba8Unorm, new Extent2D(128, 128), stencil.RenderView, Format.S8Uint);
-            host.Context.Submit().Wait();
+            UIFrameStats s2 = canvas.Draw(host.Context, target, stencil);
+            host.Context.Submit();
+            host.RenderingSystem.WaitIdle();
             Assert.That(s2.ElidedMaskCount, Is.EqualTo(1));
             Assert.That(s2.StencilMaskCount, Is.EqualTo(0));
             Assert.That(s2.MaskDraws, Is.EqualTo(0));
@@ -147,8 +151,9 @@ public class CanvasMaterialTests
 
             canvas.PrepareRender(0f);
             host.Context.BeginFrame();
-            UIFrameStats s3 = canvas.Draw(host.Context, target.RenderView, Format.Rgba8Unorm, new Extent2D(128, 128), stencil.RenderView, Format.S8Uint);
-            host.Context.Submit().Wait();
+            UIFrameStats s3 = canvas.Draw(host.Context, target, stencil);
+            host.Context.Submit();
+            host.RenderingSystem.WaitIdle();
             Assert.That(s3.StencilMaskCount, Is.EqualTo(1));
             Assert.That(s3.MaskDraws, Is.EqualTo(2));
             Assert.That(s3.ContentDraws, Is.EqualTo(1));
@@ -156,16 +161,17 @@ public class CanvasMaterialTests
             // 4. Same textured/rotated tree without stencil attachment -> graceful fallback with 0 mask draws.
             canvas.PrepareRender(0f);
             host.Context.BeginFrame();
-            UIFrameStats s4 = canvas.Draw(host.Context, target.RenderView, Format.Rgba8Unorm, new Extent2D(128, 128));
-            host.Context.Submit().Wait();
+            UIFrameStats s4 = canvas.Draw(host.Context, target);
+            host.Context.Submit();
+            host.RenderingSystem.WaitIdle();
             Assert.That(s4.MaskDraws, Is.EqualTo(0));
             Assert.That(s4.ContentDraws, Is.EqualTo(1));
         }
         finally
         {
-            stencil.Destroy();
-            target.Destroy();
-            maskTex.Destroy();
+            stencil.Dispose();
+            target.Dispose();
+            maskTex.Dispose();
         }
     }
 
@@ -224,16 +230,17 @@ public class CanvasMaterialTests
             canvas.Tick(0f);
             canvas.PrepareRender(0f);
             host.Context.BeginFrame();
-            UIFrameStats stats = canvas.Draw(host.Context, target.RenderView, Format.Rgba8Unorm, new Extent2D(200, 200));
-            host.Context.Submit().Wait();
+            UIFrameStats stats = canvas.Draw(host.Context, target);
+            host.Context.Submit();
+            host.RenderingSystem.WaitIdle();
 
             Assert.That(stats.QuadCount, Is.GreaterThanOrEqualTo(10));
             Assert.That(rich.ContentHeight, Is.GreaterThan(14f), "Wrapped rich text + emoji should span multiple lines cleanly.");
         }
         finally
         {
-            target.Destroy();
-            tex.Destroy();
+            target.Dispose();
+            tex.Dispose();
         }
     }
 
@@ -288,16 +295,17 @@ public class CanvasMaterialTests
             canvas.DrawMesh(verts, indices, sheet);
 
             host.Context.BeginFrame();
-            UIFrameStats stats = canvas.Draw(host.Context, target.RenderView, Format.Rgba8Unorm, new Extent2D(128, 128));
-            host.Context.Submit().Wait();
+            UIFrameStats stats = canvas.Draw(host.Context, target);
+            host.Context.Submit();
+            host.RenderingSystem.WaitIdle();
 
             Assert.That(stats.MeshDraws, Is.EqualTo(1));
             Assert.That(stats.ContentDraws, Is.GreaterThanOrEqualTo(1));
         }
         finally
         {
-            target.Destroy();
-            gpuTex.Destroy();
+            target.Dispose();
+            gpuTex.Dispose();
         }
     }
 
@@ -337,6 +345,6 @@ public class CanvasMaterialTests
 
         _ = canvas.SvgRenderer;
         Shader cachedInCustom = customShaders.GetShader("SvgRasterize", ShaderKind.Compute);
-        Assert.That(cachedInCustom.IsDestroyed, Is.False);
+        Assert.That(cachedInCustom.IsDisposed, Is.False);
     }
 }

@@ -3,7 +3,6 @@ using System.Runtime.InteropServices;
 using Alco;
 using Alco.Engine;
 using Alco.Graphics;
-using Alco.Graphics.LowLevel;
 using Alco.ImGUI;
 using Alco.IO;
 using Alco.Rendering;
@@ -205,14 +204,14 @@ public unsafe class Game : GameEngine
         _renderContext = new RenderContext(RenderingSystem);
         _compressor = new TextureCompressor(RenderingSystem);
 
-        Shader comparisonShader = ShaderSystem.GetShaderFromSource(
+        Shader comparisonShader = RenderingSystem.Shaders.GetShaderFromSource(
             "TextureCompressionComparison",
             "TextureCompressionComparison.slang",
             ComparisonShaderSource,
             ShaderKind.Graphics,
             "TextureCompressionComparison");
         _comparisonMaterial = comparisonShader.CreateMaterial("comparison_panel");
-        _decodeShader = ShaderSystem.GetShaderFromSource(
+        _decodeShader = RenderingSystem.Shaders.GetShaderFromSource(
             "SandboxTextureDecodeVerify",
             "SandboxTextureDecodeVerify.slang",
             DecodeVerifySource,
@@ -235,14 +234,14 @@ public unsafe class Game : GameEngine
         HandleViewportInput();
         DrawControls();
 
-        if (!MainPresenter.HasValidFrame || _sourceTexture == null || _compressedTexture == null)
+        RenderTarget target = MainPresenter.CurrentRenderTarget;
+        if (!target.IsValid || _sourceTexture == null || _compressedTexture == null)
         {
             return;
         }
 
-        SwapchainFrame frame = MainPresenter.CurrentFrame;
-        uint totalWidth = frame.Extent.X;
-        uint totalHeight = frame.Extent.Y;
+        uint totalWidth = target.Extent.X;
+        uint totalHeight = target.Extent.Y;
         if (totalWidth < 3 || totalHeight == 0)
         {
             return;
@@ -256,7 +255,7 @@ public unsafe class Game : GameEngine
 
             ColorAttachment color = new()
             {
-                RenderView = frame.RenderView,
+                Target = target,
                 Load = LoadOp.Clear,
                 Store = StoreOp.Store,
                 Clear = new Vector4(0.08f, 0.08f, 0.1f, 1.0f),
@@ -284,7 +283,7 @@ public unsafe class Game : GameEngine
                 uint pointFlag = _pointSample ? 1u : 0u;
 
                 // Panel 0: Original
-                DrawPanel(render, _renderContext, 0, panelWidth - panelGap, totalHeight, new ComparisonRoot
+                DrawPanel(render, 0, panelWidth - panelGap, totalHeight, new ComparisonRoot
                 {
                     SourceExtent = sourceExtent,
                     TextureExtent = new Vector2(_sourceWidth, _sourceHeight),
@@ -300,7 +299,7 @@ public unsafe class Game : GameEngine
                 });
 
                 // Panel 1: Compressed BC
-                DrawPanel(render, _renderContext, panelWidth, panelWidth - panelGap, totalHeight, new ComparisonRoot
+                DrawPanel(render, panelWidth, panelWidth - panelGap, totalHeight, new ComparisonRoot
                 {
                     SourceExtent = sourceExtent,
                     TextureExtent = new Vector2(paddedExtent.X, paddedExtent.Y),
@@ -318,7 +317,7 @@ public unsafe class Game : GameEngine
                 // Panel 2: Magnified Difference
                 uint rightX = panelWidth * 2;
                 uint rightWidth = totalWidth - rightX;
-                DrawPanel(render, _renderContext, rightX, rightWidth, totalHeight, new ComparisonRoot
+                DrawPanel(render, rightX, rightWidth, totalHeight, new ComparisonRoot
                 {
                     SourceExtent = sourceExtent,
                     TextureExtent = new Vector2(paddedExtent.X, paddedExtent.Y),
@@ -354,18 +353,17 @@ public unsafe class Game : GameEngine
             return;
         }
 
-        GraphicsDevice.WaitIdle();
-        _compressedTexture?.Destroy();
+        RenderingSystem.WaitIdle();
+        _compressedTexture?.Dispose();
         _compressedTexture = null;
-        _sourceTexture?.Destroy();
+        _sourceTexture?.Dispose();
         _sourceTexture = null;
-        _renderContext.Destroy();
+        _renderContext.Dispose();
         base.Dispose();
     }
 
     private void DrawPanel(
         RenderContext.RenderScope render,
-        RenderContext context,
         uint x,
         uint width,
         uint height,
@@ -376,8 +374,7 @@ public unsafe class Game : GameEngine
 
         render.SetViewport(new Viewport { X = x, Y = 0, Width = width, Height = height });
         render.SetScissor(new Scissor { X = (int)x, Y = 0, Width = width, Height = height });
-        GPURange rootRange = context.AllocateRoot(root);
-        render.Draw(_comparisonMaterial, rootRange, DepthStencilState.None, 3);
+        render.Draw(_comparisonMaterial, in root, DepthStencilState.None, 3);
     }
 
     private void HandleViewportInput()
@@ -499,8 +496,8 @@ public unsafe class Game : GameEngine
             ImageUtility.PremultiplyRgba8(_sourceBytes);
         }
 
-        GraphicsDevice.WaitIdle();
-        _sourceTexture?.Destroy();
+        RenderingSystem.WaitIdle();
+        _sourceTexture?.Dispose();
         _sourceTexture = RenderingSystem.CreateTexture(new TextureDesc
         {
             Extent = new Extent3D((uint)_sourceWidth, (uint)_sourceHeight, 1),
@@ -520,11 +517,11 @@ public unsafe class Game : GameEngine
             return;
 
         Format targetFormat = ResolveSelectedFormat();
-        if (!TextureCompressor.CanCompressOnGpu(GraphicsDevice, targetFormat))
+        if (!TextureCompressor.CanCompressOnGpu(RenderingSystem, targetFormat))
             return;
 
-        GraphicsDevice.WaitIdle();
-        _compressedTexture?.Destroy();
+        RenderingSystem.WaitIdle();
+        _compressedTexture?.Dispose();
         _compressedTexture = _compressor.CompressToTexture(
             _sourceTexture,
             targetFormat,
@@ -552,20 +549,21 @@ public unsafe class Game : GameEngine
             _renderContext.BeginFrame();
             using (RenderContext.ComputeScope compute = _renderContext.BeginCompute())
             {
-                GPURange root = _renderContext.AllocateRoot(new DecodeVerifyRoot
+                DecodeVerifyRoot root = new()
                 {
                     Output = decodeBuffer.View,
                     Source = decodeSlot,
                     Extent = new Extent2D((uint)_sourceWidth, (uint)_sourceHeight),
-                });
-                compute.Dispatch(_decodeShader, root, new Extent3D(((uint)_sourceWidth + 7u) / 8u, ((uint)_sourceHeight + 7u) / 8u, 1u));
+                };
+                compute.Dispatch(_decodeShader, in root, new Extent3D(((uint)_sourceWidth + 7u) / 8u, ((uint)_sourceHeight + 7u) / 8u, 1u));
             }
-            RenderingSystem.Submit([_renderContext]).Wait();
+            _renderContext.Submit();
+            RenderingSystem.WaitIdle();
             RenderingSystem.ReadBuffer(decodeBuffer, MemoryMarshal.AsBytes(decoded.AsSpan()));
         }
         finally
         {
-            decodeBuffer.Destroy();
+            decodeBuffer.Dispose();
         }
 
         double rgbSqErr = 0.0;

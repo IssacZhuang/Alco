@@ -72,7 +72,7 @@ public sealed class ScreenshotToolTests
 
                 ColorAttachment color = new()
                 {
-                    RenderView = MainPresenter.CurrentFrame.RenderView,
+                    Target = MainPresenter.CurrentRenderTarget,
                     Load = LoadOp.Clear,
                     Store = StoreOp.Store,
                     Clear = new Vector4(0.1f, 0.5f, 0.8f, 0.0f),
@@ -101,8 +101,8 @@ public sealed class ScreenshotToolTests
                 return;
             }
 
-            GraphicsDevice.WaitIdle();
-            _renderContext.Destroy();
+            RenderingSystem.WaitIdle();
+            _renderContext.Dispose();
             base.Dispose();
         }
 

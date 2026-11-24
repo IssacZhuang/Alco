@@ -25,8 +25,6 @@ public sealed unsafe class MeshScene3D : AutoDisposable
         public uint VisibleBase;
     }
 
-    private readonly record struct RetiredBuffer(Alco.Graphics.Buffer Buffer, RenderContext? Context, ulong FrameId);
-
     [StructLayout(LayoutKind.Sequential)]
     private struct InstanceScatterRoot
     {
@@ -79,7 +77,6 @@ public sealed unsafe class MeshScene3D : AutoDisposable
 
     private readonly List<BucketState> _buckets = new();
     private readonly Dictionary<int, List<BucketState>> _tiers = new();
-    private readonly List<RetiredBuffer> _retiredBuffers = new();
     private readonly MeshScene3DCullOutput _defaultCullOutput;
 
     private MeshScene3DBucketMeta[] _bucketMetaStaging = new MeshScene3DBucketMeta[InitialBucketCapacity];
@@ -88,8 +85,6 @@ public sealed unsafe class MeshScene3D : AutoDisposable
     private int _bucketCapacity = InitialBucketCapacity;
     private bool _bucketsDirty = true;
     private int _drawCallsSubmitted;
-    private RenderContext? _lastMetaContext;
-    private ulong _lastMetaFrameId;
 
     /// <summary>Creates a GPU-driven 3D mesh scene backed by <paramref name="system"/>.</summary>
     /// <param name="system">The rendering system owning GPU buffers and descriptor heaps.</param>
@@ -316,8 +311,6 @@ public sealed unsafe class MeshScene3D : AutoDisposable
         ArgumentNullException.ThrowIfNull(context);
         ObjectDisposedException.ThrowIf(IsDisposed, this);
 
-        ReclaimRetiredBuffers();
-
         if (_buckets.Count == 0)
         {
             _pool.Flush();
@@ -374,7 +367,6 @@ public sealed unsafe class MeshScene3D : AutoDisposable
             Stage.Compute, Access.ShaderWrite,
             Stage.Indirect | Stage.Vertex | Stage.Pixel,
             Access.IndirectRead | Access.ShaderRead);
-        target.MarkRecorded(context);
     }
 
     /// <summary>
@@ -390,7 +382,6 @@ public sealed unsafe class MeshScene3D : AutoDisposable
         ObjectDisposedException.ThrowIf(IsDisposed, this);
 
         _drawCallsSubmitted = 0;
-        ReclaimRetiredBuffers();
 
         if (_buckets.Count == 0)
         {
@@ -412,7 +403,6 @@ public sealed unsafe class MeshScene3D : AutoDisposable
             Stage.Compute, Access.ShaderWrite,
             Stage.Indirect | Stage.Vertex | Stage.Pixel,
             Access.IndirectRead | Access.ShaderRead);
-        target.MarkRecorded(context);
     }
 
     /// <summary>Resets the per-frame submitted draw call counter without mutating GPU state.</summary>
@@ -540,26 +530,19 @@ public sealed unsafe class MeshScene3D : AutoDisposable
             };
 
             uint rootSize = material.Root.SizeBytes;
-            GPUAllocation<byte> rootAlloc = context.FrameData.Allocate(rootSize);
-            if (rootAlloc.SizeBytes == 0)
-            {
-                throw new InvalidOperationException("The recording frame's root storage is exhausted.");
-            }
-
-            Span<byte> dest = rootAlloc.CpuSpan;
+            Span<byte> dest = context.AllocateTransient<byte>(checked((int)rootSize), out BufferSlice rootSlice);
             material.CopyRoot(dest);
             MemoryMarshal.Write(dest, in header);
 
             render.DrawIndexedIndirect(
                 material,
-                rootAlloc.GPURange,
+                rootSlice,
                 depthStencil,
                 bucket.Desc.Geometry.IndexBuffer,
                 bucket.Desc.Geometry.IndexType,
-                drawArgsBuffer,
+                drawArgsBuffer.Slice((ulong)bucket.Id * (ulong)sizeof(GpuDrawIndexedIndirectArgs)),
                 drawCount: 1u,
-                stride: 0u,
-                argumentByteOffset: (ulong)bucket.Id * (ulong)sizeof(GpuDrawIndexedIndirectArgs));
+                stride: 0u);
             ++submitted;
         }
 
@@ -579,18 +562,9 @@ public sealed unsafe class MeshScene3D : AutoDisposable
         _pool.Dispose();
         _transientBuffers.Dispose();
 
-        for (int i = 0; i < _retiredBuffers.Count; ++i)
+        if (!_bucketMetaBuffer.IsDisposed)
         {
-            if (!_retiredBuffers[i].Buffer.IsDestroyed)
-            {
-                _retiredBuffers[i].Buffer.Destroy();
-            }
-        }
-
-        _retiredBuffers.Clear();
-        if (!_bucketMetaBuffer.IsDestroyed)
-        {
-            _bucketMetaBuffer.Destroy();
+            _bucketMetaBuffer.Dispose();
         }
     }
 
@@ -628,13 +602,13 @@ public sealed unsafe class MeshScene3D : AutoDisposable
         in MeshScene3DCullView view,
         MeshScene3DCullOutput output)
     {
-        GPURange resetRoot = context.AllocateRoot(new MeshScene3DResetArgsRoot
+        MeshScene3DResetArgsRoot resetRoot = new()
         {
             BucketMeta = _bucketMetaBuffer.View,
             DrawArgs = output.DrawArgsBuffer.View,
             BucketCount = (uint)_buckets.Count,
-        });
-        compute.Dispatch(_resetArgsShader, resetRoot, new Extent3D((uint)((_buckets.Count + 63) / 64), 1u, 1u));
+        };
+        compute.Dispatch(_resetArgsShader, in resetRoot, new Extent3D((uint)((_buckets.Count + 63) / 64), 1u, 1u));
 
         if (_pool.TotalSlots > 0)
         {
@@ -642,7 +616,7 @@ public sealed unsafe class MeshScene3D : AutoDisposable
                 Stage.Compute, Access.ShaderWrite,
                 Stage.Compute, Access.ShaderRead | Access.ShaderWrite);
 
-            GPURange cullRoot = context.AllocateRoot(new MeshScene3DCullRoot
+            MeshScene3DCullRoot cullRoot = new()
             {
                 Plane0 = view.Plane0,
                 Plane1 = view.Plane1,
@@ -661,8 +635,8 @@ public sealed unsafe class MeshScene3D : AutoDisposable
                 RequiredCullMask = view.RequiredCullMask,
                 PlaneCount = view.EnableFrustumCulling ? 6u : 0u,
                 OriginOffset = view.OriginOffset,
-            });
-            compute.Dispatch(_cullShader, cullRoot, new Extent3D((uint)((_pool.TotalSlots + 63) / 64), 1u, 1u));
+            };
+            compute.Dispatch(_cullShader, in cullRoot, new Extent3D((uint)((_pool.TotalSlots + 63) / 64), 1u, 1u));
         }
     }
 
@@ -692,21 +666,18 @@ public sealed unsafe class MeshScene3D : AutoDisposable
         patchBuf.SetData<MeshScene3DBucketMeta>(_bucketMetaStaging.AsSpan(0, count));
         slotBuf.SetData<uint>(_bucketSlotIndices.AsSpan(0, count));
 
-        GPURange scatterRoot = context.AllocateRoot(new InstanceScatterRoot
+        InstanceScatterRoot scatterRoot = new()
         {
             Patches = patchBuf.View,
             PatchSlots = slotBuf.View,
             Pool = _bucketMetaBuffer.View,
             PatchCount = (uint)count,
             WordsPerInstance = (uint)(sizeof(MeshScene3DBucketMeta) / 4),
-        });
-        compute.Dispatch(_scatterShader, scatterRoot, new Extent3D((uint)((count + 63) / 64), 1u, 1u));
+        };
+        compute.Dispatch(_scatterShader, in scatterRoot, new Extent3D((uint)((count + 63) / 64), 1u, 1u));
         compute.Barrier(
             Stage.Compute, Access.ShaderWrite,
             Stage.Compute, Access.ShaderRead);
-
-        _lastMetaContext = context;
-        _lastMetaFrameId = context.CurrentFrameId;
     }
 
     private void GrowBucketStorage(int requiredBuckets)
@@ -719,29 +690,10 @@ public sealed unsafe class MeshScene3D : AutoDisposable
 
         Array.Resize(ref _bucketMetaStaging, nextCapacity);
         _bucketSlotIndices = BuildSequentialIndices(nextCapacity);
-        _retiredBuffers.Add(new RetiredBuffer(_bucketMetaBuffer, _lastMetaContext, _lastMetaFrameId));
+        _bucketMetaBuffer.Dispose();
         _bucketMetaBuffer = _system.CreateBuffer((ulong)nextCapacity * (ulong)sizeof(MeshScene3DBucketMeta));
         _bucketCapacity = nextCapacity;
         _bucketsDirty = true;
-    }
-
-    private void ReclaimRetiredBuffers()
-    {
-        for (int i = _retiredBuffers.Count - 1; i >= 0; --i)
-        {
-            RetiredBuffer entry = _retiredBuffers[i];
-            if (entry.Context != null && !entry.Context.IsFrameCompleted(entry.FrameId))
-            {
-                continue;
-            }
-
-            if (!entry.Buffer.IsDestroyed)
-            {
-                entry.Buffer.Destroy();
-            }
-
-            _retiredBuffers.RemoveAt(i);
-        }
     }
 
     private void ValidateBucketId(uint bucketId)

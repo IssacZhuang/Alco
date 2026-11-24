@@ -35,7 +35,7 @@ public class TestMaterialAsset
 
         public struct CustomSurfaceParams
         {
-            public GpuTextureId noiseTexture;
+            public GPUTextureId noiseTexture;
             public float noiseScale;
             public float edgeWidth;
             public float3 edgeColor;

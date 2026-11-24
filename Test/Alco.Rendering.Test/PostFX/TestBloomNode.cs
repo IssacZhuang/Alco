@@ -233,12 +233,12 @@ public unsafe class TestBloomNode
         }
         finally
         {
-            graph.Destroy();
-            if (!sceneColor.IsDestroyed)
+            graph.Dispose();
+            if (!sceneColor.IsDisposed)
             {
-                sceneColor.Destroy();
+                sceneColor.Dispose();
             }
-            context.Destroy();
+            context.Dispose();
         }
     }
 
@@ -349,8 +349,8 @@ public unsafe class TestBloomNode
         finally
         {
             device.WaitIdle();
-            context.Destroy();
-            rendering.Destroy();
+            context.Dispose();
+            rendering.Dispose();
             device.Destroy();
         }
     }
@@ -379,7 +379,7 @@ public unsafe class TestBloomNode
     {
         context.BeginFrame();
         graph.Execute(context);
-        context.Submit().Wait();
+        context.Submit();
     }
 
     private static void VerifyCompositeModeRecordsCleanly(
@@ -433,7 +433,8 @@ public unsafe class TestBloomNode
 
             context.BeginFrame();
             graph.Execute(context, RenderGraphTarget.FromTexture(outputTex), outputFinalUsage: RGUsage.TransferRead);
-            context.Submit().Wait();
+            context.Submit();
+            rendering.WaitIdle();
 
             Assert.That(graph.Statistics.AlivePassCount, Is.EqualTo(1));
             Vector4[] actual = ReadbackRgba16Float(rendering, outputTex, (int)width, (int)height);
@@ -446,14 +447,14 @@ public unsafe class TestBloomNode
         }
         finally
         {
-            graph.Destroy();
-            if (!outputTex.IsDestroyed)
+            graph.Dispose();
+            if (!outputTex.IsDisposed)
             {
-                outputTex.Destroy();
+                outputTex.Dispose();
             }
-            if (!inputTex.IsDestroyed)
+            if (!inputTex.IsDisposed)
             {
-                inputTex.Destroy();
+                inputTex.Dispose();
             }
         }
     }
@@ -513,7 +514,8 @@ public unsafe class TestBloomNode
             graph.Use(bloom);
             context.BeginFrame();
             graph.Execute(context);
-            context.Submit().Wait();
+            context.Submit();
+            rendering.WaitIdle();
 
             if (!readback)
             {
@@ -525,14 +527,14 @@ public unsafe class TestBloomNode
         }
         finally
         {
-            graph.Destroy();
-            if (outputTex != null && !outputTex.IsDestroyed)
+            graph.Dispose();
+            if (outputTex != null && !outputTex.IsDisposed)
             {
-                outputTex.Destroy();
+                outputTex.Dispose();
             }
-            if (!inputTex.IsDestroyed)
+            if (!inputTex.IsDisposed)
             {
-                inputTex.Destroy();
+                inputTex.Dispose();
             }
         }
     }

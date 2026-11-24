@@ -158,8 +158,8 @@ public sealed class GlyphCache : AutoDisposable
         for (int index = 0; index < _pages.Count; ++index)
         {
             Texture pageTexture = _pages[index].Texture;
-            if (!pageTexture.IsDestroyed)
-                pageTexture.Destroy();
+            if (!pageTexture.IsDisposed)
+                pageTexture.Dispose();
         }
         _pages.Clear();
         _entries.Clear();

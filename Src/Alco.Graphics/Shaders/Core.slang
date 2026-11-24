@@ -9,12 +9,12 @@ public struct GPUBufferView
 };
 
 // Wrapper types distinguish descriptor indices from ordinary root constants.
-public struct GpuTextureId
+public struct GPUTextureId
 {
     public uint index;
 };
 
-public struct GpuSamplerId
+public struct GPUSamplerId
 {
     public uint index;
 };

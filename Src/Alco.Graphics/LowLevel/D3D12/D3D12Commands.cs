@@ -646,7 +646,7 @@ internal sealed unsafe partial class D3D12CommandBuffer : GPUCommandBuffer
     /// <summary>Begins a native render pass with attachment-local layout transitions.</summary>
     /// <param name="desc">The attachment views and load/store operations.</param>
     /// <param name="flags">The suspension and resumption flags.</param>
-    public override void BeginRenderPass(RenderingDesc desc, RenderingFlags flags = RenderingFlags.None)
+    public override void BeginRenderPass(GPURenderingDesc desc, RenderingFlags flags = RenderingFlags.None)
     {
         Debug.Assert(Recording && !InRenderPass && Owner.Queues[Pool.QueueIndex].Type == 0 && desc.Colors.Length <= 8);
         ColorCount = (uint)desc.Colors.Length;
@@ -659,7 +659,7 @@ internal sealed unsafe partial class D3D12CommandBuffer : GPUCommandBuffer
         CommandRenderTarget* colors = stackalloc CommandRenderTarget[8];
         for (uint i = 0; i < ColorCount; ++i)
         {
-            ColorAttachment attachment = desc.Colors[(int)i];
+            GPUColorAttachment attachment = desc.Colors[(int)i];
             D3D12RenderView view = (D3D12RenderView)attachment.RenderView!;
             UseTexture(view.Texture);
             ColorViews[i] = view;

@@ -66,7 +66,8 @@ public unsafe class TestSvgRenderer
             Texture gradTex = renderer.Rasterize(context, in gradData);
             try
             {
-                context.Submit().Wait();
+                context.Submit();
+                host.RenderingSystem.WaitIdle();
 
                 if (backend == GraphicsBackend.NoGPU)
                     return;
@@ -102,17 +103,17 @@ public unsafe class TestSvgRenderer
             }
             finally
             {
-                if (!gradTex.IsDestroyed)
-                    gradTex.Destroy();
-                if (!circleTex.IsDestroyed)
-                    circleTex.Destroy();
-                if (!rectTex.IsDestroyed)
-                    rectTex.Destroy();
+                if (!gradTex.IsDisposed)
+                    gradTex.Dispose();
+                if (!circleTex.IsDisposed)
+                    circleTex.Dispose();
+                if (!rectTex.IsDisposed)
+                    rectTex.Dispose();
             }
         }
         finally
         {
-            context.Destroy();
+            context.Dispose();
         }
     }
 
@@ -123,9 +124,10 @@ public unsafe class TestSvgRenderer
         try
         {
             context.BeginFrame();
-            context.CopyTextureToMemory(texture.NativeTexture, readback.Range.GPURange);
+            context.CopyTextureToMemory(texture.GetNativeTexture(), readback.Range.GPURange);
             context.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Host, Access.HostRead);
-            context.Submit().Wait();
+            context.Submit();
+            device.WaitIdle();
 
             byte[] result = new byte[byteCount];
             new ReadOnlySpan<byte>(readback.Range.Cpu, (int)byteCount).CopyTo(result);

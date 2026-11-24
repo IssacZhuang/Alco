@@ -1,4 +1,5 @@
 using Alco.Graphics;
+using Alco.Graphics.LowLevel;
 
 namespace Alco.Engine;
 
@@ -156,7 +157,7 @@ public sealed class SwapchainCaptureSystem : BaseEngineSystem
             begun = true;
 
             _renderContext.Barrier(Stage.ColorOutput, Access.ColorWrite, Stage.Transfer, Access.TransferRead);
-            _renderContext.CopyTexture(frame.Texture, _surfaceCopy!.NativeTexture);
+            _renderContext.CopyTexture(frame.Texture, _surfaceCopy!.GetNativeTexture());
             _renderContext.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Pixel, Access.ShaderRead);
 
             RenderingDesc pass = new()
@@ -165,7 +166,7 @@ public sealed class SwapchainCaptureSystem : BaseEngineSystem
                 [
                     new ColorAttachment
                     {
-                        RenderView = _staging!.RenderView,
+                        Target = _staging!,
                         Load = LoadOp.Discard,
                         Store = StoreOp.Store,
                     },
@@ -241,7 +242,7 @@ public sealed class SwapchainCaptureSystem : BaseEngineSystem
         if (_surfaceCopy != null)
         {
             _engine.GraphicsDevice.WaitIdle();
-            _surfaceCopy.Destroy();
+            _surfaceCopy.Dispose();
         }
 
         _surfaceCopy = _engine.RenderingSystem.CreateTexture(new TextureDesc
@@ -265,7 +266,7 @@ public sealed class SwapchainCaptureSystem : BaseEngineSystem
         if (_staging != null)
         {
             _engine.GraphicsDevice.WaitIdle();
-            _staging.Destroy();
+            _staging.Dispose();
         }
 
         _staging = _engine.RenderingSystem.CreateTexture(new TextureDesc
@@ -308,11 +309,11 @@ public sealed class SwapchainCaptureSystem : BaseEngineSystem
             _engine.GraphicsDevice.WaitIdle();
         }
 
-        _staging?.Destroy();
+        _staging?.Dispose();
         _staging = null;
-        _surfaceCopy?.Destroy();
+        _surfaceCopy?.Dispose();
         _surfaceCopy = null;
-        _renderContext?.Destroy();
+        _renderContext?.Dispose();
     }
 
     private sealed class PendingCaptureRequest

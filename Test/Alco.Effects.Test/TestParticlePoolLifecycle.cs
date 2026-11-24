@@ -79,12 +79,12 @@ public class TestParticlePoolLifecycle
             bool changed = pool.RecordUploadsAndMigration(context);
             Assert.That(changed, Is.True);
             Assert.That(pool.HasPendingMigration, Is.False);
-            context.Submit().Wait();
-            _engine.RenderingSystem.Tick();
+            context.Submit();
+            _engine.RenderingSystem.WaitIdle();
         }
         finally
         {
-            context.Destroy();
+            context.Dispose();
             pool.FreeSlice(first);
             pool.FreeSlice(second);
         }
@@ -194,7 +194,7 @@ public class TestParticlePoolLifecycle
 
             var passDesc = new RenderingDesc
             {
-                Colors = [new ColorAttachment { RenderView = target.RenderView, Load = LoadOp.Clear, Store = StoreOp.Store, Clear = Vector4.Zero }],
+                Colors = [new ColorAttachment { Target = target, Load = LoadOp.Clear, Store = StoreOp.Store, Clear = Vector4.Zero }],
             };
             using (var render = context.BeginRenderPass(passDesc))
             {
@@ -203,7 +203,8 @@ public class TestParticlePoolLifecycle
                 var vp = Matrix4x4.Identity;
                 system.Render(context, render, in vp);
             }
-            context.Submit().Wait();
+            context.Submit();
+            _engine.RenderingSystem.WaitIdle();
 
             // Next frame replays migration & renders grown capacity cleanly.
             context.BeginFrame();
@@ -215,14 +216,15 @@ public class TestParticlePoolLifecycle
                 var vp = Matrix4x4.Identity;
                 system.Render(context, render, in vp);
             }
-            context.Submit().Wait();
+            context.Submit();
+            _engine.RenderingSystem.WaitIdle();
             Assert.That(system.Pool.HasPendingMigration, Is.False);
         }
         finally
         {
             grown?.Dispose();
-            context.Destroy();
-            target.Destroy();
+            context.Dispose();
+            target.Dispose();
         }
     }
 
@@ -244,7 +246,8 @@ public class TestParticlePoolLifecycle
             context.BeginFrame();
             Assert.That(pool.RecordUploadsAndMigration(context), Is.True);
             pool.DrainPendingKills(context, kills);
-            context.Submit().Wait();
+            context.Submit();
+            _engine.RenderingSystem.WaitIdle();
 
             // Queue growth migration, dirty param, and a new kill, then discard the recording frame.
             uint slot1 = pool.AllocateSlot();
@@ -266,14 +269,15 @@ public class TestParticlePoolLifecycle
             Assert.That(pool.RecordUploadsAndMigration(context), Is.True);
             pool.DrainPendingKills(context, kills);
             Assert.That(kills, Has.Count.EqualTo(1));
-            context.Submit().Wait();
+            context.Submit();
+            _engine.RenderingSystem.WaitIdle();
 
             pool.FreeSlice(slice1);
             pool.FreeSlot(slot1);
         }
         finally
         {
-            context.Destroy();
+            context.Dispose();
             pool.FreeSlice(slice0);
             pool.FreeSlot(slot0);
         }
@@ -294,19 +298,22 @@ public class TestParticlePoolLifecycle
             contextB.BeginFrame(); // Also FrameId == 1, distinct context!
             Alco.Graphics.Buffer bufB = pool.Acquire(contextB, 256);
             Assert.That(bufB, Is.Not.SameAs(bufA));
-            contextB.Submit().Wait();
+            contextB.Submit();
+            _engine.RenderingSystem.WaitIdle();
 
-            contextA.Submit().Wait();
+            contextA.Submit();
+            _engine.RenderingSystem.WaitIdle();
 
             contextB.BeginFrame();
             Alco.Graphics.Buffer reused = pool.Acquire(contextB, 256);
             Assert.That(reused == bufA || reused == bufB, Is.True);
-            contextB.Submit().Wait();
+            contextB.Submit();
+            _engine.RenderingSystem.WaitIdle();
         }
         finally
         {
-            contextB.Destroy();
-            contextA.Destroy();
+            contextB.Dispose();
+            contextA.Dispose();
         }
     }
 
@@ -402,7 +409,8 @@ public class TestParticlePoolLifecycle
             // Headless (default output) must not throw.
             context.BeginFrame();
             graph.Execute(context, output: default, deltaTime: 1f / 60f);
-            context.Submit().Wait();
+            context.Submit();
+            _engine.RenderingSystem.WaitIdle();
 
             Assert.That(particles3D.HasDepthWritingEffects, Is.True);
             Assert.That(trails2D.HasDepthWritingEffects, Is.True);
@@ -417,7 +425,8 @@ public class TestParticlePoolLifecycle
                 trail3D.ExtendTo(new Vector3(i * 0.25f, 0f, 0f));
                 context.BeginFrame();
                 graph.Execute(context, target, deltaTime: 1f / 60f);
-                context.Submit().Wait();
+                context.Submit();
+                _engine.RenderingSystem.WaitIdle();
             }
 
             long before = GC.GetAllocatedBytesForCurrentThread();
@@ -429,7 +438,8 @@ public class TestParticlePoolLifecycle
                 trail3D.ExtendTo(new Vector3((64 + i) * 0.25f, 0f, 0f));
                 context.BeginFrame();
                 graph.Execute(context, target, deltaTime: 1f / 60f);
-                context.Submit().Wait();
+                context.Submit();
+                _engine.RenderingSystem.WaitIdle();
             }
             long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
             Assert.That(allocated, Is.Zero, $"RenderGraph effect nodes allocated {allocated} B over 100 frames.");
@@ -438,10 +448,10 @@ public class TestParticlePoolLifecycle
         {
             trail2D.Dispose();
             trail3D.Dispose();
-            graph.Destroy();
-            context.Destroy();
-            depth.Destroy();
-            color.Destroy();
+            graph.Dispose();
+            context.Dispose();
+            depth.Dispose();
+            color.Dispose();
         }
     }
 
@@ -475,7 +485,7 @@ public class TestParticlePoolLifecycle
                 system.RecordSimulation(context, 1f / 60f);
                 var passDesc = new RenderingDesc
                 {
-                    Colors = [new ColorAttachment { RenderView = target.RenderView, Load = LoadOp.Clear, Store = StoreOp.Store, Clear = Vector4.Zero }],
+                    Colors = [new ColorAttachment { Target = target, Load = LoadOp.Clear, Store = StoreOp.Store, Clear = Vector4.Zero }],
                 };
                 using (var render = context.BeginRenderPass(passDesc, passSig))
                 {
@@ -483,7 +493,8 @@ public class TestParticlePoolLifecycle
                     render.SetScissor(new Scissor { Width = 64, Height = 64 });
                     system.Render(context, render, in vp);
                 }
-                context.Submit().Wait();
+                context.Submit();
+                _engine.RenderingSystem.WaitIdle();
             }
 
             for (int i = 0; i < 64; i++)
@@ -498,8 +509,8 @@ public class TestParticlePoolLifecycle
         }
         finally
         {
-            context.Destroy();
-            target.Destroy();
+            context.Dispose();
+            target.Dispose();
         }
     }
 }

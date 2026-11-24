@@ -18,8 +18,8 @@ public struct DissolveParamsData
     public float noiseScale;       // noise UV tiling over the particle quad
     public float edgeWidth;        // width of the glowing dissolve edge (noise units)
     public float3 edgeColor;       // edge glow color (linear)
-    public GpuTextureId noiseTexture; // shared, bound by the .amat
-    public GpuTextureId texture;      // optional surface texture slot
+    public GPUTextureId noiseTexture; // shared, bound by the .amat
+    public GPUTextureId texture;      // optional surface texture slot
 };
 
 public struct Surface : IParticleSurface

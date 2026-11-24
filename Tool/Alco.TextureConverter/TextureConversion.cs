@@ -4,7 +4,6 @@ using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Alco.Graphics;
-using Alco.Graphics.LowLevel;
 using Alco.Rendering;
 using Buffer = Alco.Graphics.Buffer;
 
@@ -22,7 +21,7 @@ internal static unsafe class TextureConversion
         public struct VerifyRoot
         {
             public GPUBufferView Output;
-            public GpuTextureId Source;
+            public GPUTextureId Source;
             public uint2 Extent;
         };
 
@@ -66,7 +65,7 @@ internal static unsafe class TextureConversion
         out string? error)
     {
         Format targetFormat = ResolveGraphicsFormat(options);
-        if (!TextureCompressor.CanCompressOnGpu(renderingSystem.Device, targetFormat))
+        if (!TextureCompressor.CanCompressOnGpu(renderingSystem, targetFormat))
         {
             result = null;
             error = $"The graphics device does not support GPU BC texture compression for format {targetFormat}.";
@@ -78,7 +77,7 @@ internal static unsafe class TextureConversion
             return false;
         }
 
-        TextureFormatInfo formatInfo = Gpu.GetTextureFormatInfo(targetFormat);
+        TextureFormatInfo formatInfo = Texture.GetFormatInfo(targetFormat);
         uint blockBytes = formatInfo.BytesPerBlock;
         string rootDirectory = File.GetAttributes(options.InputPath).HasFlag(FileAttributes.Directory)
             ? Path.GetFullPath(options.InputPath)
@@ -158,8 +157,8 @@ internal static unsafe class TextureConversion
         finally
         {
             context.DiscardFrame();
-            context.Destroy();
-            scratchBuffer?.Destroy();
+            context.Dispose();
+            scratchBuffer?.Dispose();
         }
 
         totalWatch.Stop();
@@ -222,7 +221,7 @@ internal static unsafe class TextureConversion
         ulong totalChainBytes = (ulong)TotalChainBytes(width, height, levels.Count, blockBytes);
         if (scratchBuffer == null || scratchBuffer.SizeBytes < totalChainBytes)
         {
-            scratchBuffer?.Destroy();
+            scratchBuffer?.Dispose();
             scratchBuffer = renderingSystem.CreateBuffer(Math.Max(totalChainBytes, 256UL * 1024), MemoryType.GpuOnly);
         }
 
@@ -251,25 +250,26 @@ internal static unsafe class TextureConversion
                     uint mipWidth = (uint)Math.Max(1, width >> level);
                     uint mipHeight = (uint)Math.Max(1, height >> level);
                     ulong mipBytes = DdsDecoder.GetMipByteCount(width, height, level, blockBytes);
-                    compressor.Record(
-                        context,
-                        compute,
-                        targetFormat,
-                        sourceTexture.SampledIndex,
-                        (uint)level,
-                        new Extent2D(mipWidth, mipHeight),
-                        scratchBuffer.Range.Slice(byteOffset, mipBytes),
-                        convertLinearToSrgb: false);
-                    byteOffset += mipBytes;
+                        compressor.Record(
+                            context,
+                            compute,
+                            targetFormat,
+                            sourceTexture.SampledIndex,
+                            (uint)level,
+                            new Extent2D(mipWidth, mipHeight),
+                            scratchBuffer.Slice(byteOffset, mipBytes),
+                            convertLinearToSrgb: false);
+                        byteOffset += mipBytes;
+                    }
                 }
+                context.Submit();
+                renderingSystem.WaitIdle();
+                renderingSystem.ReadBuffer(scratchBuffer, chain);
             }
-            renderingSystem.Submit([context]).Wait();
-            renderingSystem.ReadBuffer(scratchBuffer, chain);
-        }
-        finally
-        {
-            sourceTexture.Destroy();
-        }
+            finally
+            {
+                sourceTexture.Dispose();
+            }
 
         byte[] dds = DdsEncoder.Encode(width, height, targetFormat, chain, levels.Count);
 
@@ -300,7 +300,7 @@ internal static unsafe class TextureConversion
         int height)
     {
         Format verifyFormat = ToUnormFormat(encodedFormat);
-        uint blockBytes = Gpu.GetTextureFormatInfo(verifyFormat).BytesPerBlock;
+        uint blockBytes = Texture.GetFormatInfo(verifyFormat).BytesPerBlock;
         int level0Bytes = (int)DdsDecoder.GetMipByteCount(width, height, 0, blockBytes);
         int texelCount = width * height;
 
@@ -318,21 +318,22 @@ internal static unsafe class TextureConversion
             context.BeginFrame();
             using (RenderContext.ComputeScope compute = context.BeginCompute())
             {
-                GPURange root = context.AllocateRoot(new VerifyRoot
+                VerifyRoot root = new()
                 {
                     Output = decodeBuffer.View,
                     Source = bcTexture.SampledIndex,
                     Extent = new Extent2D((uint)width, (uint)height),
-                });
-                compute.Dispatch(verifyShader, root, new Extent3D(((uint)width + 7u) / 8u, ((uint)height + 7u) / 8u, 1u));
+                };
+                compute.Dispatch(verifyShader, in root, new Extent3D(((uint)width + 7u) / 8u, ((uint)height + 7u) / 8u, 1u));
             }
-            renderingSystem.Submit([context]).Wait();
+            context.Submit();
+            renderingSystem.WaitIdle();
             renderingSystem.ReadBuffer(decodeBuffer, MemoryMarshal.AsBytes(decoded.AsSpan()));
         }
         finally
         {
-            decodeBuffer.Destroy();
-            bcTexture.Destroy();
+            decodeBuffer.Dispose();
+            bcTexture.Dispose();
         }
 
         int channelMask = encodedFormat switch

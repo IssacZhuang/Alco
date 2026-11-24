@@ -2,9 +2,9 @@
 
 using System.Diagnostics;
 
-using Alco.Graphics.LowLevel;
+using Alco.Graphics;
 
-namespace Alco.Graphics;
+namespace Alco.Graphics.LowLevel;
 
 /// <summary>Owns GPU heaps for aligned suballocations. Externally synchronize operations and keep the device alive until destruction.</summary>
 public sealed unsafe class GPUHeapPool

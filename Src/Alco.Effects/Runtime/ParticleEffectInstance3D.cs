@@ -24,7 +24,7 @@ public sealed class ParticleEffectInstance3D : AutoDisposable
         public bool Active;
         public bool Visible;
         public required Material Material;
-        public required int PassRootOffset;
+        public required RootField<GpuParticleSystem3D.ParticlePassData3D> PassField;
         public DepthStencilState? DepthOverride;
         public required Shader EmitShader;
         public required Shader SimulateShader;

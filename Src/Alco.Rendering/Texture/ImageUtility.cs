@@ -2,7 +2,6 @@ using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.X86;
 using Alco.Graphics;
-using Alco.Graphics.LowLevel;
 
 namespace Alco.Rendering;
 
@@ -101,7 +100,7 @@ public static unsafe class ImageUtility
         IReadOnlyDictionary<string, RectInt>? sprites = null)
     {
         ArgumentNullException.ThrowIfNull(system);
-        return CreateFromDds(system, fileBytes, option, sprites, system.Device.Caps.TextureCompressionBc);
+        return CreateFromDds(system, fileBytes, option, sprites, system.Caps.TextureCompressionBc);
     }
 
     internal static Image CreateFromDds(
@@ -164,9 +163,9 @@ public static unsafe class ImageUtility
         }
         catch
         {
-            if (!texture.IsDestroyed)
+            if (!texture.IsDisposed)
             {
-                texture.Destroy();
+                texture.Dispose();
             }
             throw;
         }
@@ -213,7 +212,7 @@ public static unsafe class ImageUtility
         ImageLoadOption? option = null,
         IReadOnlyDictionary<string, RectInt>? sprites = null)
     {
-        return CreateFromHeader(system, info, option, sprites, system.Device.Caps.TextureCompressionBc);
+        return CreateFromHeader(system, info, option, sprites, system.Caps.TextureCompressionBc);
     }
 
     internal static Image CreateFromHeader(
@@ -394,9 +393,9 @@ public static unsafe class ImageUtility
         }
         catch
         {
-            if (!texture.IsDestroyed)
+            if (!texture.IsDisposed)
             {
-                texture.Destroy();
+                texture.Dispose();
             }
             throw;
         }

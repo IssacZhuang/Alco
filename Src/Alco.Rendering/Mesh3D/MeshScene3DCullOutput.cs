@@ -9,10 +9,7 @@ namespace Alco.Rendering;
 /// </summary>
 public sealed unsafe class MeshScene3DCullOutput : AutoDisposable
 {
-    private readonly record struct RetiredBuffer(Alco.Graphics.Buffer Buffer, RenderContext? Context, ulong FrameId);
-
     private readonly RenderingSystem _system;
-    private readonly List<RetiredBuffer> _retiredBuffers = new();
 
     private Alco.Graphics.Buffer _drawArgsBuffer;
     private Alco.Graphics.Buffer _visibleSlotsBuffer;
@@ -34,21 +31,9 @@ public sealed unsafe class MeshScene3DCullOutput : AutoDisposable
     /// <summary>Gets the GPU buffer containing compacted visible pool slot indices.</summary>
     public Alco.Graphics.Buffer VisibleSlotsBuffer => _visibleSlotsBuffer;
 
-    internal RenderContext? LastContext { get; private set; }
-
-    internal ulong LastFrameId { get; private set; }
-
-    internal void MarkRecorded(RenderContext context)
-    {
-        LastContext = context;
-        LastFrameId = context.CurrentFrameId;
-    }
-
     internal void EnsureCapacity(int requiredBuckets, int requiredSlots)
     {
         ObjectDisposedException.ThrowIf(IsDisposed, this);
-
-        ReclaimRetiredBuffers();
 
         if (requiredBuckets > _bucketCapacity)
         {
@@ -58,7 +43,7 @@ public sealed unsafe class MeshScene3DCullOutput : AutoDisposable
                 nextBuckets *= 2;
             }
 
-            _retiredBuffers.Add(new RetiredBuffer(_drawArgsBuffer, LastContext, LastFrameId));
+            _drawArgsBuffer.Dispose();
             _drawArgsBuffer = _system.CreateBuffer((ulong)nextBuckets * (ulong)sizeof(GpuDrawIndexedIndirectArgs));
             _bucketCapacity = nextBuckets;
         }
@@ -71,28 +56,9 @@ public sealed unsafe class MeshScene3DCullOutput : AutoDisposable
                 nextSlots *= 2;
             }
 
-            _retiredBuffers.Add(new RetiredBuffer(_visibleSlotsBuffer, LastContext, LastFrameId));
+            _visibleSlotsBuffer.Dispose();
             _visibleSlotsBuffer = _system.CreateBuffer((ulong)nextSlots * sizeof(uint));
             _slotCapacity = nextSlots;
-        }
-    }
-
-    internal void ReclaimRetiredBuffers()
-    {
-        for (int i = _retiredBuffers.Count - 1; i >= 0; --i)
-        {
-            RetiredBuffer entry = _retiredBuffers[i];
-            if (entry.Context != null && !entry.Context.IsFrameCompleted(entry.FrameId))
-            {
-                continue;
-            }
-
-            if (!entry.Buffer.IsDestroyed)
-            {
-                entry.Buffer.Destroy();
-            }
-
-            _retiredBuffers.RemoveAt(i);
         }
     }
 
@@ -104,23 +70,7 @@ public sealed unsafe class MeshScene3DCullOutput : AutoDisposable
             return;
         }
 
-        for (int i = 0; i < _retiredBuffers.Count; ++i)
-        {
-            if (!_retiredBuffers[i].Buffer.IsDestroyed)
-            {
-                _retiredBuffers[i].Buffer.Destroy();
-            }
-        }
-
-        _retiredBuffers.Clear();
-        if (!_drawArgsBuffer.IsDestroyed)
-        {
-            _drawArgsBuffer.Destroy();
-        }
-
-        if (!_visibleSlotsBuffer.IsDestroyed)
-        {
-            _visibleSlotsBuffer.Destroy();
-        }
+        _drawArgsBuffer.Dispose();
+        _visibleSlotsBuffer.Dispose();
     }
 }

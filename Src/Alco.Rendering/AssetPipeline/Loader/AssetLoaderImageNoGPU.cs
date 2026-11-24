@@ -82,9 +82,9 @@ public class AssetLoaderImageNoGPU : IAssetLoader
         }
         catch
         {
-            if (!placeholder.IsDestroyed)
+            if (!placeholder.IsDisposed)
             {
-                placeholder.Destroy();
+                placeholder.Dispose();
             }
             throw;
         }

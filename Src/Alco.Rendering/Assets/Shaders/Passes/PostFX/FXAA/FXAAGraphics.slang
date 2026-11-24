@@ -14,9 +14,9 @@ public struct FxaaRoot
 {
     public float2 InvSourceSize;
     public uint2 SourceSize;
-    public GpuTextureId Source;
-    public GpuTextureId Depth;
-    public GpuTextureId Dest;
+    public GPUTextureId Source;
+    public GPUTextureId Depth;
+    public GPUTextureId Dest;
     public uint IsPassthrough;
     public float EdgeThreshold;
     public float EdgeThresholdMin;

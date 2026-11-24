@@ -563,7 +563,7 @@ IDisposable
 
         EventOnDispose?.Invoke();
         _glyphCache.Dispose();
-        _renderingSystem.Destroy();
+        _renderingSystem.Dispose();
         _graphicsDevice.Destroy();
         Gpu.SetErrorCallback(null);
         GC.SuppressFinalize(this);

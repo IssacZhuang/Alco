@@ -223,21 +223,21 @@ public unsafe class TestTonemapNode
                 }
                 finally
                 {
-                    badInPlace.Destroy();
+                    badInPlace.Dispose();
                 }
             }
             finally
             {
-                graphicsGraph.Destroy();
+                graphicsGraph.Dispose();
             }
         }
         finally
         {
-            graph.Destroy();
-            colorOnlyOutput.Destroy();
-            srgbScene.Destroy();
-            hdrScene.Destroy();
-            context.Destroy();
+            graph.Dispose();
+            colorOnlyOutput.Dispose();
+            srgbScene.Dispose();
+            hdrScene.Dispose();
+            context.Dispose();
         }
     }
 
@@ -377,8 +377,8 @@ public unsafe class TestTonemapNode
         finally
         {
             device.WaitIdle();
-            context.Destroy();
-            rendering.Destroy();
+            context.Dispose();
+            rendering.Dispose();
             device.Destroy();
         }
     }
@@ -411,7 +411,7 @@ public unsafe class TestTonemapNode
     {
         context.BeginFrame();
         graph.Execute(context);
-        context.Submit().Wait();
+        context.Submit();
     }
 
     private static byte[] ExecuteRgba8Tonemap(
@@ -458,7 +458,8 @@ public unsafe class TestTonemapNode
 
             context.BeginFrame();
             graph.Execute(context);
-            context.Submit().Wait();
+            context.Submit();
+            rendering.WaitIdle();
 
             if (!readback)
             {
@@ -471,9 +472,9 @@ public unsafe class TestTonemapNode
         }
         finally
         {
-            graph.Destroy();
-            if (!dst.IsDestroyed) dst.Destroy();
-            if (!src.IsDestroyed) src.Destroy();
+            graph.Dispose();
+            if (!dst.IsDisposed) dst.Dispose();
+            if (!src.IsDisposed) src.Dispose();
         }
     }
 
@@ -512,15 +513,16 @@ public unsafe class TestTonemapNode
 
             context.BeginFrame();
             graph.Execute(context);
-            context.Submit().Wait();
+            context.Submit();
+            rendering.WaitIdle();
 
             return ReadbackRgba16Float(rendering, dst, (int)width, (int)height);
         }
         finally
         {
-            graph.Destroy();
-            if (!dst.IsDestroyed) dst.Destroy();
-            if (!src.IsDestroyed) src.Destroy();
+            graph.Dispose();
+            if (!dst.IsDisposed) dst.Dispose();
+            if (!src.IsDisposed) src.Dispose();
         }
     }
 
@@ -555,7 +557,8 @@ public unsafe class TestTonemapNode
 
             context.BeginFrame();
             graph.Execute(context, RenderGraphTarget.FromTexture(output), outputFinalUsage: RGUsage.TransferRead);
-            context.Submit().Wait();
+            context.Submit();
+            rendering.WaitIdle();
 
             Assert.That(graph.Statistics.AlivePassCount, Is.EqualTo(1));
             byte[] actual = new byte[width * height * 4];
@@ -564,9 +567,9 @@ public unsafe class TestTonemapNode
         }
         finally
         {
-            graph.Destroy();
-            if (!output.IsDestroyed) output.Destroy();
-            if (!src.IsDestroyed) src.Destroy();
+            graph.Dispose();
+            if (!output.IsDisposed) output.Dispose();
+            if (!src.IsDisposed) src.Dispose();
         }
     }
 
@@ -599,7 +602,8 @@ public unsafe class TestTonemapNode
 
             context.BeginFrame();
             graph.Execute(context);
-            context.Submit().Wait();
+            context.Submit();
+            rendering.WaitIdle();
 
             Vector4[] actual = ReadbackRgba16Float(rendering, dst, (int)width, (int)height);
             for (int i = 0; i < hdrInput.Length; ++i)
@@ -617,9 +621,9 @@ public unsafe class TestTonemapNode
         }
         finally
         {
-            graph.Destroy();
-            if (!dst.IsDestroyed) dst.Destroy();
-            if (!src.IsDestroyed) src.Destroy();
+            graph.Dispose();
+            if (!dst.IsDisposed) dst.Dispose();
+            if (!src.IsDisposed) src.Dispose();
         }
     }
 

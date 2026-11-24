@@ -106,8 +106,8 @@ public sealed class ShaderSystem : IDisposable
             _disposed = true;
             foreach (Shader shader in _shaders.Values)
             {
-                if (!shader.IsDestroyed)
-                    shader.Destroy();
+                if (!shader.IsDisposed)
+                    shader.DestroyImmediate();
             }
             _shaders.Clear();
         }

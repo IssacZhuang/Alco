@@ -222,7 +222,7 @@ public sealed class MaterialInstance : Material
             RenderingResource? resource = GetBinding(field);
             if (resource != null)
             {
-                Debug.Assert(!resource.IsDestroyed);
+                Debug.Assert(!resource.IsReleased);
                 resources.Add(resource);
             }
             else if (field.Kind == MaterialFieldKind.Texture)

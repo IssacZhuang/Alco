@@ -22,7 +22,7 @@ public struct ImGuiRoot
     public float2 Scale;
     public float2 Translate;
     public GPUBufferView Vertices;
-    public GpuTextureId Texture;
+    public GPUTextureId Texture;
     public uint Padding0;
 };
 

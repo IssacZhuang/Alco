@@ -111,11 +111,11 @@ internal static unsafe class MultisampleTests
                 }
                 else commands.Barrier(Stage.Transfer, Access.TransferRead, Stage.ColorOutput, Access.ColorWrite);
                 commands.BeginDebugGroup(path == 0 ? "graphics resolve" : "mesh resolve");
-                commands.BeginRenderPass(new RenderingDesc
+                commands.BeginRenderPass(new GPURenderingDesc
                 {
                     Colors =
                     [
-                        new ColorAttachment
+                        new GPUColorAttachment
                         {
                             RenderView = multisampledView, ResolveView = resolvedView,
                             Load = LoadOp.Clear, Clear = Vector4.Zero, Store = StoreOp.Discard,
@@ -142,9 +142,9 @@ internal static unsafe class MultisampleTests
 
             pool.Reset();
             GPUCommandBuffer discarded = pool.BeginCommands();
-            discarded.BeginRenderPass(new RenderingDesc
+            discarded.BeginRenderPass(new GPURenderingDesc
             {
-                Colors = [new ColorAttachment { RenderView = multisampledView, ResolveView = resolvedView, Load = LoadOp.Clear }],
+                Colors = [new GPUColorAttachment { RenderView = multisampledView, ResolveView = resolvedView, Load = LoadOp.Clear }],
             });
             pool.Reset();
 
@@ -154,9 +154,9 @@ internal static unsafe class MultisampleTests
                 if (pass == 0) check(ReferenceEquals(commands, discarded), "command pool recycles an unfinished resolve pass recording");
                 commands.Barrier(Stage.Transfer, Access.TransferRead, Stage.ColorOutput, Access.ColorWrite);
                 commands.BeginDebugGroup(pass == 0 ? "wireframe" : "wireframe to solid");
-                commands.BeginRenderPass(new RenderingDesc
+                commands.BeginRenderPass(new GPURenderingDesc
                 {
-                    Colors = [new ColorAttachment { RenderView = resolvedView, Load = LoadOp.Clear, Clear = Vector4.Zero }],
+                    Colors = [new GPUColorAttachment { RenderView = resolvedView, Load = LoadOp.Clear, Clear = Vector4.Zero }],
                 });
                 commands.BindPipeline(wireframe);
                 commands.Draw(default, 3);
@@ -280,22 +280,22 @@ internal static unsafe class MultisampleTests
 
             GPUCommandBuffer commands = pool.BeginCommands();
             // The first slice detects partial writes; the second has never been used as an attachment.
-            commands.BeginRenderPass(new RenderingDesc
+            commands.BeginRenderPass(new GPURenderingDesc
             {
-                Colors = [new ColorAttachment { RenderView = target0, Load = LoadOp.Clear, Clear = Vector4.Zero }],
+                Colors = [new GPUColorAttachment { RenderView = target0, Load = LoadOp.Clear, Clear = Vector4.Zero }],
             });
             commands.EndRenderPass();
             commands.Barrier(Stage.ColorOutput, Access.ColorWrite, Stage.ColorOutput, Access.ColorWrite);
-            commands.BeginRenderPass(new RenderingDesc
+            commands.BeginRenderPass(new GPURenderingDesc
             {
                 Colors =
                 [
-                    new ColorAttachment
+                    new GPUColorAttachment
                     {
                         RenderView = source0, ResolveView = target0, Load = LoadOp.Clear, Clear = new Vector4(1, 0, 0, 1),
                         Store = StoreOp.Discard,
                     },
-                    new ColorAttachment
+                    new GPUColorAttachment
                     {
                         RenderView = source1, ResolveView = target1, Load = LoadOp.Clear, Clear = new Vector4(0, 0, 1, 1),
                     },

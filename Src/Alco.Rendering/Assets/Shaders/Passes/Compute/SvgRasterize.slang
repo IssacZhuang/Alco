@@ -27,7 +27,7 @@ public struct SvgRasterizeRoot
     public GPUBufferView ShapeColors;    // float4 straight RGBA
     public GPUBufferView GradientXforms; // float4 pairs [a,b,c,d], [e,f,fx,fy]
     public GPUBufferView GradientRamps;  // kRampSize straight RGBA per gradient
-    public GpuTextureId Output;
+    public GPUTextureId Output;
     public uint2 TexSize;
     public uint ShapeCount;
     public uint _Pad;

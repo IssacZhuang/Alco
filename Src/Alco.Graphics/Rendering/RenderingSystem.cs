@@ -20,7 +20,7 @@ public enum PipelineMissPolicy : byte
 
 /// <summary>Owns shared GPU storage and descriptor heaps. Independent resources may be created and reclaimed concurrently.</summary>
 /// <remarks>Initialize and destroy with exclusive access; keep the device alive until destruction.</remarks>
-public sealed class RenderingSystem
+public sealed class RenderingSystem : IDisposable
 {
     private const ulong DefaultUploadStagingByteCount = 16 * 1024 * 1024;
 
@@ -51,12 +51,15 @@ public sealed class RenderingSystem
     private readonly ShaderCompilerOptions? _shaderOptions;
     private ShaderSystem? _shaders;
     private readonly List<PendingRelease> _pendingReleases = [];
+    private readonly List<PendingCallback> _pendingCallbacks = [];
     private readonly List<Submission> _submissions = [];
     private readonly List<Texture.InitializationState> _initializations = [];
     private readonly List<PendingTextureRelease> _textureReleases = [];
     private readonly List<ActiveRecording> _activeRecordings = [];
     private List<PendingRelease>? _postedReleases;
     private List<UnresolvedRelease>? _unresolvedReleases;
+    private List<PendingCallback>? _postedCallbacks;
+    private List<UnresolvedCallback>? _unresolvedCallbacks;
     private ulong _submissionValue;
     private ulong _epoch;
     private int _ticking;
@@ -161,7 +164,7 @@ public sealed class RenderingSystem
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
             samplers?.Destroy();
-            textureWhite?.Destroy();
+            textureWhite?.DestroyImmediate();
             uploadQueue?.Wait();
             ReclaimTextures();
             uploadQueue?.Destroy();
@@ -173,17 +176,43 @@ public sealed class RenderingSystem
         }
     }
 
-    /// <summary>The device that owns the heaps and created resources.</summary>
-    public GPUDevice Device => _device;
+    internal GPUDevice Device => _device;
+
+    /// <summary>The active hardware backend driving this rendering system.</summary>
+    public GraphicsBackend ActiveBackend => _device.ActiveBackend;
+
+    /// <summary>Immutable capabilities reported by the active graphics device.</summary>
+    public DeviceCaps Caps => _device.Caps;
+
+    /// <summary>Total bindless texture descriptor heap slot capacity.</summary>
+    public uint TextureDescriptorCapacity => _textureDescriptors.Capacity;
+
+    /// <summary>Total bindless sampler descriptor heap slot capacity.</summary>
+    public uint SamplerDescriptorCapacity => _samplerDescriptors.Capacity;
 
     /// <summary>The capacity of the system-owned upload staging ring in bytes.</summary>
     public ulong UploadStagingByteCount => _uploadQueue.Stats.Capacity;
 
-    /// <summary>The bindless texture descriptor heap that records bind through <see cref="GPUCommandBuffer.SetTextureDescriptorHeap"/>.</summary>
-    public GPUTextureDescriptorHeap TextureDescriptorHeap => _textureDescriptors;
+    internal GPUTextureDescriptorHeap TextureDescriptorHeap => _textureDescriptors;
 
-    /// <summary>The bindless sampler heap; slots owned by <see cref="Samplers"/> must not be overwritten.</summary>
-    public GPUSamplerDescriptorHeap SamplerDescriptorHeap => _samplerDescriptors;
+    internal GPUSamplerDescriptorHeap SamplerDescriptorHeap => _samplerDescriptors;
+
+    /// <summary>Whether this rendering system has been disposed.</summary>
+    public bool IsDisposed => _destroyed;
+
+    /// <summary>Reports whether <paramref name="format"/> supports <paramref name="usage"/> on this device.</summary>
+    /// <param name="format">The pixel format.</param>
+    /// <param name="usage">The intended texture usage flags.</param>
+    /// <returns><see langword="true"/> when supported.</returns>
+    public bool SupportsTextureFormat(Format format, TextureUsage usage) => _device.SupportsTextureFormat(format, usage);
+
+    /// <summary>Blocks until all submitted GPU work finishes, then reclaims completed deferred disposals.</summary>
+    public void WaitIdle()
+    {
+        ObjectDisposedException.ThrowIf(_destroyed, this);
+        _device.WaitIdle();
+        Tick();
+    }
 
     /// <summary>The default white 1x1 texture; its contents are prepared with the system's automatic initialization.</summary>
     public Texture TextureWhite
@@ -256,7 +285,7 @@ public sealed class RenderingSystem
     {
         ArgumentNullException.ThrowIfNull(texture);
         ObjectDisposedException.ThrowIf(_destroyed, this);
-        ObjectDisposedException.ThrowIf(texture.IsDestroyed, texture);
+        ObjectDisposedException.ThrowIf(texture.IsDisposed, texture);
         if (texture.System != this)
             throw new ArgumentException("The texture does not belong to this rendering system.", nameof(texture));
         if ((texture.Desc.Usage & TextureUsage.TransferDestination) == 0)
@@ -286,8 +315,8 @@ public sealed class RenderingSystem
             try
             {
                 if (needsInit)
-                    _uploadQueue.InitializeTexture(texture.NativeTexture);
-                TextureUpload.UploadTexture(_uploadQueue, texture.NativeTexture, texture.Desc, source, copy);
+                    _uploadQueue.InitializeTexture(texture.LowLevelTexture);
+                TextureUpload.UploadTexture(_uploadQueue, texture.LowLevelTexture, texture.Desc, source, copy);
             }
             finally
             {
@@ -315,7 +344,7 @@ public sealed class RenderingSystem
     {
         ArgumentNullException.ThrowIfNull(texture);
         ObjectDisposedException.ThrowIf(_destroyed, this);
-        ObjectDisposedException.ThrowIf(texture.IsDestroyed, texture);
+        ObjectDisposedException.ThrowIf(texture.IsDisposed, texture);
         if (texture.System != this)
             throw new ArgumentException("The texture does not belong to this rendering system.", nameof(texture));
         if ((texture.Desc.Usage & TextureUsage.TransferSource) == 0)
@@ -351,7 +380,7 @@ public sealed class RenderingSystem
                 Access.ShaderRead | Access.ShaderWrite | Access.ColorWrite | Access.DepthStencilWrite | Access.TransferWrite,
                 Stage.Transfer,
                 Access.TransferRead);
-            commands.CopyTextureToMemory(texture.NativeTexture, readback.Range.GPURange, region);
+            commands.CopyTextureToMemory(texture.LowLevelTexture, readback.Range.GPURange, region);
             commands.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Host, Access.HostRead);
             commands.EndCommands();
             TimelinePoint completion = new() { Semaphore = timeline, Value = 1 };
@@ -379,7 +408,7 @@ public sealed class RenderingSystem
     {
         ArgumentNullException.ThrowIfNull(buffer);
         ObjectDisposedException.ThrowIf(_destroyed, this);
-        ObjectDisposedException.ThrowIf(buffer.IsDestroyed, buffer);
+        ObjectDisposedException.ThrowIf(buffer.IsDisposed, buffer);
         if (buffer.System != this)
             throw new ArgumentException("The buffer does not belong to this rendering system.", nameof(buffer));
         if (byteOffset > buffer.SizeBytes)
@@ -406,7 +435,7 @@ public sealed class RenderingSystem
                 Access.ShaderWrite | Access.TransferWrite,
                 Stage.Transfer,
                 Access.TransferRead);
-            commands.CopyMemory(buffer.Range.Slice(byteOffset, byteCount), readback.Range.GPURange);
+            commands.CopyMemory(buffer.LowLevelRange.Slice(byteOffset, byteCount), readback.Range.GPURange);
             commands.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Host, Access.HostRead);
             commands.EndCommands();
             TimelinePoint completion = new() { Semaphore = timeline, Value = 1 };
@@ -427,9 +456,14 @@ public sealed class RenderingSystem
     }
 
     /// <summary>Submits pending texture initializations and system-queued uploads on queue zero; serialize this with other submissions to that queue.</summary>
-    /// <returns>The completion borrowed until system destruction; include it in other queues' submission waits before texture use.</returns>
     /// <exception cref="GPUException">Upload command recording could not begin.</exception>
-    public TimelinePoint FlushUploads()
+    public void FlushUploads() => FlushUploadsInternal();
+
+    /// <summary>Submits pending texture initializations and system-queued uploads on queue zero; serialize this with other submissions to that queue.</summary>
+    /// <exception cref="GPUException">Initialization command recording could not begin.</exception>
+    public void FlushInitializations() => FlushUploadsInternal();
+
+    internal TimelinePoint FlushUploadsInternal()
     {
         Debug.Assert(!_destroyed);
         lock (_uploadLock)
@@ -440,31 +474,23 @@ public sealed class RenderingSystem
         }
     }
 
-    /// <summary>Submits pending texture initializations and system-queued uploads on queue zero; serialize this with other submissions to that queue.</summary>
-    /// <returns>The completion borrowed until system destruction; include it in other queues' submission waits before texture use.</returns>
-    /// <exception cref="GPUException">Initialization command recording could not begin.</exception>
-    public TimelinePoint FlushInitializations() => FlushUploads();
-
-    /// <summary>Ends and submits active frames in the given order without presenting or waiting for their completion.</summary>
+    /// <summary>Ends and submits active frames in the given order without presenting or waiting for GPU completion.</summary>
     /// <param name="contexts">A nonempty list of distinct contexts from this system, each recording with no open scope.</param>
-    /// <param name="waits">The GPU dependencies for this submission.</param>
-    /// <returns>The shared GPU completion point, borrowing the system's timeline. Do not signal or destroy it.</returns>
     /// <remarks>Serialize access to the contexts and with other submissions on queue zero.</remarks>
     /// <exception cref="GPUException">Initialization command recording could not begin.</exception>
-    public TimelinePoint Submit(scoped ReadOnlySpan<RenderContext> contexts, scoped ReadOnlySpan<TimelinePoint> waits = default)
+    public void Submit(scoped ReadOnlySpan<RenderContext> contexts)
+    {
+        Debug.Assert(!contexts.IsEmpty);
+        SubmitPrepared(contexts, null, default, PrepareSubmission());
+    }
+
+    internal TimelinePoint SubmitInternal(scoped ReadOnlySpan<RenderContext> contexts, scoped ReadOnlySpan<TimelinePoint> waits = default)
     {
         Debug.Assert(!contexts.IsEmpty);
         return SubmitPrepared(contexts, null, waits, PrepareSubmission());
     }
 
-    /// <summary>Ends and submits active frames in order and presents the specified swapchain image. Close all scopes first.</summary>
-    /// <param name="contexts">A nonempty list of distinct contexts from this system, ordered with the acquiring context.</param>
-    /// <param name="swapchain">The swapchain whose acquired image to present.</param>
-    /// <param name="waits">The GPU dependencies for this submission.</param>
-    /// <returns>The shared GPU completion point, borrowing the system's timeline. Do not signal or destroy it.</returns>
-    /// <remarks>Serialize access to the contexts and with other submissions on queue zero.</remarks>
-    /// <exception cref="GPUException">Initialization command recording could not begin.</exception>
-    public TimelinePoint SubmitAndPresent(scoped ReadOnlySpan<RenderContext> contexts, GPUSwapchain swapchain,
+    internal TimelinePoint SubmitAndPresentInternal(scoped ReadOnlySpan<RenderContext> contexts, GPUSwapchain swapchain,
         scoped ReadOnlySpan<TimelinePoint> waits = default)
     {
         Debug.Assert(!contexts.IsEmpty && swapchain != null);
@@ -474,7 +500,7 @@ public sealed class RenderingSystem
     // Complete fallible texture initialization and queued uploads before associating a readback with the next signal.
     internal TimelinePoint PrepareSubmission()
     {
-        FlushUploads();
+        FlushUploadsInternal();
         return new TimelinePoint { Semaphore = _frameTimeline, Value = _frameValue + 1 };
     }
 
@@ -593,16 +619,25 @@ public sealed class RenderingSystem
         if (memory is not (MemoryType.CpuVisible or MemoryType.GpuOnly))
             throw new ArgumentOutOfRangeException(nameof(memory), memory, "Only CpuVisible and GpuOnly buffers are supported.");
 
-        lock (_bufferLock)
+        bool retried = false;
+        while (true)
         {
-            GPUHeapPool pool = memory == MemoryType.GpuOnly
-                ? (_gpuBufferPool ??= new GPUHeapPool(_device, _bufferPoolDesc, MemoryType.GpuOnly))
-                : _bufferPool;
-            HeapAllocation<byte> allocation = pool.Allocate(byteCount);
-            if (allocation.Range.SizeBytes == 0)
+            lock (_bufferLock)
+            {
+                GPUHeapPool pool = memory == MemoryType.GpuOnly
+                    ? (_gpuBufferPool ??= new GPUHeapPool(_device, _bufferPoolDesc, MemoryType.GpuOnly))
+                    : _bufferPool;
+                HeapAllocation<byte> allocation = pool.Allocate(byteCount);
+                if (allocation.Range.SizeBytes != 0)
+                {
+                    ++_liveBuffers;
+                    return new Buffer(this, allocation, memory);
+                }
+            }
+            if (retried)
                 throw new InvalidOperationException("The rendering system's buffer pool budget is exhausted.");
-            ++_liveBuffers;
-            return new Buffer(this, allocation, memory);
+            retried = true;
+            Tick();
         }
     }
 
@@ -622,99 +657,146 @@ public sealed class RenderingSystem
 
     /// <summary>Places a texture with full-chain sampled and per-mip storage descriptors; context frames submit its initialization automatically.</summary>
     /// <param name="desc">The texture description; Sampled allocates one slot and Storage allocates one slot per mip.</param>
-    /// <returns>The texture wrapper; destroy it after its final GPU use, or let collection reclaim it through <see cref="Tick"/>.</returns>
+    /// <returns>The texture wrapper; dispose it after use or let collection reclaim it through <see cref="Tick"/>.</returns>
     /// <exception cref="InvalidOperationException">The texture pool budget or descriptor heap is exhausted, or texture requirements are unsupported.
     /// </exception>
     /// <exception cref="GPUException">The texture or a backing heap could not be created.</exception>
     public Texture CreateTexture(in TextureDesc desc)
     {
         Debug.Assert(!_destroyed);
-        PlacedTexture allocation = default;
-        uint sampledIndex = Texture.NoIndex;
-        uint storageIndex = Texture.NoIndex;
-        uint[]? storageMipIndices = null;
-        lock (_textureLock)
+        bool retried = false;
+        while (true)
         {
-            bool sampled = (desc.Usage & TextureUsage.Sampled) != 0;
-            bool storage = (desc.Usage & TextureUsage.Storage) != 0;
-            uint[]? storageMips = storage && desc.MipLevels > 1 ? new uint[(int)desc.MipLevels - 1] : null;
-            Span<uint> storageMipSlots = storageMips;
-            int allocatedStorageMipCount = 0;
-            try
+            PlacedTexture allocation = default;
+            uint sampledIndex = Texture.NoIndex;
+            uint storageIndex = Texture.NoIndex;
+            uint[]? storageMipIndices = null;
+            string? exhaustionError = null;
+            lock (_textureLock)
             {
-                if (sampled)
-                    sampledIndex = AllocateTextureSlot();
-                if (storage)
+                bool sampled = (desc.Usage & TextureUsage.Sampled) != 0;
+                bool storage = (desc.Usage & TextureUsage.Storage) != 0;
+                uint[]? storageMips = storage && desc.MipLevels > 1 ? new uint[(int)desc.MipLevels - 1] : null;
+                Span<uint> storageMipSlots = storageMips;
+                int allocatedStorageMipCount = 0;
+                try
                 {
-                    storageIndex = AllocateTextureSlot();
-                    while (allocatedStorageMipCount < storageMipSlots.Length)
+                    if (sampled)
                     {
-                        storageMipSlots[allocatedStorageMipCount] = AllocateTextureSlot();
-                        ++allocatedStorageMipCount;
+                        sampledIndex = _textureSlots.Allocate();
+                        if (sampledIndex == Texture.NoIndex)
+                            exhaustionError = "The rendering system's texture descriptor heap is exhausted.";
+                    }
+                    if (exhaustionError == null && storage)
+                    {
+                        storageIndex = _textureSlots.Allocate();
+                        if (storageIndex == Texture.NoIndex)
+                            exhaustionError = "The rendering system's texture descriptor heap is exhausted.";
+                        while (exhaustionError == null && allocatedStorageMipCount < storageMipSlots.Length)
+                        {
+                            uint mipSlot = _textureSlots.Allocate();
+                            if (mipSlot == Texture.NoIndex)
+                            {
+                                exhaustionError = "The rendering system's texture descriptor heap is exhausted.";
+                                break;
+                            }
+                            storageMipSlots[allocatedStorageMipCount++] = mipSlot;
+                        }
+                    }
+                    if (exhaustionError == null)
+                    {
+                        allocation = _texturePool.Allocate(desc);
+                        if (allocation.Texture == null)
+                            exhaustionError = "The rendering system's texture pool budget is exhausted or the texture requirements are unsupported.";
+                    }
+
+                    if (exhaustionError != null)
+                    {
+                        if (sampledIndex != Texture.NoIndex)
+                            _textureSlots.Free(sampledIndex);
+                        if (storageIndex != Texture.NoIndex)
+                            _textureSlots.Free(storageIndex);
+                        for (int index = 0; index < allocatedStorageMipCount; ++index)
+                            _textureSlots.Free(storageMipSlots[index]);
+                    }
+                    else
+                    {
+                        if (sampled)
+                            _textureDescriptors.WriteTextureDescriptor(sampledIndex, allocation.Texture!, TextureDescriptorType.Sampled, new TextureDescriptorDesc());
+                        if (storage)
+                        {
+                            TextureDescriptorDesc descriptor = new() { MipCount = 1 };
+                            _textureDescriptors.WriteTextureDescriptor(storageIndex, allocation.Texture!, TextureDescriptorType.Storage, descriptor);
+                            for (int index = 0; index < storageMipSlots.Length; ++index)
+                            {
+                                descriptor = new TextureDescriptorDesc { BaseMip = (uint)index + 1, MipCount = 1 };
+                                _textureDescriptors.WriteTextureDescriptor(storageMipSlots[index], allocation.Texture!, TextureDescriptorType.Storage, descriptor);
+                            }
+                        }
+
+                        storageMipIndices = storageMips;
+                        ++_liveTextures;
                     }
                 }
-                allocation = _texturePool.Allocate(desc);
-                if (allocation.Texture == null)
-                    throw new InvalidOperationException("The rendering system's texture pool budget is exhausted or the texture requirements are unsupported.");
-
-                if (sampled)
-                    _textureDescriptors.WriteTextureDescriptor(sampledIndex, allocation.Texture, TextureDescriptorType.Sampled, new TextureDescriptorDesc());
-                if (storage)
+                catch (Exception exception) when (exception is not OutOfMemoryException)
                 {
-                    TextureDescriptorDesc descriptor = new() { MipCount = 1 };
-                    _textureDescriptors.WriteTextureDescriptor(storageIndex, allocation.Texture, TextureDescriptorType.Storage, descriptor);
-                    for (int index = 0; index < storageMipSlots.Length; ++index)
-                    {
-                        descriptor = new TextureDescriptorDesc { BaseMip = (uint)index + 1, MipCount = 1 };
-                        _textureDescriptors.WriteTextureDescriptor(storageMipSlots[index], allocation.Texture, TextureDescriptorType.Storage, descriptor);
-                    }
+                    if (sampledIndex != Texture.NoIndex)
+                        _textureSlots.Free(sampledIndex);
+                    if (storageIndex != Texture.NoIndex)
+                        _textureSlots.Free(storageIndex);
+                    for (int index = 0; index < allocatedStorageMipCount; ++index)
+                        _textureSlots.Free(storageMipSlots[index]);
+                    _texturePool.Free(ref allocation);
+                    throw;
                 }
             }
-            catch (Exception exception) when (exception is not OutOfMemoryException)
+            if (exhaustionError == null)
             {
-                if (sampledIndex != Texture.NoIndex)
-                    _textureSlots.Free(sampledIndex);
-                if (storageIndex != Texture.NoIndex)
-                    _textureSlots.Free(storageIndex);
-                for (int index = 0; index < allocatedStorageMipCount; ++index)
-                    _textureSlots.Free(storageMipSlots[index]);
-                _texturePool.Free(ref allocation);
-                throw;
+                Texture texture = new(this, desc, allocation, sampledIndex, storageIndex, storageMipIndices);
+                lock (_initializationLock)
+                {
+                    texture.Initialization.Index = _initializations.Count;
+                    _initializations.Add(texture.Initialization);
+                }
+                return texture;
             }
-
-            storageMipIndices = storageMips;
-            ++_liveTextures;
+            if (retried)
+                throw new InvalidOperationException(exhaustionError);
+            retried = true;
+            Tick();
         }
-        Texture texture = new(this, desc, allocation, sampledIndex, storageIndex, storageMipIndices);
-        lock (_initializationLock)
-        {
-            texture.Initialization.Index = _initializations.Count;
-            _initializations.Add(texture.Initialization);
-        }
-        return texture;
     }
 
     /// <summary>Writes a sampler descriptor and returns its heap-backed wrapper.</summary>
     /// <param name="desc">The sampler description.</param>
-    /// <returns>The sampler wrapper; destroy it after its final GPU use, or let collection reclaim it through <see cref="Tick"/>.</returns>
+    /// <returns>The sampler wrapper; dispose it after use or let collection reclaim it through <see cref="Tick"/>.</returns>
     /// <exception cref="InvalidOperationException">The sampler descriptor heap is exhausted.</exception>
     public Sampler CreateSampler(in SamplerDesc desc)
     {
         Debug.Assert(!_destroyed);
-        lock (_samplerLock)
+        bool retried = false;
+        while (true)
         {
-            uint index = _samplerSlots.Allocate();
-            if (index == Texture.NoIndex)
+            lock (_samplerLock)
+            {
+                uint index = _samplerSlots.Allocate();
+                if (index != Texture.NoIndex)
+                {
+                    try
+                    {
+                        return CreateSampler(index, desc);
+                    }
+                    catch (Exception exception) when (exception is not OutOfMemoryException)
+                    {
+                        _samplerSlots.Free(index);
+                        throw;
+                    }
+                }
+            }
+            if (retried)
                 throw new InvalidOperationException("The rendering system's sampler descriptor heap is exhausted.");
-            try
-            {
-                return CreateSampler(index, desc);
-            }
-            catch (Exception exception) when (exception is not OutOfMemoryException)
-            {
-                _samplerSlots.Free(index);
-                throw;
-            }
+            retried = true;
+            Tick();
         }
     }
 
@@ -725,8 +807,8 @@ public sealed class RenderingSystem
         return new Sampler(this, desc, index);
     }
 
-    /// <summary>Reclaims finalized wrappers after their registered uses and overlapping recordings complete; also called by <see cref="RenderContext.BeginFrame"/>.</summary>
-    /// <remarks>Finalized resources alive during an active <see cref="RenderContext"/> recording retire automatically after that frame completes or is discarded.</remarks>
+    /// <summary>Reclaims disposed and finalized wrappers after their registered uses and overlapping recordings complete; also called by <see cref="RenderContext.BeginFrame"/>.</summary>
+    /// <remarks>Disposed resources alive during an active <see cref="RenderContext"/> recording retire automatically after that frame completes or is discarded.</remarks>
     public void Tick()
     {
         Debug.Assert(!_destroyed);
@@ -749,25 +831,8 @@ public sealed class RenderingSystem
             ulong completedValue;
             lock (_releaseLock)
             {
-                if (_unresolvedReleases != null && _unresolvedReleases.Count > 0)
-                {
-                    int unresolvedKeep = 0;
-                    for (int index = 0; index < _unresolvedReleases.Count; ++index)
-                    {
-                        UnresolvedRelease entry = _unresolvedReleases[index];
-                        if (!HasOverlappingActiveRecordingLocked(entry.BirthEpoch, entry.DeathEpoch))
-                            _pendingReleases.Add(new PendingRelease { RetireValue = entry.RetireValue, Target = entry.Target });
-                        else
-                            _unresolvedReleases[unresolvedKeep++] = entry;
-                    }
-                    _unresolvedReleases.RemoveRange(unresolvedKeep, _unresolvedReleases.Count - unresolvedKeep);
-                }
-                if (_postedReleases != null)
-                {
-                    foreach (PendingRelease entry in _postedReleases)
-                        _pendingReleases.Add(entry);
-                    _postedReleases.Clear();
-                }
+                DrainUnresolvedLocked();
+                DrainPostedLocked();
                 completedValue = _submissionValue;
                 int pending = 0;
                 for (int index = 0; index < _submissions.Count; ++index)
@@ -775,9 +840,10 @@ public sealed class RenderingSystem
                     Submission entry = _submissions[index];
                     bool completed = Completed(entry.Point);
                     if (!completed)
+                    {
                         completedValue = Math.Min(completedValue, entry.Value - 1);
-                    if (!completed)
                         _submissions[pending++] = entry;
+                    }
                 }
                 _submissions.RemoveRange(pending, _submissions.Count - pending);
             }
@@ -791,6 +857,17 @@ public sealed class RenderingSystem
                     _pendingReleases[keep++] = entry;
             }
             _pendingReleases.RemoveRange(keep, _pendingReleases.Count - keep);
+
+            int keepCallbacks = 0;
+            for (int index = 0; index < _pendingCallbacks.Count; ++index)
+            {
+                PendingCallback entry = _pendingCallbacks[index];
+                if (entry.RetireValue <= completedValue)
+                    entry.Callback();
+                else
+                    _pendingCallbacks[keepCallbacks++] = entry;
+            }
+            _pendingCallbacks.RemoveRange(keepCallbacks, _pendingCallbacks.Count - keepCallbacks);
         }
         finally
         {
@@ -798,22 +875,70 @@ public sealed class RenderingSystem
         }
     }
 
-    /// <summary>Destroys owned GPU resources after the device is idle; destroy other live wrappers first.</summary>
-    public void Destroy()
+    /// <summary>Schedules <paramref name="action"/> to execute after all currently recording or submitted GPU work completes.</summary>
+    /// <param name="action">The callback to invoke once the GPU reaches a safe retirement point.</param>
+    public void Defer(Action action)
     {
-        if (_destroyed)
+        ArgumentNullException.ThrowIfNull(action);
+        ObjectDisposedException.ThrowIf(_destroyed, this);
+
+        bool runNow = false;
+        lock (_releaseLock)
         {
-            Debug.Assert(false);
+            PruneCompletedSubmissionsLocked();
+            if (!_destroyed && _submissions.Count == 0 && _activeRecordings.Count == 0)
+            {
+                runNow = true;
+            }
+            else if (_activeRecordings.Count > 0)
+            {
+                _unresolvedCallbacks ??= [];
+                _unresolvedCallbacks.Add(new UnresolvedCallback
+                {
+                    DeathEpoch = Volatile.Read(ref _epoch),
+                    RetireValue = _submissionValue,
+                    Callback = action,
+                });
+            }
+            else
+            {
+                _postedCallbacks ??= [];
+                _postedCallbacks.Add(new PendingCallback { RetireValue = _submissionValue, Callback = action });
+            }
+        }
+        if (runNow)
+            action();
+    }
+
+    /// <summary>Schedules <paramref name="resource"/> to be disposed after all currently recording or submitted GPU work completes.</summary>
+    /// <param name="resource">The resource to dispose, or null for no operation.</param>
+    public void DeferDispose(IDisposable? resource)
+    {
+        if (resource == null)
+            return;
+        if (resource is RenderingResource renderingResource)
+        {
+            renderingResource.Dispose();
             return;
         }
+        Defer(resource.Dispose);
+    }
+
+    /// <summary>Reclaims all deferred resources and callbacks after draining warmups and destroys owned heaps and descriptor storage.</summary>
+    public void Dispose()
+    {
+        if (_destroyed)
+            return;
         DrainWarmUps();
         _shaders?.Dispose();
         _shaders = null;
-        // The device is idle here: reclaim every finalized wrapper without waiting on the timeline.
+        // The device is idle here: reclaim every finalized/disposed wrapper and callback without waiting on the timeline.
         ReclaimAllPostedReleases();
-        _submissions.Clear();
+        lock (_releaseLock)
+            _submissions.Clear();
         _samplers.Destroy();
-        _textureWhite.Destroy();
+        _textureWhite.DestroyImmediate();
+        ReclaimAllPostedReleases();
         for (int pass = 0; pass < 2 && (_liveBuffers != 0 || _liveTextures != 0 || _liveSamplers != 0); ++pass)
         {
             GC.Collect();
@@ -824,7 +949,7 @@ public sealed class RenderingSystem
         _uploadQueue.Destroy();
         Debug.Assert(
             _liveBuffers == 0 && _liveTextures == 0 && _liveSamplers == 0,
-            $"Leaked GPU resources on RenderingSystem.Destroy: buffers={_liveBuffers}, textures={_liveTextures}, samplers={_liveSamplers}");
+            $"Leaked GPU resources on RenderingSystem.Dispose: buffers={_liveBuffers}, textures={_liveTextures}, samplers={_liveSamplers}");
         _samplerDescriptors.Destroy();
         _textureDescriptors.Destroy();
         _texturePool.Destroy();
@@ -833,29 +958,123 @@ public sealed class RenderingSystem
         _destroyed = true;
     }
 
+    /// <summary>Legacy alias for <see cref="Dispose"/>.</summary>
+    [Obsolete("Use Dispose() instead.")]
+    public void Destroy() => Dispose();
+
     private void ReclaimAllPostedReleases()
     {
-        lock (_releaseLock)
+        while (true)
         {
-            if (_unresolvedReleases != null)
+            int releaseCount;
+            int callbackCount;
+            lock (_releaseLock)
             {
-                foreach (UnresolvedRelease entry in _unresolvedReleases)
-                    _pendingReleases.Add(new PendingRelease { RetireValue = entry.RetireValue, Target = entry.Target });
-                _unresolvedReleases.Clear();
+                if (_unresolvedReleases != null)
+                {
+                    foreach (UnresolvedRelease entry in _unresolvedReleases)
+                        _pendingReleases.Add(new PendingRelease { RetireValue = entry.RetireValue, Target = entry.Target });
+                    _unresolvedReleases.Clear();
+                }
+                if (_postedReleases != null)
+                {
+                    foreach (PendingRelease entry in _postedReleases)
+                        _pendingReleases.Add(entry);
+                    _postedReleases.Clear();
+                }
+                if (_unresolvedCallbacks != null)
+                {
+                    foreach (UnresolvedCallback entry in _unresolvedCallbacks)
+                        _pendingCallbacks.Add(new PendingCallback { RetireValue = entry.RetireValue, Callback = entry.Callback });
+                    _unresolvedCallbacks.Clear();
+                }
+                if (_postedCallbacks != null)
+                {
+                    foreach (PendingCallback entry in _postedCallbacks)
+                        _pendingCallbacks.Add(entry);
+                    _postedCallbacks.Clear();
+                }
+                _activeRecordings.Clear();
+                releaseCount = _pendingReleases.Count;
+                callbackCount = _pendingCallbacks.Count;
             }
-            if (_postedReleases != null)
+            if (releaseCount == 0 && callbackCount == 0)
+                break;
+
+            if (releaseCount > 0)
             {
-                foreach (PendingRelease entry in _postedReleases)
-                    _pendingReleases.Add(entry);
-                _postedReleases.Clear();
+                for (int index = 0; index < releaseCount; ++index)
+                    _pendingReleases[index].Target.Reclaim();
+                _pendingReleases.RemoveRange(0, releaseCount);
             }
-            _activeRecordings.Clear();
+            if (callbackCount > 0)
+            {
+                for (int index = 0; index < callbackCount; ++index)
+                    _pendingCallbacks[index].Callback();
+                _pendingCallbacks.RemoveRange(0, callbackCount);
+            }
         }
-        foreach (PendingRelease entry in _pendingReleases)
-            entry.Target.Reclaim();
-        _pendingReleases.Clear();
         _uploadQueue.Wait();
         ReclaimTextures();
+    }
+
+    private void DrainUnresolvedLocked()
+    {
+        if (_unresolvedReleases != null && _unresolvedReleases.Count > 0)
+        {
+            int unresolvedKeep = 0;
+            for (int index = 0; index < _unresolvedReleases.Count; ++index)
+            {
+                UnresolvedRelease entry = _unresolvedReleases[index];
+                if (!HasOverlappingActiveRecordingLocked(entry.BirthEpoch, entry.DeathEpoch))
+                    _pendingReleases.Add(new PendingRelease { RetireValue = entry.RetireValue, Target = entry.Target });
+                else
+                    _unresolvedReleases[unresolvedKeep++] = entry;
+            }
+            _unresolvedReleases.RemoveRange(unresolvedKeep, _unresolvedReleases.Count - unresolvedKeep);
+        }
+        if (_unresolvedCallbacks != null && _unresolvedCallbacks.Count > 0)
+        {
+            int unresolvedKeep = 0;
+            for (int index = 0; index < _unresolvedCallbacks.Count; ++index)
+            {
+                UnresolvedCallback entry = _unresolvedCallbacks[index];
+                if (!HasOverlappingActiveRecordingLocked(0, entry.DeathEpoch))
+                    _pendingCallbacks.Add(new PendingCallback { RetireValue = entry.RetireValue, Callback = entry.Callback });
+                else
+                    _unresolvedCallbacks[unresolvedKeep++] = entry;
+            }
+            _unresolvedCallbacks.RemoveRange(unresolvedKeep, _unresolvedCallbacks.Count - unresolvedKeep);
+        }
+    }
+
+    private void DrainPostedLocked()
+    {
+        if (_postedReleases != null && _postedReleases.Count > 0)
+        {
+            foreach (PendingRelease entry in _postedReleases)
+                _pendingReleases.Add(entry);
+            _postedReleases.Clear();
+        }
+        if (_postedCallbacks != null && _postedCallbacks.Count > 0)
+        {
+            foreach (PendingCallback entry in _postedCallbacks)
+                _pendingCallbacks.Add(entry);
+            _postedCallbacks.Clear();
+        }
+    }
+
+    private void PruneCompletedSubmissionsLocked()
+    {
+        int pending = 0;
+        for (int index = 0; index < _submissions.Count; ++index)
+        {
+            Submission entry = _submissions[index];
+            if (!Completed(entry.Point))
+                _submissions[pending++] = entry;
+        }
+        if (pending < _submissions.Count)
+            _submissions.RemoveRange(pending, _submissions.Count - pending);
     }
 
     internal ulong ReadEpoch() => Volatile.Read(ref _epoch);
@@ -904,7 +1123,47 @@ public sealed class RenderingSystem
         }
     }
 
-    internal void PostRelease(RenderingResource resource)
+    internal void RetireResource(RenderingResource resource)
+    {
+        bool releaseNow = false;
+        lock (_releaseLock)
+        {
+            if (resource is RenderContext abandoned)
+            {
+                ulong recordingId = abandoned.DetachActiveRecording();
+                if (recordingId != 0)
+                    RemoveActiveRecordingLocked(recordingId, out _);
+            }
+            PruneCompletedSubmissionsLocked();
+            ulong deathEpoch = Volatile.Read(ref _epoch);
+            ulong birthEpoch = resource.BirthEpoch;
+            bool overlapsRecording = HasOverlappingActiveRecordingLocked(birthEpoch, deathEpoch);
+            if (!_destroyed && _submissions.Count == 0 && !overlapsRecording)
+            {
+                releaseNow = true;
+            }
+            else if (overlapsRecording)
+            {
+                _unresolvedReleases ??= [];
+                _unresolvedReleases.Add(new UnresolvedRelease
+                {
+                    BirthEpoch = birthEpoch,
+                    DeathEpoch = deathEpoch,
+                    RetireValue = _submissionValue,
+                    Target = resource,
+                });
+            }
+            else
+            {
+                _postedReleases ??= [];
+                _postedReleases.Add(new PendingRelease { RetireValue = _submissionValue, Target = resource });
+            }
+        }
+        if (releaseNow)
+            resource.Reclaim();
+    }
+
+    internal void PostReleaseFromFinalizer(RenderingResource resource)
     {
         lock (_releaseLock)
         {
@@ -994,15 +1253,28 @@ public sealed class RenderingSystem
 
     private void ApplySubmissionToUnresolvedLocked(in ActiveRecording recording, ulong submissionValue)
     {
-        if (_unresolvedReleases == null)
-            return;
-        for (int index = 0; index < _unresolvedReleases.Count; ++index)
+        if (_unresolvedReleases != null)
         {
-            UnresolvedRelease entry = _unresolvedReleases[index];
-            if (Overlaps(in recording, entry.BirthEpoch, entry.DeathEpoch) && entry.RetireValue < submissionValue)
+            for (int index = 0; index < _unresolvedReleases.Count; ++index)
             {
-                entry.RetireValue = submissionValue;
-                _unresolvedReleases[index] = entry;
+                UnresolvedRelease entry = _unresolvedReleases[index];
+                if (Overlaps(in recording, entry.BirthEpoch, entry.DeathEpoch) && entry.RetireValue < submissionValue)
+                {
+                    entry.RetireValue = submissionValue;
+                    _unresolvedReleases[index] = entry;
+                }
+            }
+        }
+        if (_unresolvedCallbacks != null)
+        {
+            for (int index = 0; index < _unresolvedCallbacks.Count; ++index)
+            {
+                UnresolvedCallback entry = _unresolvedCallbacks[index];
+                if (Overlaps(in recording, 0, entry.DeathEpoch) && entry.RetireValue < submissionValue)
+                {
+                    entry.RetireValue = submissionValue;
+                    _unresolvedCallbacks[index] = entry;
+                }
             }
         }
     }
@@ -1043,35 +1315,46 @@ public sealed class RenderingSystem
         if (!texture.Desc.MutableFormat)
             throw new InvalidOperationException("Alternate texture view formats require TextureDesc.MutableFormat.");
 
-        lock (_textureLock)
+        bool retried = false;
+        while (true)
         {
-            Debug.Assert(!_destroyed && !texture.IsDestroyed);
-            if (texture.AlternateSampledViews != null)
+            lock (_textureLock)
             {
-                for (int index = 0; index < texture.AlternateSampledViews.Count; ++index)
+                Debug.Assert(!_destroyed && !texture.IsDisposed);
+                if (texture.AlternateSampledViews != null)
                 {
-                    if (texture.AlternateSampledViews[index].Format == viewFormat)
-                        return texture.AlternateSampledViews[index].Slot;
+                    for (int index = 0; index < texture.AlternateSampledViews.Count; ++index)
+                    {
+                        if (texture.AlternateSampledViews[index].Format == viewFormat)
+                            return texture.AlternateSampledViews[index].Slot;
+                    }
+                }
+
+                uint slot = _textureSlots.Allocate();
+                if (slot != Texture.NoIndex)
+                {
+                    try
+                    {
+                        _textureDescriptors.WriteTextureDescriptor(
+                            slot,
+                            texture.LowLevelTexture,
+                            TextureDescriptorType.Sampled,
+                            new TextureDescriptorDesc { Format = viewFormat });
+                        texture.AlternateSampledViews ??= [];
+                        texture.AlternateSampledViews.Add((viewFormat, slot));
+                        return slot;
+                    }
+                    catch (Exception exception) when (exception is not OutOfMemoryException)
+                    {
+                        _textureSlots.Free(slot);
+                        throw;
+                    }
                 }
             }
-
-            uint slot = AllocateTextureSlot();
-            try
-            {
-                _textureDescriptors.WriteTextureDescriptor(
-                    slot,
-                    texture.NativeTexture,
-                    TextureDescriptorType.Sampled,
-                    new TextureDescriptorDesc { Format = viewFormat });
-                texture.AlternateSampledViews ??= [];
-                texture.AlternateSampledViews.Add((viewFormat, slot));
-                return slot;
-            }
-            catch (Exception exception) when (exception is not OutOfMemoryException)
-            {
-                _textureSlots.Free(slot);
-                throw;
-            }
+            if (retried)
+                throw new InvalidOperationException("The rendering system's texture descriptor heap is exhausted.");
+            retried = true;
+            Tick();
         }
     }
 
@@ -1147,14 +1430,6 @@ public sealed class RenderingSystem
         }
     }
 
-    private uint AllocateTextureSlot()
-    {
-        uint index = _textureSlots.Allocate();
-        if (index == Texture.NoIndex)
-            throw new InvalidOperationException("The rendering system's texture descriptor heap is exhausted.");
-        return index;
-    }
-
     private static bool Completed(TimelinePoint point)
     {
         return point.Semaphore == null || point.Semaphore.CompletedValue >= point.Value;
@@ -1197,6 +1472,19 @@ public sealed class RenderingSystem
         internal RenderingResource Target;
     }
 
+    private struct PendingCallback
+    {
+        public ulong RetireValue;
+        public Action Callback;
+    }
+
+    private struct UnresolvedCallback
+    {
+        internal ulong DeathEpoch;
+        internal ulong RetireValue;
+        internal Action Callback;
+    }
+
     // LIFO free list over a monotonically growing range: slots are recycled only after the wrapper is destroyed.
     private sealed class DescriptorSlotAllocator
     {
@@ -1232,7 +1520,7 @@ public sealed class RenderingSystem
     {
         if (shader.Kind == ShaderKind.Compute)
             throw new InvalidOperationException($"Compute shader '{shader.Name}' has no raster pipeline.");
-        if (shader.IsDestroyed || Volatile.Read(ref _warmupClosed))
+        if (shader.IsDisposed || Volatile.Read(ref _warmupClosed))
             return Task.CompletedTask;
 
         ulong depthStencilKey = _device.ActiveBackend == GraphicsBackend.Dx12
@@ -1244,7 +1532,7 @@ public sealed class RenderingSystem
         WarmUpKey key = new(shader, variant?.Specializations ?? normalizedSpecializations!, stateKey, pass, depthStencilKey);
         lock (_warmupSync)
         {
-            if (_warmupClosed || shader.IsDestroyed)
+            if (_warmupClosed || shader.IsDisposed)
                 return Task.CompletedTask;
             if (_pendingWarmups.TryGetValue(key, out Task? pending))
                 return pending;

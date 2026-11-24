@@ -1,7 +1,6 @@
 using System.Numerics;
 using Alco.Engine;
 using Alco.Graphics;
-using Alco.Graphics.LowLevel;
 
 namespace Alco.ImGUI;
 
@@ -79,7 +78,7 @@ public sealed class ImGUISystem : BaseEngineSystem
         {
             inputHandler?.Dispose();
             renderer?.Dispose();
-            renderContext?.Destroy();
+            renderContext?.Dispose();
             throw;
         }
     }
@@ -111,8 +110,8 @@ public sealed class ImGUISystem : BaseEngineSystem
             return;
         }
 
-        SwapchainFrame frame = _engine.MainPresenter.CurrentFrame;
-        if (frame.RenderView == null)
+        RenderTarget target = _engine.MainPresenter.CurrentRenderTarget;
+        if (!target.IsValid)
         {
             return;
         }
@@ -122,7 +121,7 @@ public sealed class ImGUISystem : BaseEngineSystem
         {
             _renderContext.BeginFrame();
             begun = true;
-            _imGUIRenderer.Draw(_renderContext, frame.RenderView, frame.Extent);
+            _imGUIRenderer.Draw(_renderContext, target);
             _engine.MainPresenter.EnqueueFrameContext(_renderContext);
         }
         catch
@@ -140,6 +139,6 @@ public sealed class ImGUISystem : BaseEngineSystem
     {
         _imGUIInputHandler.Dispose();
         _imGUIRenderer.Dispose();
-        _renderContext.Destroy();
+        _renderContext.Dispose();
     }
 }

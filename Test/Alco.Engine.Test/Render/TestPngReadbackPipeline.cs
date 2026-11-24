@@ -56,7 +56,8 @@ public class TestPngReadbackPipeline
         {
             uploadContext.BeginFrame();
             uploadContext.SetTextureData(texture, source);
-            uploadContext.Submit().Wait();
+            uploadContext.Submit();
+            rendering.WaitIdle();
 
             Assert.That(pipeline.TryBeginRead(
                 texture, captured => result = captured, out RenderCaptureResult? failure), Is.True,
@@ -67,9 +68,9 @@ public class TestPngReadbackPipeline
         {
             device.WaitIdle();
             pipeline.Dispose();
-            texture.Destroy();
-            uploadContext.Destroy();
-            rendering.Destroy();
+            texture.Dispose();
+            uploadContext.Dispose();
+            rendering.Dispose();
             device.Destroy();
         }
 

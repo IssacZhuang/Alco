@@ -130,10 +130,6 @@ public sealed unsafe class GpuInstancePool<TInstance> : AutoDisposable, IInstanc
 
     private readonly record struct TextureUpdate(SlotRecord Target, Texture? Primary, Texture? Aux);
 
-    private readonly record struct RetiredBuffer(Alco.Graphics.Buffer Buffer, RenderContext? Context, ulong FrameId);
-
-    private readonly record struct RetiredTexture(Texture Texture, RenderContext? Context, ulong FrameId);
-
     [StructLayout(LayoutKind.Sequential)]
     private struct InstanceScatterRoot
     {
@@ -163,8 +159,7 @@ public sealed unsafe class GpuInstancePool<TInstance> : AutoDisposable, IInstanc
     private readonly List<int> _bucketDirtySlots = new();
 
     private readonly Dictionary<Texture, int> _textureRefCounts = new();
-    private readonly List<RetiredBuffer> _retiredBuffers = new();
-    private readonly List<RetiredTexture> _retiredTextures = new();
+    private int _deferredTextureCount;
 
     private uint[] _slotBuckets;
     private int[] _bucketCounts = new int[InitialBucketCapacity];
@@ -180,9 +175,6 @@ public sealed unsafe class GpuInstancePool<TInstance> : AutoDisposable, IInstanc
     private int _totalSlots;
     private int _liveCount;
     private bool _membershipDirty = true;
-
-    private RenderContext? _lastContext;
-    private ulong _lastFrameId;
 
     /// <summary>Creates a persistent GPU instance pool backed by <paramref name="system"/>.</summary>
     /// <param name="system">The rendering system owning GPU buffers.</param>
@@ -233,7 +225,7 @@ public sealed unsafe class GpuInstancePool<TInstance> : AutoDisposable, IInstanc
     public int SlotCapacity => _slotCapacity;
 
     /// <summary>Gets the number of distinct bindless textures currently retained by live or pending-retirement slots.</summary>
-    public int ActiveTextureCount => _textureRefCounts.Count + _retiredTextures.Count;
+    public int ActiveTextureCount => IsDisposed ? 0 : _textureRefCounts.Count + Volatile.Read(ref _deferredTextureCount);
 
     /// <summary>Gets the number of dirty instance patches uploaded during the last <see cref="SyncToGpu"/> call.</summary>
     public int LastDirtyPatchCount { get; private set; }
@@ -427,8 +419,6 @@ public sealed unsafe class GpuInstancePool<TInstance> : AutoDisposable, IInstanc
         ArgumentNullException.ThrowIfNull(context);
         ObjectDisposedException.ThrowIf(IsDisposed, this);
 
-        ReclaimRetiredResources();
-
         bool membershipChanged = Flush();
         bool grewBuffers = _slotCapacity > _gpuSlotCapacity;
 
@@ -437,8 +427,6 @@ public sealed unsafe class GpuInstancePool<TInstance> : AutoDisposable, IInstanc
         {
             SyncGpuCapacity();
             DrainPendingDirtyLists();
-            _lastContext = context;
-            _lastFrameId = context.CurrentFrameId;
             return membershipChanged;
         }
 
@@ -453,8 +441,6 @@ public sealed unsafe class GpuInstancePool<TInstance> : AutoDisposable, IInstanc
                 Stage.Compute, Access.ShaderRead | Access.ShaderWrite);
         }
 
-        _lastContext = context;
-        _lastFrameId = context.CurrentFrameId;
         return membershipChanged;
     }
 
@@ -467,27 +453,16 @@ public sealed unsafe class GpuInstancePool<TInstance> : AutoDisposable, IInstanc
         }
 
         _transientBuffers.Dispose();
-
-        for (int i = 0; i < _retiredBuffers.Count; i++)
-        {
-            if (!_retiredBuffers[i].Buffer.IsDestroyed)
-            {
-                _retiredBuffers[i].Buffer.Destroy();
-            }
-        }
-
-        _retiredBuffers.Clear();
-        _retiredTextures.Clear();
         _textureRefCounts.Clear();
 
-        if (!_poolBuffer.IsDestroyed)
+        if (!_poolBuffer.IsDisposed)
         {
-            _poolBuffer.Destroy();
+            _poolBuffer.Dispose();
         }
 
-        if (!_slotBucketBuffer.IsDestroyed)
+        if (!_slotBucketBuffer.IsDisposed)
         {
-            _slotBucketBuffer.Destroy();
+            _slotBucketBuffer.Dispose();
         }
     }
 
@@ -600,8 +575,8 @@ public sealed unsafe class GpuInstancePool<TInstance> : AutoDisposable, IInstanc
             newBuckets.SetData<uint>(_slotBuckets.AsSpan(0, _totalSlots));
         }
 
-        _retiredBuffers.Add(new RetiredBuffer(_poolBuffer, _lastContext, _lastFrameId));
-        _retiredBuffers.Add(new RetiredBuffer(_slotBucketBuffer, _lastContext, _lastFrameId));
+        _poolBuffer.Dispose();
+        _slotBucketBuffer.Dispose();
         _poolBuffer = newPool;
         _slotBucketBuffer = newBuckets;
         _gpuSlotCapacity = _slotCapacity;
@@ -669,10 +644,18 @@ public sealed unsafe class GpuInstancePool<TInstance> : AutoDisposable, IInstanc
         }
 
         _textureRefCounts.Remove(texture);
-        if (_lastContext != null && !_lastContext.IsFrameCompleted(_lastFrameId))
+        if (_system.IsDisposed)
         {
-            _retiredTextures.Add(new RetiredTexture(texture, _lastContext, _lastFrameId));
+            GC.KeepAlive(texture);
+            return;
         }
+
+        Interlocked.Increment(ref _deferredTextureCount);
+        _system.Defer(() =>
+        {
+            GC.KeepAlive(texture);
+            Interlocked.Decrement(ref _deferredTextureCount);
+        });
     }
 
     private void MarkBucketSlotDirty(int slot)
@@ -737,15 +720,15 @@ public sealed unsafe class GpuInstancePool<TInstance> : AutoDisposable, IInstanc
         patchBuf.SetData<TInstance>(_patchStaging.AsSpan(0, count));
         slotBuf.SetData<uint>(_slotStaging.AsSpan(0, count));
 
-        GPURange root = context.AllocateRoot(new InstanceScatterRoot
+        InstanceScatterRoot root = new()
         {
             Patches = patchBuf.View,
             PatchSlots = slotBuf.View,
             Pool = _poolBuffer.View,
             PatchCount = (uint)count,
             WordsPerInstance = (uint)(sizeof(TInstance) / 4),
-        });
-        compute.Dispatch(_scatterShader, root, new Extent3D((uint)((count + 63) / 64), 1u, 1u));
+        };
+        compute.Dispatch(_scatterShader, in root, new Extent3D((uint)((count + 63) / 64), 1u, 1u));
         LastDirtyPatchCount = count;
         return true;
     }
@@ -790,43 +773,15 @@ public sealed unsafe class GpuInstancePool<TInstance> : AutoDisposable, IInstanc
         patchBuf.SetData<uint>(_bucketPatchStaging.AsSpan(0, validCount));
         slotBuf.SetData<uint>(_bucketSlotStaging.AsSpan(0, validCount));
 
-        GPURange root = context.AllocateRoot(new InstanceScatterRoot
+        InstanceScatterRoot root = new()
         {
             Patches = patchBuf.View,
             PatchSlots = slotBuf.View,
             Pool = _slotBucketBuffer.View,
             PatchCount = (uint)validCount,
             WordsPerInstance = 1u,
-        });
-        compute.Dispatch(_scatterShader, root, new Extent3D((uint)((validCount + 63) / 64), 1u, 1u));
+        };
+        compute.Dispatch(_scatterShader, in root, new Extent3D((uint)((validCount + 63) / 64), 1u, 1u));
         return true;
-    }
-
-    private void ReclaimRetiredResources()
-    {
-        for (int i = _retiredBuffers.Count - 1; i >= 0; --i)
-        {
-            RetiredBuffer entry = _retiredBuffers[i];
-            if (entry.Context != null && !entry.Context.IsFrameCompleted(entry.FrameId))
-            {
-                continue;
-            }
-
-            if (!entry.Buffer.IsDestroyed)
-            {
-                entry.Buffer.Destroy();
-            }
-
-            _retiredBuffers.RemoveAt(i);
-        }
-
-        for (int i = _retiredTextures.Count - 1; i >= 0; --i)
-        {
-            RetiredTexture entry = _retiredTextures[i];
-            if (entry.Context == null || entry.Context.IsFrameCompleted(entry.FrameId))
-            {
-                _retiredTextures.RemoveAt(i);
-            }
-        }
     }
 }

@@ -92,8 +92,8 @@ public sealed class GpuTrailSystem3D : AutoDisposable
         public uint InFlightPointDirtyMax;
     }
 
-    private sealed record CachedMaterial(Material Material, int PassRootOffset);
-    private readonly record struct DrawBatch(Material Material, int PassRootOffset, DepthStencilState DepthStencil, uint FirstSegment, uint SegmentCount);
+    private sealed record CachedMaterial(Material Material, RootField<TrailPassData3D> PassField);
+    private readonly record struct DrawBatch(Material Material, RootField<TrailPassData3D> PassField, DepthStencilState DepthStencil, uint FirstSegment, uint SegmentCount);
     private readonly record struct PointRange(uint Offset, uint Count);
 
     private sealed class MaterialKeyComparer : IEqualityComparer<(MaterialAsset Asset, BlendState Blend)>
@@ -361,9 +361,9 @@ public sealed class GpuTrailSystem3D : AutoDisposable
                 uint pCount = pMax - pMin + 1;
                 ulong byteSize = (ulong)pCount * paramElemSize;
                 staging.SetData(_cpuParams.AsSpan((int)pMin, (int)pCount), writeOffset);
-                context.CopyMemory(
-                    staging.Range.Slice(writeOffset, byteSize),
-                    _gpuParams.Range.Slice((ulong)pMin * paramElemSize, byteSize));
+                context.CopyBuffer(
+                    staging.Slice(writeOffset, byteSize),
+                    _gpuParams.Slice((ulong)pMin * paramElemSize, byteSize));
                 writeOffset += byteSize;
                 _inFlightParamsDirtyMin = Math.Min(_inFlightParamsDirtyMin, pMin);
                 _inFlightParamsDirtyMax = Math.Max(_inFlightParamsDirtyMax, pMax);
@@ -385,9 +385,9 @@ public sealed class GpuTrailSystem3D : AutoDisposable
                 uint count = dMax - dMin + 1;
                 ulong byteSize = (ulong)count * pointElemSize;
                 staging.SetData(_cpuPoints.AsSpan((int)first, (int)count), writeOffset);
-                context.CopyMemory(
-                    staging.Range.Slice(writeOffset, byteSize),
-                    _gpuPoints.Range.Slice((ulong)first * pointElemSize, byteSize));
+                context.CopyBuffer(
+                    staging.Slice(writeOffset, byteSize),
+                    _gpuPoints.Slice((ulong)first * pointElemSize, byteSize));
                 writeOffset += byteSize;
                 if (state.InFlightPointsDirty)
                 {
@@ -512,7 +512,6 @@ public sealed class GpuTrailSystem3D : AutoDisposable
             throw new InvalidOperationException("GpuTrailSystem3D.PrepareRender(context) must be called outside any pass before Render() each frame.");
         }
 
-        BumpAllocator frameData = context.FrameData;
         GPUBufferView pointsView = _gpuPoints.View;
         GPUBufferView paramsView = _gpuParams.View;
         GPUBufferView segmentsBaseView = _activeSegmentBuffer.View;
@@ -530,11 +529,7 @@ public sealed class GpuTrailSystem3D : AutoDisposable
                 Time = _time,
             };
 
-            GPUAllocation<byte> alloc = frameData.Allocate(batch.Material.Root.SizeBytes);
-            batch.Material.CopyRoot(alloc.CpuSpan);
-            MemoryMarshal.Write(alloc.CpuSpan.Slice(batch.PassRootOffset, sizeof(TrailPassData3D)), in passData);
-
-            render.Draw(batch.Material, alloc.GPURange, batch.DepthStencil, vertexCount: 6u, instanceCount: batch.SegmentCount);
+            render.Draw(batch.Material, batch.PassField, in passData, batch.DepthStencil, vertexCount: 6u, instanceCount: batch.SegmentCount);
         }
     }
 
@@ -638,8 +633,8 @@ public sealed class GpuTrailSystem3D : AutoDisposable
         if (!disposing)
             return;
 
-        _gpuPoints.Destroy();
-        _gpuParams.Destroy();
+        _gpuPoints.Dispose();
+        _gpuParams.Dispose();
         _stagingPool.Dispose();
         _segmentPool.Dispose();
         for (int slot = 0; slot < _states.Length; slot++)
@@ -703,12 +698,11 @@ public sealed class GpuTrailSystem3D : AutoDisposable
         material.DepthStencilState = effect.Depth ?? _depthStencilState;
         material.Rasterization = RasterizationState.CullNone;
 
-        RootField? passField = material.Root.Find(ParticleShaderKeys.Pass);
-        if (passField == null || passField.SizeBytes != (uint)sizeof(TrailPassData3D))
+        if (!material.TryGetRootField(ParticleShaderKeys.Pass, out RootField<TrailPassData3D> passField))
             throw new InvalidDataException(
                 $"Trail render template '{_renderTemplateModule}' does not declare expected '{ParticleShaderKeys.Pass}' block ({sizeof(TrailPassData3D)}B).");
 
-        var created = new CachedMaterial(material, (int)passField.Offset);
+        var created = new CachedMaterial(material, passField);
         _materials[key] = created;
         return created;
     }
@@ -842,7 +836,7 @@ public sealed class GpuTrailSystem3D : AutoDisposable
             (Material material, DepthStencilState depthStencil) = _drawBucketKeys[k];
             List<int> bucket = _drawBuckets[(material, depthStencil)];
             uint firstSegment = (uint)_segments.Count;
-            int passOffset = _states[bucket[0]].CachedMat!.PassRootOffset;
+            RootField<TrailPassData3D> passField = _states[bucket[0]].CachedMat!.PassField;
 
             for (int b = 0; b < bucket.Count; b++)
             {
@@ -861,7 +855,7 @@ public sealed class GpuTrailSystem3D : AutoDisposable
             }
 
             uint batchSegments = (uint)_segments.Count - firstSegment;
-            _drawBatches.Add(new DrawBatch(material, passOffset, depthStencil, firstSegment, batchSegments));
+            _drawBatches.Add(new DrawBatch(material, passField, depthStencil, firstSegment, batchSegments));
         }
     }
 }

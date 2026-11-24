@@ -114,7 +114,7 @@ public class TestParticleMaterialModule
         }
         finally
         {
-            context.Destroy();
+            context.Dispose();
         }
     }
 }

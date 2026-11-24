@@ -3,9 +3,9 @@
 using System.Diagnostics;
 using System.Numerics;
 
-using Alco.Graphics.LowLevel;
+using Alco.Graphics;
 
-namespace Alco.Graphics;
+namespace Alco.Graphics.LowLevel;
 
 internal sealed class HeapPoolRanges
 {

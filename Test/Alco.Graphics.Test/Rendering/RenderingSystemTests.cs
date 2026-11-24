@@ -81,7 +81,7 @@ internal static class RenderingSystemTests
             context = new RenderContext(system, 256);
             context.BeginFrame();
             GPUCommandBuffer commands = context.EndFrame();
-            TimelinePoint initialization = system.FlushInitializations();
+            TimelinePoint initialization = system.FlushInitializationsWithCompletion();
             check(initialization.Semaphore != null && initialization.Value != 0,
                 "EndFrame flushes new texture initializations on queue zero before the frame submission");
             ulong firstInitializationValue = initialization.Value;
@@ -89,7 +89,7 @@ internal static class RenderingSystemTests
             device.Submit(new SubmitDesc { Commands = [commands], Completion = completion });
             context.MarkSubmitted(completion);
             completion.Wait();
-            check(target.RenderView != null, "a render-target texture creates its owned attachment view lazily");
+            check(target.GetRenderView() != null, "a render-target texture creates its owned attachment view lazily");
 
             linearRepeat = system.CreateSampler(new SamplerDesc());
             nearestClamp = system.CreateSampler(new SamplerDesc
@@ -106,7 +106,7 @@ internal static class RenderingSystemTests
                 "texture and sampler wrappers convert to their descriptor heap indices");
 
             uint releasedTextureIndex = sampled.SampledIndex;
-            sampled.Destroy();
+            sampled.Dispose();
             sampled = null;
             replacement = system.CreateTexture(new TextureDesc
             {
@@ -117,12 +117,12 @@ internal static class RenderingSystemTests
             check(replacement.SampledIndex == releasedTextureIndex, "a destroyed texture returns its sampled descriptor slot for reuse");
 
             uint releasedSamplerIndex = linearRepeat.Index;
-            linearRepeat.Destroy();
+            linearRepeat.Dispose();
             linearRepeat = null;
             recycledSampler = system.CreateSampler(new SamplerDesc());
             check(recycledSampler.Index == releasedSamplerIndex, "a destroyed sampler returns its descriptor slot for reuse");
 
-            volume.Destroy();
+            volume.Dispose();
             volume = null;
             recycledVolume = system.CreateTexture(volumeDesc);
             Span<uint> recycledVolumeIndices = stackalloc uint[(int)recycledVolume.MipLevels + 1];
@@ -135,7 +135,7 @@ internal static class RenderingSystemTests
                 "destroying a multi-mip 3D texture recycles every descriptor slot");
             context.BeginFrame();
             commands = context.EndFrame();
-            TimelinePoint recycledInitialization = system.FlushInitializations();
+            TimelinePoint recycledInitialization = system.FlushInitializationsWithCompletion();
             check(ReferenceEquals(recycledInitialization.Semaphore, initialization.Semaphore) &&
                 recycledInitialization.Value > firstInitializationValue,
                 "a recycled multi-mip 3D texture advances the system-owned initialization timeline");
@@ -155,18 +155,18 @@ internal static class RenderingSystemTests
         {
             device.WaitIdle();
             context?.DiscardFrame();
-            context?.Destroy();
-            recycledSampler?.Destroy();
-            nearestClamp?.Destroy();
-            linearRepeat?.Destroy();
-            replacement?.Destroy();
-            target?.Destroy();
-            recycledVolume?.Destroy();
-            volume?.Destroy();
-            storage?.Destroy();
-            sampled?.Destroy();
+            context?.Dispose();
+            recycledSampler?.Dispose();
+            nearestClamp?.Dispose();
+            linearRepeat?.Dispose();
+            replacement?.Dispose();
+            target?.Dispose();
+            recycledVolume?.Dispose();
+            volume?.Dispose();
+            storage?.Dispose();
+            sampled?.Dispose();
             timeline?.Destroy();
-            system?.Destroy();
+            system?.Dispose();
         }
 
         CheckUnflushedTextureLifetime(device, check);
@@ -198,8 +198,8 @@ internal static class RenderingSystemTests
             updated = system.CreateBuffer(28);
             updated.SetData<uint>(source);
             source.Fill(uint.MaxValue);
-            GPURange uploadedRange = uploaded.Range;
-            GPURange updatedRange = updated.Range;
+            GPURange uploadedRange = uploaded.GetRange();
+            GPURange updatedRange = updated.GetRange();
             check(uploaded.SizeBytes == 28 && uploadedRange.Size == 28 && updated.SizeBytes == 28 && updatedRange.Size == 28 &&
                 uploadedRange.Buffer != null && updatedRange.Buffer != null &&
                 (!ReferenceEquals(uploadedRange.Buffer, updatedRange.Buffer) || uploadedRange.Offset != updatedRange.Offset),
@@ -207,20 +207,20 @@ internal static class RenderingSystemTests
 
             ReadOnlySpan<uint> metadataContents = [101, 202, 303, 404];
             metadata = system.CreateBuffer(metadataContents);
-            GPURange metadataRange = metadata.Range;
+            GPURange metadataRange = metadata.GetRange();
             check(ReferenceEquals(metadataRange.Buffer, uploadedRange.Buffer) && metadataRange.Offset == uploadedRange.Offset + 64 && metadataRange.Size == 16,
                 "allocation metadata grows beyond bufferCapacity while reusing free bytes in the original heap");
-            metadata.Destroy();
+            metadata.Dispose();
             metadata = system.CreateBuffer(metadataContents);
-            check(metadata.Range.Equals(metadataRange),
+            check(metadata.GetRange().Equals(metadataRange),
                 "allocations from grown metadata are returned and reused independently of backing heap growth");
 
             Span<uint> grownContents = stackalloc uint[32];
             for (int index = 0; index < grownContents.Length; ++index)
                 grownContents[index] = (uint)(1000 + index);
             grown = system.CreateBuffer<uint>(grownContents);
-            check(grown.SizeBytes == 128 && grown.Range.Buffer != null &&
-                uploaded.Range.Equals(uploadedRange) && updated.Range.Equals(updatedRange) && metadata.Range.Equals(metadataRange),
+            check(grown.SizeBytes == 128 && grown.GetRange().Buffer != null &&
+                uploaded.GetRange().Equals(uploadedRange) && updated.GetRange().Equals(updatedRange) && metadata.GetRange().Equals(metadataRange),
                 "exhausting the initial buffer heap adds backing storage without moving any live allocation");
 
             readback = device.CreateGPUHeap(224, MemoryType.Readback);
@@ -235,7 +235,7 @@ internal static class RenderingSystemTests
             commands.CopyMemory(uploadedRange, uploadedResult.GPURange);
             commands.CopyMemory(updatedRange, updatedResult.GPURange);
             commands.CopyMemory(metadataRange, metadataResult.GPURange);
-            commands.CopyMemory(grown.Range, grownResult.GPURange);
+            commands.CopyMemory(grown.GetRange(), grownResult.GPURange);
             commands.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Host, Access.HostRead);
             commands.EndCommands();
             TimelinePoint completion = new() { Semaphore = timeline, Value = 1 };
@@ -247,8 +247,8 @@ internal static class RenderingSystemTests
 
             ReadOnlySpan<uint> patch = [333, 444];
             updated.SetData(patch, byteOffset: 2 * sizeof(uint));
-            check(uploaded.SizeBytes == 28 && uploaded.Range.Equals(uploadedRange) && uploaded.Range.Size == uploadedRange.Size &&
-                updated.SizeBytes == 28 && updated.Range.Equals(updatedRange) && updated.Range.Size == updatedRange.Size,
+            check(uploaded.SizeBytes == 28 && uploaded.GetRange().Equals(uploadedRange) && uploaded.GetRange().Size == uploadedRange.Size &&
+                updated.SizeBytes == 28 && updated.GetRange().Equals(updatedRange) && updated.GetRange().Size == updatedRange.Size,
                 "partial buffer uploads preserve sizes and GPU buffer identities and offsets after pool growth");
             pool.Reset();
             commands = pool.BeginCommands();
@@ -265,14 +265,14 @@ internal static class RenderingSystemTests
         finally
         {
             device.WaitIdle();
-            grown?.Destroy();
-            metadata?.Destroy();
-            updated?.Destroy();
-            uploaded?.Destroy();
+            grown?.Dispose();
+            metadata?.Dispose();
+            updated?.Dispose();
+            uploaded?.Dispose();
             timeline?.Destroy();
             pool?.Destroy();
             readback.Destroy();
-            system?.Destroy();
+            system?.Dispose();
         }
     }
 
@@ -296,8 +296,8 @@ internal static class RenderingSystemTests
             system = new RenderingSystem(device, bufferPool, texturePool);
             first = system.CreateBuffer(64);
             second = system.CreateBuffer(64);
-            GPURange firstRange = first.Range;
-            GPURange secondRange = second.Range;
+            GPURange firstRange = first.GetRange();
+            GPURange secondRange = second.GetRange();
             check(ReferenceEquals(secondRange.Buffer, firstRange.Buffer) && secondRange.Offset == firstRange.Offset + 64 && secondRange.Size == 64,
                 "metadata grows even when an explicit byte budget forbids adding another backing heap");
             bool exhausted = false;
@@ -310,30 +310,30 @@ internal static class RenderingSystemTests
                 exhausted = exception.Message.Contains("buffer pool budget is exhausted", StringComparison.Ordinal);
             }
             check(exhausted, "an explicit buffer pool byte budget reports exhaustion instead of limiting allocation count");
-            unexpected?.Destroy();
+            unexpected?.Dispose();
             unexpected = null;
 
-            first.Destroy();
+            first.Dispose();
             first = null;
             recycled = system.CreateBuffer(64);
-            check(ReferenceEquals(recycled.Range.Buffer, firstRange.Buffer) && recycled.Range.Offset == firstRange.Offset && second.Range.Equals(secondRange),
+            check(ReferenceEquals(recycled.GetRange().Buffer, firstRange.Buffer) && recycled.GetRange().Offset == firstRange.Offset && second.GetRange().Equals(secondRange),
                 "budget exhaustion leaves freed storage reusable without moving a surviving buffer");
-            recycled.Destroy();
+            recycled.Dispose();
             recycled = null;
-            second.Destroy();
+            second.Dispose();
             second = null;
             recycled = system.CreateBuffer(128);
-            check(ReferenceEquals(recycled.Range.Buffer, firstRange.Buffer) && recycled.Range.Offset == firstRange.Offset && recycled.SizeBytes == 128,
+            check(ReferenceEquals(recycled.GetRange().Buffer, firstRange.Buffer) && recycled.GetRange().Offset == firstRange.Offset && recycled.SizeBytes == 128,
                 "freed neighboring allocations coalesce into the complete budgeted buffer heap");
         }
         finally
         {
             device.WaitIdle();
-            unexpected?.Destroy();
-            recycled?.Destroy();
-            second?.Destroy();
-            first?.Destroy();
-            system?.Destroy();
+            unexpected?.Dispose();
+            recycled?.Dispose();
+            second?.Dispose();
+            first?.Dispose();
+            system?.Dispose();
         }
     }
 
@@ -367,7 +367,7 @@ internal static class RenderingSystemTests
                 Usage = TextureUsage.Sampled | TextureUsage.TransferSource | TextureUsage.TransferDestination,
             };
             first = system.CreateTexture(desc);
-            GPUTexture firstNative = first.NativeTexture;
+            GPUTexture firstNative = first.GetNativeTexture();
             uint firstIndex = first.SampledIndex;
             byte[] firstContents = new byte[pixelBytes];
             byte[] lastContents = new byte[pixelBytes];
@@ -404,7 +404,7 @@ internal static class RenderingSystemTests
                 attachments[index] = attachment;
                 noDescriptors &= attachment.SampledIndex == Texture.NoIndex && attachment.StorageIndex == Texture.NoIndex;
             }
-            check(noDescriptors && first.NativeTexture == firstNative && first.SampledIndex == firstIndex,
+            check(noDescriptors && first.GetNativeTexture() == firstNative && first.SampledIndex == firstIndex,
                 "attachment-only textures claim no bindless descriptor slots while pool growth preserves the first native texture and descriptor");
 
             Texture last = attachments[^1]!;
@@ -420,7 +420,7 @@ internal static class RenderingSystemTests
             commands = pool.BeginCommands();
             commands.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Transfer, Access.TransferRead);
             commands.CopyTextureToMemory(firstNative, firstResult.GPURange);
-            commands.CopyTextureToMemory(last.NativeTexture, lastResult.GPURange);
+            commands.CopyTextureToMemory(last.GetNativeTexture(), lastResult.GPURange);
             commands.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Host, Access.HostRead);
             commands.EndCommands();
             completion.Value++;
@@ -433,16 +433,16 @@ internal static class RenderingSystemTests
         {
             device.WaitIdle();
             context?.DiscardFrame();
-            context?.Destroy();
+            context?.Dispose();
             foreach (Texture? attachment in attachments)
-                attachment?.Destroy();
-            third?.Destroy();
-            second?.Destroy();
-            first?.Destroy();
+                attachment?.Dispose();
+            third?.Dispose();
+            second?.Dispose();
+            first?.Dispose();
             timeline?.Destroy();
             pool?.Destroy();
             readback.Destroy();
-            system?.Destroy();
+            system?.Dispose();
         }
     }
 
@@ -489,8 +489,8 @@ internal static class RenderingSystemTests
                 }
                 reusable &= (texture.SampledIndex == sampledIndex && texture.StorageIndex == storageIndex) ||
                     (texture.SampledIndex == storageIndex && texture.StorageIndex == sampledIndex);
-                texture.Destroy();
-                reusable &= texture.IsDestroyed;
+                texture.Dispose();
+                reusable &= texture.IsDisposed && texture.IsReleased;
                 texture = null;
             }
             check(reusable, "destroying never-flushed textures immediately recycles both descriptor roles and the single-texture pool budget");
@@ -499,9 +499,9 @@ internal static class RenderingSystemTests
             GC.Collect(2, GCCollectionMode.Forced, blocking: true);
             GC.WaitForPendingFinalizers();
             finalized = reference.Target as Texture;
-            check(finalized is { IsDestroyed: false }, "pending initialization metadata does not keep an unused texture wrapper alive past finalization");
+            check(finalized is { IsReleased: false }, "pending initialization metadata does not keep an unused texture wrapper alive past finalization");
             system.Tick();
-            check(finalized is { IsDestroyed: true }, "Tick cancels finalized texture initialization before the first upload flush");
+            check(finalized is { IsReleased: true }, "Tick cancels finalized texture initialization before the first upload flush");
             texture = system.CreateTexture(desc);
             check((texture.SampledIndex == sampledIndex && texture.StorageIndex == storageIndex) ||
                 (texture.SampledIndex == storageIndex && texture.StorageIndex == sampledIndex),
@@ -521,7 +521,7 @@ internal static class RenderingSystemTests
             // Address-based upload/readback uses separate command buffers on affected NVIDIA drivers.
             GPUCommandBuffer readbackCommands = readbackPool.BeginCommands();
             readbackCommands.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Transfer, Access.TransferRead);
-            readbackCommands.CopyTextureToMemory(texture.NativeTexture, result.GPURange, pixel);
+            readbackCommands.CopyTextureToMemory(texture.GetNativeTexture(), result.GPURange, pixel);
             readbackCommands.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Host, Access.HostRead);
             readbackCommands.EndCommands();
             TimelinePoint completion = new() { Semaphore = timeline, Value = 1 };
@@ -535,13 +535,13 @@ internal static class RenderingSystemTests
         {
             device.WaitIdle();
             context?.DiscardFrame();
-            context?.Destroy();
-            if (texture is { IsDestroyed: false }) texture.Destroy();
-            if (finalized is { IsDestroyed: false }) finalized.Destroy();
+            context?.Dispose();
+            if (texture is { IsDisposed: false }) texture.Dispose();
+            if (finalized is { IsDisposed: false }) finalized.Dispose();
             timeline?.Destroy();
             readbackPool?.Destroy();
             readback.Destroy();
-            system?.Destroy();
+            system?.Dispose();
         }
     }
 
@@ -560,17 +560,17 @@ internal static class RenderingSystemTests
                 Usage = TextureUsage.Sampled | TextureUsage.TransferDestination,
             };
             destroyed = system.CreateTexture(desc);
-            destroyed.Destroy();
-            check(destroyed.IsDestroyed, "Destroy cancels a texture's pending initialization without recording a frame");
+            destroyed.Dispose();
+            check(destroyed.IsDisposed, "Destroy cancels a texture's pending initialization without recording a frame");
             WeakReference reference = LeakTexture(system, desc);
             GC.Collect(2, GCCollectionMode.Forced, blocking: true);
             GC.WaitForPendingFinalizers();
             finalized = reference.Target as Texture;
-            check(finalized is { IsDestroyed: false }, "a finalized uninitialized texture awaits reclamation without EndFrame or Tick");
+            check(finalized is { IsReleased: false }, "a finalized uninitialized texture awaits reclamation without EndFrame or Tick");
             device.WaitIdle();
-            system.Destroy();
+            system.Dispose();
             system = null;
-            check(destroyed.IsDestroyed && finalized is { IsDestroyed: true },
+            check(destroyed.IsDisposed && destroyed.IsReleased && finalized is { IsReleased: true },
                 "shutdown cancels pending initialization and reclaims explicitly destroyed and finalized texture native state");
         }
         finally
@@ -578,9 +578,9 @@ internal static class RenderingSystemTests
             device.WaitIdle();
             if (system != null)
             {
-                if (destroyed is { IsDestroyed: false }) destroyed.Destroy();
-                if (finalized is { IsDestroyed: false }) finalized.Destroy();
-                system.Destroy();
+                if (destroyed is { IsDisposed: false }) destroyed.Dispose();
+                if (finalized is { IsDisposed: false }) finalized.Dispose();
+                system.Dispose();
             }
         }
     }
@@ -657,7 +657,7 @@ internal static class RenderingSystemTests
             GPUCommandBuffer firstSlotCommands = context.EndFrame();
             GPUCommandBuffer readbackCommands = readbackPool.BeginCommands();
             readbackCommands.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Transfer, Access.TransferRead);
-            readbackCommands.CopyTextureToMemory(first.NativeTexture, originalResult.GPURange);
+            readbackCommands.CopyTextureToMemory(first.GetNativeTexture(), originalResult.GPURange);
             readbackCommands.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Host, Access.HostRead);
             readbackCommands.EndCommands();
             TimelinePoint completion = new() { Semaphore = timeline, Value = 1 };
@@ -682,9 +682,9 @@ internal static class RenderingSystemTests
                     "repeated texture updates use the other slot's command buffer, then reuse the first slot's buffer");
                 readbackCommands = readbackPool.BeginCommands();
                 readbackCommands.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Transfer, Access.TransferRead);
-                readbackCommands.CopyTextureToMemory(first.NativeTexture, firstResult.GPURange);
+                readbackCommands.CopyTextureToMemory(first.GetNativeTexture(), firstResult.GPURange);
                 if (phase != 0)
-                    readbackCommands.CopyTextureToMemory(second.NativeTexture, secondResult.GPURange);
+                    readbackCommands.CopyTextureToMemory(second.GetNativeTexture(), secondResult.GPURange);
                 readbackCommands.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Host, Access.HostRead);
                 readbackCommands.EndCommands();
                 completion.Value++;
@@ -701,13 +701,13 @@ internal static class RenderingSystemTests
         {
             device.WaitIdle();
             context?.DiscardFrame();
-            context?.Destroy();
-            second?.Destroy();
-            first?.Destroy();
+            context?.Dispose();
+            second?.Dispose();
+            first?.Dispose();
             timeline?.Destroy();
             readbackPool?.Destroy();
             readback.Destroy();
-            system?.Destroy();
+            system?.Dispose();
         }
     }
 
@@ -759,7 +759,7 @@ internal static class RenderingSystemTests
                 readbackPool.Reset();
                 GPUCommandBuffer readbackCommands = readbackPool.BeginCommands();
                 readbackCommands.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Transfer, Access.TransferRead);
-                readbackCommands.CopyTextureToMemory(texture.NativeTexture, readback.Range.GPURange);
+                readbackCommands.CopyTextureToMemory(texture.GetNativeTexture(), readback.Range.GPURange);
                 readbackCommands.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Host, Access.HostRead);
                 readbackCommands.EndCommands();
                 completion.Value++;
@@ -782,7 +782,7 @@ internal static class RenderingSystemTests
             readbackPool.Reset();
             GPUCommandBuffer freshReadbackCommands = readbackPool.BeginCommands();
             freshReadbackCommands.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Transfer, Access.TransferRead);
-            freshReadbackCommands.CopyTextureToMemory(fresh.NativeTexture, readback.Range.GPURange);
+            freshReadbackCommands.CopyTextureToMemory(fresh.GetNativeTexture(), readback.Range.GPURange);
             freshReadbackCommands.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Host, Access.HostRead);
             freshReadbackCommands.EndCommands();
             completion.Value++;
@@ -796,13 +796,13 @@ internal static class RenderingSystemTests
         {
             device.WaitIdle();
             context?.DiscardFrame();
-            context?.Destroy();
-            fresh?.Destroy();
-            texture?.Destroy();
+            context?.Dispose();
+            fresh?.Dispose();
+            texture?.Dispose();
             timeline?.Destroy();
             readbackPool?.Destroy();
             readback.Destroy();
-            system?.Destroy();
+            system?.Dispose();
         }
     }
 
@@ -833,7 +833,7 @@ internal static class RenderingSystemTests
                 source[index] = (byte)(index * 19 + (index / rowBytes) * 7 + 31);
             defaultContext = new RenderContext(system, 256);
             defaultContext.BeginFrame();
-            GPURange firstRoot = defaultContext.FrameData.Allocate(16).GPURange;
+            GPURange firstRoot = defaultContext.GetFrameData().Allocate(16).GPURange;
             bool rejected = false;
             try
             {
@@ -843,7 +843,7 @@ internal static class RenderingSystemTests
             {
                 rejected = true;
             }
-            GPURange nextRoot = defaultContext.FrameData.Allocate(16).GPURange;
+            GPURange nextRoot = defaultContext.GetFrameData().Allocate(16).GPURange;
             check(rejected && ReferenceEquals(nextRoot.Buffer, firstRoot.Buffer) && nextRoot.Offset == firstRoot.Offset + 16 && nextRoot.Size == 16,
                 "the default 4 MiB frame upload budget rejects an oversized upload without disturbing the active frame's root storage");
             defaultContext.DiscardFrame();
@@ -858,7 +858,7 @@ internal static class RenderingSystemTests
             timeline = device.CreateTimelineSemaphore();
             context.BeginFrame();
             context.SetTextureData(texture, source);
-            firstRoot = context.FrameData.Allocate(16).GPURange;
+            firstRoot = context.GetFrameData().Allocate(16).GPURange;
             byte[] rejectedContents = new byte[512];
             rejectedContents.AsSpan().Fill(0xed);
             rejected = false;
@@ -870,7 +870,7 @@ internal static class RenderingSystemTests
             {
                 rejected = true;
             }
-            nextRoot = context.FrameData.Allocate(16).GPURange;
+            nextRoot = context.GetFrameData().Allocate(16).GPURange;
             check(rejected && ReferenceEquals(nextRoot.Buffer, firstRoot.Buffer) && nextRoot.Offset == firstRoot.Offset + 16 && nextRoot.Size == 16,
                 "cumulative staging exhaustion rejects a region without disturbing the active frame's root storage");
             ReadOnlySpan<byte> patch = rejectedContents.AsSpan(0, 256);
@@ -882,9 +882,9 @@ internal static class RenderingSystemTests
             TextureCopyDesc middle = new() { Offset = new Extent3D(0, height / 2, 0), Extent = new Extent3D(width, 1, 1) };
             GPUCommandBuffer readbackCommands = readbackPool.BeginCommands();
             readbackCommands.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Transfer, Access.TransferRead);
-            readbackCommands.CopyTextureToMemory(texture.NativeTexture, firstRow.GPURange, first);
-            readbackCommands.CopyTextureToMemory(texture.NativeTexture, lastRow.GPURange, last);
-            readbackCommands.CopyTextureToMemory(texture.NativeTexture, patchedRow.GPURange, middle);
+            readbackCommands.CopyTextureToMemory(texture.GetNativeTexture(), firstRow.GPURange, first);
+            readbackCommands.CopyTextureToMemory(texture.GetNativeTexture(), lastRow.GPURange, last);
+            readbackCommands.CopyTextureToMemory(texture.GetNativeTexture(), patchedRow.GPURange, middle);
             readbackCommands.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Host, Access.HostRead);
             readbackCommands.EndCommands();
             TimelinePoint completion = new() { Semaphore = timeline, Value = 1 };
@@ -902,14 +902,14 @@ internal static class RenderingSystemTests
         {
             device.WaitIdle();
             context?.DiscardFrame();
-            context?.Destroy();
+            context?.Dispose();
             defaultContext?.DiscardFrame();
-            defaultContext?.Destroy();
-            texture?.Destroy();
+            defaultContext?.Dispose();
+            texture?.Dispose();
             timeline?.Destroy();
             readbackPool?.Destroy();
             readback.Destroy();
-            system?.Destroy();
+            system?.Dispose();
         }
     }
 
@@ -955,9 +955,9 @@ internal static class RenderingSystemTests
                 for (int index = 0; index < rowBytes; ++index)
                     source[row * rowPitch + index] = (byte)(row * 17 + (row >> 8) * 23 + index * 7 + (index >> 8) * 13);
             }
-            TimelinePoint initialization = system.FlushInitializations();
+            TimelinePoint initialization = system.FlushInitializationsWithCompletion();
             uploads = new UploadQueue(device, stagingBytes);
-            TextureUpload.UploadTexture(uploads, texture.NativeTexture, desc, source, new TextureCopyDesc { RowPitchBytes = rowPitch });
+            TextureUpload.UploadTexture(uploads, texture.GetNativeTexture(), desc, source, new TextureCopyDesc { RowPitchBytes = rowPitch });
             TimelinePoint uploaded = uploads.Flush();
             check(initialization.Semaphore != null && initialization.Value != 0 && uploads.Stats.Submissions > 1,
                 "a caller-owned uploader tiles a padded texture larger than 64 MiB through its fixed 1 MiB staging ring");
@@ -970,7 +970,7 @@ internal static class RenderingSystemTests
             context.BeginFrame();
             for (int index = 0; index < rows.Length; ++index)
             {
-                context.CopyTextureToMemory(texture.NativeTexture, readback.Range.GPURange.Slice((ulong)(index * rowBytes), rowBytes),
+                context.CopyTextureToMemory(texture.GetNativeTexture(), readback.Range.GPURange.Slice((ulong)(index * rowBytes), rowBytes),
                     new TextureCopyDesc { Offset = new Extent3D(0, (uint)rows[index], 0), Extent = new Extent3D(width, 1, 1) });
             }
             context.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Host, Access.HostRead);
@@ -996,12 +996,12 @@ internal static class RenderingSystemTests
         {
             device.WaitIdle();
             context?.DiscardFrame();
-            context?.Destroy();
+            context?.Dispose();
             uploads?.Destroy();
-            texture?.Destroy();
+            texture?.Dispose();
             timeline?.Destroy();
             readback.Destroy();
-            system?.Destroy();
+            system?.Dispose();
         }
     }
 
@@ -1078,8 +1078,8 @@ internal static class RenderingSystemTests
             GPUCommandBuffer commands = context.EndFrame();
             GPUCommandBuffer readbackCommands = readbackPool.BeginCommands();
             readbackCommands.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Transfer, Access.TransferRead);
-            readbackCommands.CopyTextureToMemory(color.NativeTexture, colorResult.GPURange);
-            readbackCommands.CopyTextureToMemory(depth.NativeTexture, depthResult.GPURange);
+            readbackCommands.CopyTextureToMemory(color.GetNativeTexture(), colorResult.GPURange);
+            readbackCommands.CopyTextureToMemory(depth.GetNativeTexture(), depthResult.GPURange);
             readbackCommands.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Host, Access.HostRead);
             readbackCommands.EndCommands();
             TimelinePoint completion = new() { Semaphore = timeline, Value = 1 };
@@ -1093,13 +1093,13 @@ internal static class RenderingSystemTests
         {
             device.WaitIdle();
             context?.DiscardFrame();
-            context?.Destroy();
-            depth?.Destroy();
-            color?.Destroy();
+            context?.Dispose();
+            depth?.Dispose();
+            color?.Dispose();
             timeline?.Destroy();
             readbackPool?.Destroy();
             readback.Destroy();
-            system?.Destroy();
+            system?.Dispose();
         }
     }
 
@@ -1115,7 +1115,7 @@ internal static class RenderingSystemTests
         try
         {
             system = new RenderingSystem(device, 4 * 1024 * 1024, bufferHeapByteCount: 128);
-            TimelinePoint bootstrap = system.FlushInitializations();
+            TimelinePoint bootstrap = system.FlushInitializationsWithCompletion();
             bootstrap.Wait();
             system.Tick();
             gate = device.CreateTimelineSemaphore();
@@ -1133,12 +1133,12 @@ internal static class RenderingSystemTests
             };
             texture = system.CreateTexture(desc);
             uint releasedIndex = texture.SampledIndex;
-            TimelinePoint initialization = system.FlushInitializations();
+            TimelinePoint initialization = system.FlushInitializationsWithCompletion();
             check(ReferenceEquals(initialization.Semaphore, bootstrap.Semaphore) && initialization.Value > bootstrap.Value &&
                 !WaitForPoints([initialization], TimeSpan.FromMilliseconds(100)),
                 "FlushInitializations returns a borrowed system timeline ordered on the gated general queue");
-            texture.Destroy();
-            check(texture.IsDestroyed, "Destroy invalidates the wrapper while its submitted initialization remains pending");
+            texture.Dispose();
+            check(texture.IsDisposed, "Destroy invalidates the wrapper while its submitted initialization remains pending");
             system.Tick();
             spare = system.CreateTexture(desc);
             check(spare.SampledIndex != releasedIndex,
@@ -1156,12 +1156,12 @@ internal static class RenderingSystemTests
             if (gate != null && !released)
                 device.Submit(new SubmitDesc { Completion = new TimelinePoint { Semaphore = gate, Value = 1 } }, 1);
             device.WaitIdle();
-            recycled?.Destroy();
-            spare?.Destroy();
-            if (texture is { IsDestroyed: false }) texture.Destroy();
+            recycled?.Dispose();
+            spare?.Dispose();
+            if (texture is { IsDisposed: false }) texture.Dispose();
             marker?.Destroy();
             gate?.Destroy();
-            system?.Destroy();
+            system?.Dispose();
         }
     }
 
@@ -1193,7 +1193,7 @@ internal static class RenderingSystemTests
             HeapPoolDesc bufferPool = new() { InitialHeapSize = 128, MaxHeapSize = 128, Budget = 128 };
             HeapPoolDesc texturePool = new() { InitialHeapSize = heapSize, MaxHeapSize = heapSize, Budget = heapSize };
             system = new RenderingSystem(device, bufferPool, texturePool);
-            TimelinePoint bootstrap = system.FlushInitializations();
+            TimelinePoint bootstrap = system.FlushInitializationsWithCompletion();
             bootstrap.Wait();
             for (int index = 0; index < textures.Length; ++index)
                 textures[index] = system.CreateTexture(desc);
@@ -1204,7 +1204,7 @@ internal static class RenderingSystemTests
                 Waits = [new TimelinePoint { Semaphore = gate, Value = 1 }],
                 Completion = new TimelinePoint { Semaphore = marker, Value = 1 },
             });
-            TimelinePoint initialization = system.FlushInitializations();
+            TimelinePoint initialization = system.FlushInitializationsWithCompletion();
             bool exact = initialization.Value == bootstrap.Value + 2;
             for (int index = 0; index < textures.Length; ++index)
             {
@@ -1226,10 +1226,10 @@ internal static class RenderingSystemTests
                 device.Submit(new SubmitDesc { Completion = new TimelinePoint { Semaphore = gate, Value = 1 } }, 1);
             device.WaitIdle();
             foreach (Texture? texture in textures)
-                texture?.Destroy();
+                texture?.Dispose();
             marker?.Destroy();
             gate?.Destroy();
-            system?.Destroy();
+            system?.Dispose();
         }
     }
 
@@ -1254,7 +1254,7 @@ internal static class RenderingSystemTests
                 Format = Format.Rgba8Unorm,
                 Usage = TextureUsage.Sampled | TextureUsage.TransferSource | TextureUsage.TransferDestination,
             });
-            system.FlushInitializations().Wait();
+            system.FlushInitializationsWithCompletion().Wait();
             context = new RenderContext(system, 256, pixelBytes);
             readback = device.CreateGPUHeap(3 * pixelBytes, MemoryType.Readback);
             readbackPool = device.CreateCommandPool(0);
@@ -1281,7 +1281,7 @@ internal static class RenderingSystemTests
                 GPUCommandBuffer commands = context.EndFrame();
                 GPUCommandBuffer readbackCommands = readbackPool.BeginCommands();
                 readbackCommands.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Transfer, Access.TransferRead);
-                readbackCommands.CopyTextureToMemory(texture.NativeTexture, readback.Range.GPURange.Slice((ulong)(frame * pixelBytes), pixelBytes));
+                readbackCommands.CopyTextureToMemory(texture.GetNativeTexture(), readback.Range.GPURange.Slice((ulong)(frame * pixelBytes), pixelBytes));
                 readbackCommands.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Host, Access.HostRead);
                 readbackCommands.EndCommands();
                 TimelinePoint completion = new() { Semaphore = timeline, Value = (ulong)frame + 1 };
@@ -1303,14 +1303,14 @@ internal static class RenderingSystemTests
                 device.Submit(new SubmitDesc { Completion = new TimelinePoint { Semaphore = gate, Value = 1 } }, 1);
             device.WaitIdle();
             context?.DiscardFrame();
-            context?.Destroy();
-            texture?.Destroy();
+            context?.Dispose();
+            texture?.Dispose();
             timeline?.Destroy();
             marker?.Destroy();
             gate?.Destroy();
             readbackPool?.Destroy();
             readback.Destroy();
-            system?.Destroy();
+            system?.Dispose();
         }
     }
 
@@ -1368,7 +1368,7 @@ internal static class RenderingSystemTests
             context.Wait();
             check(readback.Range.CpuSpan.SequenceEqual(source), "a collected texture upload target remains valid until its frame's GPU readback completes");
             system.Tick();
-            check(reference.Target is Texture { IsDestroyed: true }, "Tick reclaims the collected upload target after its frame completion");
+            check(reference.Target is Texture { IsReleased: true }, "Tick reclaims the collected upload target after its frame completion");
         }
         finally
         {
@@ -1376,13 +1376,13 @@ internal static class RenderingSystemTests
                 device.Submit(new SubmitDesc { Completion = new TimelinePoint { Semaphore = gate, Value = 1 } }, 1);
             device.WaitIdle();
             context?.DiscardFrame();
-            context?.Destroy();
-            if (reference?.Target is Texture { IsDestroyed: false } texture) texture.Destroy();
+            context?.Dispose();
+            if (reference?.Target is Texture { IsDisposed: false } texture) texture.Dispose();
             timeline?.Destroy();
             gate?.Destroy();
             readbackPool?.Destroy();
             readback.Destroy();
-            system?.Destroy();
+            system?.Dispose();
         }
     }
 
@@ -1394,7 +1394,7 @@ internal static class RenderingSystemTests
         Texture texture = system.CreateTexture(desc);
         context.SetTextureData(texture, source);
         readbackCommands.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Transfer, Access.TransferRead);
-        readbackCommands.CopyTextureToMemory(texture.NativeTexture, readback);
+        readbackCommands.CopyTextureToMemory(texture.GetNativeTexture(), readback);
         readbackCommands.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Host, Access.HostRead);
         return new WeakReference(texture, trackResurrection: true);
     }
@@ -1402,7 +1402,7 @@ internal static class RenderingSystemTests
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static bool IsLiveTexture(WeakReference reference)
     {
-        return reference.Target is Texture { IsDestroyed: false };
+        return reference.Target is Texture { IsReleased: false };
     }
 
     private static void CheckExternalTextureUploads(GPUDevice device, Action<bool, string> check)
@@ -1452,14 +1452,14 @@ internal static class RenderingSystemTests
             copyMarker = device.CreateTimelineSemaphore();
             uint copyQueue = device.Caps.GeneralQueueCount + device.Caps.ComputeQueueCount;
             uploads = new UploadQueue(device, pixelBytes, copyQueue);
-            TimelinePoint initialization = system.FlushInitializations();
+            TimelinePoint initialization = system.FlushInitializationsWithCompletion();
             // Queue this dependency before staging: TextureUpload may flush intermediate batches itself.
             device.Submit(new SubmitDesc
             {
                 Waits = [initialization, new TimelinePoint { Semaphore = copyGate, Value = 1 }],
                 Completion = new TimelinePoint { Semaphore = copyMarker, Value = 1 },
             }, copyQueue);
-            TextureUpload.UploadTexture(uploads, texture.NativeTexture, desc, original);
+            TextureUpload.UploadTexture(uploads, texture.GetNativeTexture(), desc, original);
             TimelinePoint uploaded = uploads.Flush();
 
             independentContext.BeginFrame();
@@ -1467,9 +1467,9 @@ internal static class RenderingSystemTests
             // Address-based upload/readback uses separate command buffers on affected NVIDIA drivers.
             consumer.BeginFrame();
             consumer.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Transfer, Access.TransferRead);
-            consumer.CopyTextureToMemory(unrelated.NativeTexture, unrelatedResult.GPURange);
+            consumer.CopyTextureToMemory(unrelated.GetNativeTexture(), unrelatedResult.GPURange);
             consumer.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Host, Access.HostRead);
-            TimelinePoint independentCompletion = system.Submit([independentContext, consumer]);
+            TimelinePoint independentCompletion = system.Submit([independentContext, consumer], default);
             bool independent = WaitForPoints([independentCompletion], TimeSpan.FromSeconds(2));
             check(independent && !WaitForPoints([uploaded], TimeSpan.FromMilliseconds(100)),
                 "an unrelated frame completes without being globally gated by a caller-owned copy-queue upload");
@@ -1479,7 +1479,7 @@ internal static class RenderingSystemTests
                 "the independent frame reads its own frame-local texture upload while the copy queue is blocked");
 
             consumer.BeginFrame();
-            consumer.CopyTextureToMemory(texture.NativeTexture, oldResult.GPURange);
+            consumer.CopyTextureToMemory(texture.GetNativeTexture(), oldResult.GPURange);
             consumer.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Host, Access.HostRead);
             TimelinePoint oldCompletion = consumer.Submit(waits: [uploaded, new TimelinePoint { Semaphore = frameGate, Value = 1 }]);
             device.Submit(new SubmitDesc { Completion = new TimelinePoint { Semaphore = copyGate, Value = 1 } }, 1);
@@ -1492,7 +1492,7 @@ internal static class RenderingSystemTests
                 Waits = [oldCompletion],
                 Completion = new TimelinePoint { Semaphore = copyMarker, Value = 2 },
             }, copyQueue);
-            TextureUpload.UploadTexture(uploads, texture.NativeTexture, desc, updated);
+            TextureUpload.UploadTexture(uploads, texture.GetNativeTexture(), desc, updated);
             TimelinePoint updatedUpload = uploads.Flush();
             check(!WaitForPoints([updatedUpload], TimeSpan.FromMilliseconds(100)) && oldCompletion.Semaphore?.CompletedValue < oldCompletion.Value,
                 "a copy-queue wait on the managed frame completion keeps a later update behind its gated prior consumer");
@@ -1505,7 +1505,7 @@ internal static class RenderingSystemTests
             if (!oldCompleted) return;
 
             consumer.BeginFrame();
-            consumer.CopyTextureToMemory(texture.NativeTexture, newResult.GPURange);
+            consumer.CopyTextureToMemory(texture.GetNativeTexture(), newResult.GPURange);
             consumer.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Host, Access.HostRead);
             TimelinePoint newCompletion = consumer.Submit(waits: [updatedUpload]);
             consumer.Wait();
@@ -1528,17 +1528,17 @@ internal static class RenderingSystemTests
                 device.Submit(new SubmitDesc { Completion = new TimelinePoint { Semaphore = frameGate, Value = 1 } }, 1);
             device.WaitIdle();
             independentContext?.DiscardFrame();
-            independentContext?.Destroy();
+            independentContext?.Dispose();
             consumer?.DiscardFrame();
-            consumer?.Destroy();
+            consumer?.Dispose();
             uploads?.Destroy();
-            unrelated?.Destroy();
-            texture?.Destroy();
+            unrelated?.Dispose();
+            texture?.Dispose();
             copyMarker?.Destroy();
             frameGate?.Destroy();
             copyGate?.Destroy();
             readback.Destroy();
-            system?.Destroy();
+            system?.Dispose();
         }
     }
 
@@ -1607,7 +1607,7 @@ internal static class RenderingSystemTests
                     for (int index = 0; index < references.Length; ++index)
                     {
                         finalized[index] = references[index].Target as RenderingResource;
-                        queued &= finalized[index] is { IsDestroyed: false };
+                        queued &= finalized[index] is { IsReleased: false };
                     }
                     check(queued, "unsubmitted finalized buffers, textures, and samplers await Tick before parallel churn");
                 }
@@ -1638,11 +1638,11 @@ internal static class RenderingSystemTests
                                     for (int local = 0; local < resourcesPerWorker; ++local)
                                     {
                                         int slot = worker * resourcesPerWorker + local;
-                                        buffers[slot]?.Destroy();
+                                        buffers[slot]?.Dispose();
                                         buffers[slot] = null;
-                                        textures[slot]?.Destroy();
+                                        textures[slot]?.Dispose();
                                         textures[slot] = null;
-                                        samplers[slot]?.Destroy();
+                                        samplers[slot]?.Dispose();
                                         samplers[slot] = null;
                                         for (int element = 0; element < elementCount; ++element)
                                             source[element] = (uint)(phase * 100000 + (round * resourceCount + slot) * elementCount + element + 1);
@@ -1709,11 +1709,11 @@ internal static class RenderingSystemTests
                 samplerSlots.AsSpan(0, (int)SharedSamplers.Count).Fill(true);
                 for (int index = 0; index < resourceCount; ++index)
                 {
-                    GPURange range = buffers[index]!.Range;
+                    GPURange range = buffers[index]!.GetRange();
                     disjoint &= range.Buffer != null && range.Offset % 16 == 0 && range.Size == elementCount * sizeof(uint);
                     for (int previous = 0; previous < index; ++previous)
                     {
-                        GPURange other = buffers[previous]!.Range;
+                        GPURange other = buffers[previous]!.GetRange();
                         disjoint &= !ReferenceEquals(range.Buffer, other.Buffer) || range.Offset + range.Size <= other.Offset ||
                             other.Offset + other.Size <= range.Offset;
                     }
@@ -1736,7 +1736,7 @@ internal static class RenderingSystemTests
                 GPUCommandBuffer commands = pool.BeginCommands();
                 for (int index = 0; index < resourceCount; ++index)
                 {
-                    commands.CopyMemory(buffers[index]!.Range,
+                    commands.CopyMemory(buffers[index]!.GetRange(),
                         contents.GPURange.Slice((ulong)(index * elementCount * sizeof(uint)), elementCount * sizeof(uint)));
                 }
                 commands.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Host, Access.HostRead);
@@ -1758,7 +1758,7 @@ internal static class RenderingSystemTests
                 {
                     bool reclaimed = true;
                     foreach (RenderingResource? resource in finalized)
-                        reclaimed &= resource is { IsDestroyed: true };
+                        reclaimed &= resource is { IsReleased: true };
                     check(reclaimed, "Tick reclaims queued buffers, textures, and samplers while independent workers create and destroy resources");
                 }
             }
@@ -1768,18 +1768,18 @@ internal static class RenderingSystemTests
             device.WaitIdle();
             for (int index = 0; index < resourceCount; ++index)
             {
-                if (samplers[index] is { IsDestroyed: false } sampler) sampler.Destroy();
-                if (textures[index] is { IsDestroyed: false } texture) texture.Destroy();
-                if (buffers[index] is { IsDestroyed: false } buffer) buffer.Destroy();
+                if (samplers[index] is { IsDisposed: false } sampler) sampler.Dispose();
+                if (textures[index] is { IsDisposed: false } texture) texture.Dispose();
+                if (buffers[index] is { IsDisposed: false } buffer) buffer.Dispose();
             }
             foreach (RenderingResource? resource in finalized)
             {
-                if (resource is { IsDestroyed: false }) resource.Destroy();
+                if (resource is { IsDisposed: false }) resource.Dispose();
             }
             timeline?.Destroy();
             pool?.Destroy();
             readback.Destroy();
-            system?.Destroy();
+            system?.Dispose();
         }
     }
 
@@ -1804,7 +1804,7 @@ internal static class RenderingSystemTests
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
             foreach (RenderingResource? resource in resources)
-                resource?.Destroy();
+                resource?.Dispose();
             throw;
         }
     }
@@ -1853,14 +1853,14 @@ internal static class RenderingSystemTests
                 exhausted = exception.Message.Contains("texture pool budget is exhausted", StringComparison.Ordinal);
             }
             check(exhausted, "an explicit texture byte budget reports exhaustion after reserving both requested descriptor roles");
-            unexpected?.Destroy();
+            unexpected?.Dispose();
             unexpected = null;
             texture = system.CreateTexture(desc);
             check(texture.SampledIndex != Texture.NoIndex && texture.StorageIndex != Texture.NoIndex && texture.SampledIndex != texture.StorageIndex,
                 "texture budget failure returns both descriptor slots and leaves smaller placement and metadata growth usable");
             uint sampledIndex = texture.SampledIndex;
             uint storageIndex = texture.StorageIndex;
-            texture.Destroy();
+            texture.Dispose();
             texture = system.CreateTexture(desc);
             check((texture.SampledIndex == sampledIndex && texture.StorageIndex == storageIndex) ||
                 (texture.SampledIndex == storageIndex && texture.StorageIndex == sampledIndex),
@@ -1869,9 +1869,9 @@ internal static class RenderingSystemTests
         finally
         {
             device.WaitIdle();
-            unexpected?.Destroy();
-            texture?.Destroy();
-            system?.Destroy();
+            unexpected?.Dispose();
+            texture?.Dispose();
+            system?.Dispose();
         }
     }
 
@@ -1899,7 +1899,7 @@ internal static class RenderingSystemTests
             staging = system.CreateBuffer<byte>(payload);
             gpuBuffer = system.CreateBuffer((ulong)payload.Length, MemoryType.GpuOnly);
             check(gpuBuffer.Memory == MemoryType.GpuOnly &&
-                  gpuBuffer.GetView(16).Equals(gpuBuffer.Range.Slice(16).View) &&
+                  gpuBuffer.GetView(16).Equals(gpuBuffer.GetRange().Slice(16).View) &&
                   gpuBuffer.GetView(16).Offset == gpuBuffer.View.Offset + 16,
                 "GPU-only buffers expose offset buffer views matching sliced GPU ranges");
 
@@ -1935,15 +1935,15 @@ internal static class RenderingSystemTests
             });
 
             context.BeginFrame();
-            context.CopyMemory(staging.Range, gpuBuffer.Range);
+            context.CopyMemory(staging.GetRange(), gpuBuffer.GetRange());
             context.Barrier(
                 Stage.AllCommands,
                 Access.ShaderRead | Access.ShaderWrite | Access.TransferRead | Access.TransferWrite,
                 Stage.Transfer,
                 Access.TransferRead | Access.TransferWrite);
-            context.CopyMemoryToTexture(gpuBuffer.Range, targetTexture.NativeTexture);
+            context.CopyMemoryToTexture(gpuBuffer.GetRange(), targetTexture.GetNativeTexture());
             context.Barrier(Stage.Transfer, Access.TransferWrite, Stage.AllCommands, Access.ShaderRead | Access.TransferRead);
-            system.Submit([context]).Wait();
+            system.Submit([context], default).Wait();
 
             Span<byte> readBufferBytes = new byte[32];
             system.ReadBuffer(gpuBuffer, readBufferBytes, byteOffset: 16);
@@ -1959,12 +1959,12 @@ internal static class RenderingSystemTests
         {
             device.WaitIdle();
             context?.DiscardFrame();
-            context?.Destroy();
-            targetTexture?.Destroy();
-            mutableTexture?.Destroy();
-            gpuBuffer?.Destroy();
-            staging?.Destroy();
-            system?.Destroy();
+            context?.Dispose();
+            targetTexture?.Dispose();
+            mutableTexture?.Dispose();
+            gpuBuffer?.Dispose();
+            staging?.Dispose();
+            system?.Dispose();
         }
     }
 }

@@ -20,7 +20,7 @@ public class CanvasBatchingTests
 
         public struct TintOverlayParams
         {
-            public GpuTextureId Overlay;
+            public GPUTextureId Overlay;
             public uint _Pad0;
             public uint _Pad1;
             public uint _Pad2;
@@ -132,15 +132,17 @@ public class CanvasBatchingTests
             canvas.Tick(0f);
             canvas.PrepareRender(0f);
             host.Context.BeginFrame();
-            UIFrameStats batchedStats = canvas.Draw(host.Context, batchedTex.RenderView, Format.Rgba8Unorm, new Extent2D(Size, Size), stencil.RenderView, Format.S8Uint, LoadOp.Clear, Vector4.Zero);
-            host.Context.Submit().Wait();
+            UIFrameStats batchedStats = canvas.Draw(host.Context, batchedTex, stencil, LoadOp.Clear, Vector4.Zero);
+            host.Context.Submit();
+            host.RenderingSystem.WaitIdle();
 
             canvas.SplitDraws = true;
             canvas.Tick(0f);
             canvas.PrepareRender(0f);
             host.Context.BeginFrame();
-            UIFrameStats splitStats = canvas.Draw(host.Context, splitTex.RenderView, Format.Rgba8Unorm, new Extent2D(Size, Size), stencil.RenderView, Format.S8Uint, LoadOp.Clear, Vector4.Zero);
-            host.Context.Submit().Wait();
+            UIFrameStats splitStats = canvas.Draw(host.Context, splitTex, stencil, LoadOp.Clear, Vector4.Zero);
+            host.Context.Submit();
+            host.RenderingSystem.WaitIdle();
 
             Assert.That(batchedStats.ContentDraws, Is.EqualTo(1), "All default-material images and SDF text must merge into 1 draw call.");
             Assert.That(batchedStats.MaskDraws, Is.EqualTo(0));
@@ -182,12 +184,12 @@ public class CanvasBatchingTests
         }
         finally
         {
-            stencil.Destroy();
-            splitTex.Destroy();
-            batchedTex.Destroy();
-            sliceTex.Destroy();
-            premulTex.Destroy();
-            crispTex.Destroy();
+            stencil.Dispose();
+            splitTex.Dispose();
+            batchedTex.Dispose();
+            sliceTex.Dispose();
+            premulTex.Dispose();
+            crispTex.Dispose();
         }
     }
 
@@ -238,8 +240,9 @@ public class CanvasBatchingTests
 
             canvas.PrepareRender(0f);
             host.Context.BeginFrame();
-            UIFrameStats stats = canvas.Draw(host.Context, target.RenderView, Format.Rgba8Unorm, new Extent2D(Size, Size), stencil.RenderView, Format.S8Uint, LoadOp.Clear, Vector4.Zero);
-            host.Context.Submit().Wait();
+            UIFrameStats stats = canvas.Draw(host.Context, target, stencil, LoadOp.Clear, Vector4.Zero);
+            host.Context.Submit();
+            host.RenderingSystem.WaitIdle();
 
             // Nested rot1 + rot2 + texMask = 3 active stencil masks -> 6 MaskDraws; emptyMask elided!
             Assert.That(stats.ScissorMaskCount, Is.GreaterThanOrEqualTo(1));
@@ -270,18 +273,19 @@ public class CanvasBatchingTests
             // Render same tree WITHOUT stencil attachment -> AABB scissor fallback must execute cleanly with 0 mask draws
             canvas.PrepareRender(0f);
             host.Context.BeginFrame();
-            UIFrameStats fallbackStats = canvas.Draw(host.Context, targetNoStencil.RenderView, Format.Rgba8Unorm, new Extent2D(Size, Size), null, Format.Undefined, LoadOp.Clear, Vector4.Zero);
-            host.Context.Submit().Wait();
+            UIFrameStats fallbackStats = canvas.Draw(host.Context, targetNoStencil, default, LoadOp.Clear, Vector4.Zero);
+            host.Context.Submit();
+            host.RenderingSystem.WaitIdle();
             Assert.That(fallbackStats.MaskDraws, Is.EqualTo(0));
             byte[] fbPixels = host.ReadbackRgba8(targetNoStencil, Size, Size);
             Assert.That(fbPixels[PixelIndex(Size, 96, 32) + 2], Is.EqualTo((byte)255), "No-stencil fallback keeps center visible.");
         }
         finally
         {
-            stencil.Destroy();
-            targetNoStencil.Destroy();
-            target.Destroy();
-            halfMask.Destroy();
+            stencil.Dispose();
+            targetNoStencil.Dispose();
+            target.Dispose();
+            halfMask.Dispose();
         }
     }
 
@@ -308,8 +312,9 @@ public class CanvasBatchingTests
             // Frame 2: Render & Submit -> glyphs must remain valid and display cleanly.
             canvas.PrepareRender(0f);
             host.Context.BeginFrame();
-            UIFrameStats stats = canvas.Draw(host.Context, target.RenderView, Format.Rgba8Unorm, new Extent2D(Size, Size), colorLoadOp: LoadOp.Clear, clearColor: Vector4.Zero);
-            host.Context.Submit().Wait();
+            UIFrameStats stats = canvas.Draw(host.Context, target, colorLoadOp: LoadOp.Clear, clearColor: Vector4.Zero);
+            host.Context.Submit();
+            host.RenderingSystem.WaitIdle();
 
             Assert.That(canvas.GlyphCache.PageCount, Is.GreaterThanOrEqualTo(1));
             Assert.That(canvas.GlyphCache.GeneratedGlyphCount, Is.GreaterThanOrEqualTo(4));
@@ -325,7 +330,7 @@ public class CanvasBatchingTests
         }
         finally
         {
-            target.Destroy();
+            target.Dispose();
         }
     }
 
@@ -346,8 +351,9 @@ public class CanvasBatchingTests
                 canvasA.Root.Add(new UIText { Font = font, FontSize = 24, Size = new Vector2(Size, Size), Color = new ColorFloat(1, 1, 1, 1), Text = "SHARED" });
                 canvasA.PrepareRender(0f);
                 host.Context.BeginFrame();
-                UIFrameStats statsA = canvasA.Draw(host.Context, target.RenderView, Format.Rgba8Unorm, new Extent2D(Size, Size), colorLoadOp: LoadOp.Clear, clearColor: Vector4.Zero);
-                host.Context.Submit().Wait();
+                UIFrameStats statsA = canvasA.Draw(host.Context, target, colorLoadOp: LoadOp.Clear, clearColor: Vector4.Zero);
+                host.Context.Submit();
+                host.RenderingSystem.WaitIdle();
 
                 Assert.That(statsA.FontGlyphsUploaded, Is.GreaterThan(0));
             }
@@ -361,8 +367,9 @@ public class CanvasBatchingTests
                 canvasB.Root.Add(new UIText { Font = font, FontSize = 24, Size = new Vector2(Size, Size), Color = new ColorFloat(1, 1, 1, 1), Text = "SHARED" });
                 canvasB.PrepareRender(0f);
                 host.Context.BeginFrame();
-                UIFrameStats statsB = canvasB.Draw(host.Context, target.RenderView, Format.Rgba8Unorm, new Extent2D(Size, Size), colorLoadOp: LoadOp.Clear, clearColor: Vector4.Zero);
-                host.Context.Submit().Wait();
+                UIFrameStats statsB = canvasB.Draw(host.Context, target, colorLoadOp: LoadOp.Clear, clearColor: Vector4.Zero);
+                host.Context.Submit();
+                host.RenderingSystem.WaitIdle();
 
                 Assert.That(statsB.FontGlyphsUploaded, Is.EqualTo(0));
                 Assert.That(sharedCache.GeneratedGlyphCount, Is.EqualTo(cachedGlyphs));
@@ -382,7 +389,7 @@ public class CanvasBatchingTests
         }
         finally
         {
-            target.Destroy();
+            target.Dispose();
         }
     }
 
@@ -444,8 +451,9 @@ public class CanvasBatchingTests
         {
             canvas.PrepareRender(0f);
             host.Context.BeginFrame();
-            UIFrameStats stats = canvas.Draw(host.Context, target.RenderView, Format.Rgba8Unorm, new Extent2D(Size, Size), colorLoadOp: LoadOp.Clear, clearColor: Vector4.Zero);
-            host.Context.Submit().Wait();
+            UIFrameStats stats = canvas.Draw(host.Context, target, colorLoadOp: LoadOp.Clear, clearColor: Vector4.Zero);
+            host.Context.Submit();
+            host.RenderingSystem.WaitIdle();
 
             Assert.That(stats.ContentDraws, Is.EqualTo(3));
 
@@ -475,8 +483,8 @@ public class CanvasBatchingTests
         }
         finally
         {
-            target.Destroy();
-            overlayTex.Destroy();
+            target.Dispose();
+            overlayTex.Dispose();
         }
     }
 
@@ -513,7 +521,8 @@ public class CanvasBatchingTests
 
             host.Context.BeginFrame();
             graph.Execute(host.Context, RenderGraphTarget.FromTexture(target));
-            host.Context.Submit().Wait();
+            host.Context.Submit();
+            host.RenderingSystem.WaitIdle();
 
             UIFrameStats stats = canvas.LastFrameStats;
             Assert.That(stats.MeshDraws, Is.EqualTo(1));
@@ -532,8 +541,8 @@ public class CanvasBatchingTests
         }
         finally
         {
-            graph.Destroy();
-            target.Destroy();
+            graph.Dispose();
+            target.Dispose();
         }
     }
 
@@ -563,8 +572,9 @@ public class CanvasBatchingTests
 
             canvas.PrepareRender(0f);
             host.Context.BeginFrame();
-            UIFrameStats bigStats = canvas.Draw(host.Context, target.RenderView, Format.Rgba8Unorm, new Extent2D(Size, Size), stencil.RenderView, Format.S8Uint, LoadOp.Clear, Vector4.Zero);
-            host.Context.Submit().Wait();
+            UIFrameStats bigStats = canvas.Draw(host.Context, target, stencil, LoadOp.Clear, Vector4.Zero);
+            host.Context.Submit();
+            host.RenderingSystem.WaitIdle();
 
             Assert.That(bigStats.QuadCount, Is.EqualTo(2500));
             Assert.That(bigStats.ContentDraws, Is.EqualTo(1));
@@ -582,25 +592,27 @@ public class CanvasBatchingTests
                 canvas.Tick(0.016f);
                 canvas.PrepareRender(0.016f);
                 host.Context.BeginFrame();
-                canvas.Draw(host.Context, target.RenderView, Format.Rgba8Unorm, new Extent2D(Size, Size), stencil.RenderView, Format.S8Uint, LoadOp.Clear, Vector4.Zero);
-                host.Context.Submit().Wait();
+                canvas.Draw(host.Context, target, stencil, LoadOp.Clear, Vector4.Zero);
+                host.Context.Submit();
             }
+            host.RenderingSystem.WaitIdle();
 
             long before = GC.GetAllocatedBytesForCurrentThread();
             for (int i = 0; i < 20; ++i)
             {
                 canvas.PrepareRender(0.016f);
                 host.Context.BeginFrame();
-                canvas.Draw(host.Context, target.RenderView, Format.Rgba8Unorm, new Extent2D(Size, Size), stencil.RenderView, Format.S8Uint, LoadOp.Clear, Vector4.Zero);
-                host.Context.Submit().Wait();
+                canvas.Draw(host.Context, target, stencil, LoadOp.Clear, Vector4.Zero);
+                host.Context.Submit();
             }
             long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+            host.RenderingSystem.WaitIdle();
             Assert.That(allocated, Is.EqualTo(0L), $"Warm batched Canvas frames must allocate zero managed bytes (actual={allocated}).");
         }
         finally
         {
-            stencil.Destroy();
-            target.Destroy();
+            stencil.Dispose();
+            target.Dispose();
         }
     }
 

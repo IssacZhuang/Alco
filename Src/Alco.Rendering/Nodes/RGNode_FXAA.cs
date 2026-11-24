@@ -3,7 +3,6 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
 using Alco.Graphics;
-using Alco.Graphics.LowLevel;
 
 namespace Alco.Rendering;
 
@@ -416,14 +415,13 @@ public sealed unsafe class RGNode_FXAA : IRenderGraphNode
         FxaaRoot rootData = BuildRoot(in context, src.SampledIndex, dst.StorageIndex);
 
         RenderContext rc = context.RenderContext;
-        GPURange root = rc.AllocateRoot(in rootData);
         Extent3D groupCount = new(
             (_frameInputExtent.X + TileDim - 1u) / TileDim,
             (_frameInputExtent.Y + TileDim - 1u) / TileDim,
             1u);
 
         using RenderContext.ComputeScope compute = rc.BeginCompute();
-        compute.Dispatch(_computeMaterial, root, groupCount);
+        compute.Dispatch(_computeMaterial, in rootData, groupCount);
     }
 
     private void ExecuteGraphics(in RenderGraphContext context)
@@ -439,12 +437,11 @@ public sealed unsafe class RGNode_FXAA : IRenderGraphNode
         FxaaRoot rootData = BuildRoot(in context, src.SampledIndex, 0u);
 
         RenderContext rc = context.RenderContext;
-        GPURange root = rc.AllocateRoot(in rootData);
         Extent3D targetExtent = context.GetExtent(_frameTarget);
 
         ColorAttachment colorAttachment = new()
         {
-            RenderView = context.GetRenderView(_frameTarget),
+            Target = context.GetRenderTarget(_frameTarget),
             Load = LoadOp.Discard,
             Store = StoreOp.Store,
         };
@@ -456,7 +453,7 @@ public sealed unsafe class RGNode_FXAA : IRenderGraphNode
         using RenderContext.RenderScope render = rc.BeginRenderPass(desc);
         render.SetViewport(new Viewport { Width = targetExtent.X, Height = targetExtent.Y });
         render.SetScissor(new Scissor { Width = targetExtent.X, Height = targetExtent.Y });
-        render.Draw(_graphicsMaterial, root, DepthStencilState.None, 3u);
+        render.Draw(_graphicsMaterial, in rootData, DepthStencilState.None, 3u);
     }
 
     private FxaaRoot BuildRoot(in RenderGraphContext context, uint sourceIndex, uint destIndex)

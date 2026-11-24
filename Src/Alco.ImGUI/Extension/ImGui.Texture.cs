@@ -10,7 +10,7 @@ public static unsafe partial class ImGui
     /// <returns>The bindless sampled texture identifier usable with ImGui draw commands.</returns>
     public static IntPtr GetTextureId(Texture? texture)
     {
-        if (texture == null || texture.IsDestroyed)
+        if (texture == null || texture.IsDisposed)
         {
             return IntPtr.Zero;
         }

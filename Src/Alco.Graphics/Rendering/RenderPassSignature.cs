@@ -49,10 +49,58 @@ public readonly struct RenderPassSignature : IEquatable<RenderPassSignature>
         _meta = meta;
     }
 
-    /// <summary>Derives a render-pass signature from the attachment views in <paramref name="desc"/>.</summary>
-    /// <param name="desc">The render pass attachment description.</param>
+    /// <summary>Derives a render-pass signature from the attachment targets in <paramref name="desc"/>.</summary>
+    /// <param name="desc">The high-level render pass attachment description.</param>
     /// <returns>The derived render-pass signature.</returns>
     public static RenderPassSignature From(scoped in RenderingDesc desc)
+    {
+        int colorCount = desc.Colors.Length;
+        if (colorCount > Backend.MaxColorAttachments)
+            throw new ArgumentOutOfRangeException(nameof(desc), $"Render passes support at most {Backend.MaxColorAttachments} color attachments.");
+
+        ulong packedColors = 0;
+        uint sampleCount = 0;
+        for (int index = 0; index < colorCount; ++index)
+        {
+            RenderTarget target = desc.Colors[index].Target;
+            Format format = target.Format;
+            packedColors |= (ulong)(byte)format << (index * 8);
+            if (!target.IsValid)
+                continue;
+            uint viewSamples = target.SampleCount;
+            if (sampleCount == 0)
+                sampleCount = viewSamples;
+            else
+                Debug.Assert(viewSamples == sampleCount, "All attachments in a render pass must share the same sample count.");
+        }
+
+        RenderTarget depthTarget = desc.Depth.Target;
+        Format depthFormat = depthTarget.Format;
+        if (depthTarget.IsValid)
+        {
+            uint depthSamples = depthTarget.SampleCount;
+            if (sampleCount == 0)
+                sampleCount = depthSamples;
+            else
+                Debug.Assert(depthSamples == sampleCount, "All attachments in a render pass must share the same sample count.");
+        }
+
+        RenderTarget stencilTarget = desc.Stencil.Target;
+        Format stencilFormat = stencilTarget.Format;
+        if (stencilTarget.IsValid)
+        {
+            uint stencilSamples = stencilTarget.SampleCount;
+            if (sampleCount == 0)
+                sampleCount = stencilSamples;
+            else
+                Debug.Assert(stencilSamples == sampleCount, "All attachments in a render pass must share the same sample count.");
+        }
+
+        uint normalizedSamples = sampleCount == 0 ? 1u : NormalizeSampleCount(sampleCount);
+        return new RenderPassSignature(packedColors, PackMeta(colorCount, depthFormat, stencilFormat, normalizedSamples));
+    }
+
+    internal static RenderPassSignature From(scoped in GPURenderingDesc desc)
     {
         int colorCount = desc.Colors.Length;
         if (colorCount > Backend.MaxColorAttachments)

@@ -57,13 +57,14 @@ public sealed class TestParticleGpuReadback
         {
             context.BeginFrame();
             system.RecordSimulation(context, 0.05f);
-            context.Submit().Wait();
+            context.Submit();
+            host.RenderingSystem.WaitIdle();
 
             context.BeginFrame();
             system.RecordSimulation(context, 0.05f);
             var passDesc = new RenderingDesc
             {
-                Colors = [new ColorAttachment { RenderView = target.RenderView, Load = LoadOp.Clear, Store = StoreOp.Store, Clear = Vector4.Zero }],
+                Colors = [new ColorAttachment { Target = target, Load = LoadOp.Clear, Store = StoreOp.Store, Clear = Vector4.Zero }],
             };
             using (var render = context.BeginRenderPass(passDesc, new RenderPassSignature([Format.Rgba8Unorm])))
             {
@@ -85,8 +86,8 @@ public sealed class TestParticleGpuReadback
         }
         finally
         {
-            context.Destroy();
-            target.Destroy();
+            context.Dispose();
+            target.Dispose();
         }
     }
 
@@ -134,7 +135,8 @@ public sealed class TestParticleGpuReadback
         {
             context.BeginFrame();
             system.RecordSimulation(context, 0.05f);
-            context.Submit().Wait();
+            context.Submit();
+            host.RenderingSystem.WaitIdle();
 
             context.BeginFrame();
             system.RecordSimulation(context, 0.05f);
@@ -142,7 +144,7 @@ public sealed class TestParticleGpuReadback
 
             var passDesc = new RenderingDesc
             {
-                Colors = [new ColorAttachment { RenderView = target.RenderView, Load = LoadOp.Clear, Store = StoreOp.Store, Clear = Vector4.Zero }],
+                Colors = [new ColorAttachment { Target = target, Load = LoadOp.Clear, Store = StoreOp.Store, Clear = Vector4.Zero }],
             };
             using (var render = context.BeginRenderPass(passDesc, new RenderPassSignature([Format.Rgba8Unorm])))
             {
@@ -164,8 +166,8 @@ public sealed class TestParticleGpuReadback
         }
         finally
         {
-            context.Destroy();
-            target.Destroy();
+            context.Dispose();
+            target.Dispose();
         }
     }
 
@@ -222,13 +224,14 @@ public sealed class TestParticleGpuReadback
         {
             context.BeginFrame();
             system.RecordSimulation(context, 0.05f);
-            context.Submit().Wait();
+            context.Submit();
+            host.RenderingSystem.WaitIdle();
 
             context.BeginFrame();
             system.RecordSimulation(context, 0.05f);
             var passDesc = new RenderingDesc
             {
-                Colors = [new ColorAttachment { RenderView = target.RenderView, Load = LoadOp.Clear, Store = StoreOp.Store, Clear = Vector4.Zero }],
+                Colors = [new ColorAttachment { Target = target, Load = LoadOp.Clear, Store = StoreOp.Store, Clear = Vector4.Zero }],
             };
             using (var render = context.BeginRenderPass(passDesc, new RenderPassSignature([Format.Rgba8Unorm])))
             {
@@ -250,8 +253,8 @@ public sealed class TestParticleGpuReadback
         }
         finally
         {
-            context.Destroy();
-            target.Destroy();
+            context.Dispose();
+            target.Dispose();
         }
     }
 
@@ -300,7 +303,8 @@ public sealed class TestParticleGpuReadback
             // Warm up one submitted frame so particles are live before mid-frame pool growth.
             context.BeginFrame();
             system.RecordSimulation(context, 0.05f);
-            context.Submit().Wait();
+            context.Submit();
+            host.RenderingSystem.WaitIdle();
 
             context.BeginFrame();
             system.RecordSimulation(context, 0.05f);
@@ -310,7 +314,7 @@ public sealed class TestParticleGpuReadback
 
             var passDesc = new RenderingDesc
             {
-                Colors = [new ColorAttachment { RenderView = target.RenderView, Load = LoadOp.Clear, Store = StoreOp.Store, Clear = Vector4.Zero }],
+                Colors = [new ColorAttachment { Target = target, Load = LoadOp.Clear, Store = StoreOp.Store, Clear = Vector4.Zero }],
             };
             using (var render = context.BeginRenderPass(passDesc))
             {
@@ -342,8 +346,8 @@ public sealed class TestParticleGpuReadback
         finally
         {
             second?.Dispose();
-            context.Destroy();
-            target.Destroy();
+            context.Dispose();
+            target.Dispose();
         }
     }
 
@@ -394,7 +398,8 @@ public sealed class TestParticleGpuReadback
         {
             context.BeginFrame();
             system.RecordSimulation(context, 0.05f);
-            context.Submit().Wait();
+            context.Submit();
+            host.RenderingSystem.WaitIdle();
 
             context.BeginFrame();
             system.RecordSimulation(context, 0.05f);
@@ -406,7 +411,7 @@ public sealed class TestParticleGpuReadback
 
             var passDesc = new RenderingDesc
             {
-                Colors = [new ColorAttachment { RenderView = target.RenderView, Load = LoadOp.Clear, Store = StoreOp.Store, Clear = Vector4.Zero }],
+                Colors = [new ColorAttachment { Target = target, Load = LoadOp.Clear, Store = StoreOp.Store, Clear = Vector4.Zero }],
             };
             using (var render = context.BeginRenderPass(passDesc, new RenderPassSignature([Format.Rgba8Unorm])))
             {
@@ -432,8 +437,8 @@ public sealed class TestParticleGpuReadback
         }
         finally
         {
-            context.Destroy();
-            target.Destroy();
+            context.Dispose();
+            target.Dispose();
         }
     }
 }

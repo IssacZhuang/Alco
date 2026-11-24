@@ -37,9 +37,9 @@ public class TestEngineFrameTiming
         }
         finally
         {
-            graph.Destroy();
-            context.Destroy();
-            rendering.Destroy();
+            graph.Dispose();
+            context.Dispose();
+            rendering.Dispose();
             device.Destroy();
         }
     }
@@ -71,13 +71,14 @@ public class TestEngineFrameTiming
             Assert.That(graph.Viewport, Is.EqualTo(new Extent2D(96, 80)));
 
             context.BeginFrame();
-            context.Submit().Wait();
+            context.Submit();
+            rendering.WaitIdle();
         }
         finally
         {
-            graph.Destroy();
-            context.Destroy();
-            rendering.Destroy();
+            graph.Dispose();
+            context.Dispose();
+            rendering.Dispose();
             device.Destroy();
         }
     }
