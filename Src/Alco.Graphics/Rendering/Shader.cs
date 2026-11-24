@@ -182,13 +182,66 @@ public sealed class RootLayout
     };
 }
 
+/// <summary>Blend and channel write-mask settings applied to a single color attachment.</summary>
+public record struct ColorTargetBlendState
+{
+    /// <summary>The blend state applied to the color attachment.</summary>
+    public BlendState Blend;
+
+    /// <summary>The RGBA color write mask applied to the color attachment.</summary>
+    public byte WriteMask;
+
+    /// <summary>Initializes an opaque, all-channels-writable attachment state.</summary>
+    public ColorTargetBlendState()
+    {
+        Blend = BlendState.Opaque;
+        WriteMask = 0xf;
+    }
+}
+
+/// <summary>Inline fixed-capacity storage for per-attachment blend and write-mask overrides.</summary>
+[InlineArray((int)Backend.MaxColorAttachments)]
+public struct ColorTargetBlendArray : IEquatable<ColorTargetBlendArray>
+{
+    private ColorTargetBlendState _element0;
+
+    /// <inheritdoc />
+    public readonly bool Equals(ColorTargetBlendArray other)
+    {
+        for (int index = 0; index < (int)Backend.MaxColorAttachments; ++index)
+        {
+            if (this[index] != other[index])
+                return false;
+        }
+        return true;
+    }
+
+    /// <inheritdoc />
+    public override readonly bool Equals(object? obj) => obj is ColorTargetBlendArray other && Equals(other);
+
+    /// <inheritdoc />
+    public override readonly int GetHashCode()
+    {
+        HashCode hash = default;
+        for (int index = 0; index < (int)Backend.MaxColorAttachments; ++index)
+            hash.Add(this[index]);
+        return hash.ToHashCode();
+    }
+
+    /// <summary>Compares two inline attachment arrays element-by-element.</summary>
+    public static bool operator ==(ColorTargetBlendArray left, ColorTargetBlendArray right) => left.Equals(right);
+
+    /// <summary>Compares two inline attachment arrays for inequality.</summary>
+    public static bool operator !=(ColorTargetBlendArray left, ColorTargetBlendArray right) => !left.Equals(right);
+}
+
 /// <summary>The pipeline-defining state of a material: per-target blend, write mask, rasterization, and topology.</summary>
 public record struct PipelineState
 {
-    /// <summary>The blend state applied to every color target.</summary>
+    /// <summary>The blend state applied to every color target unless overridden per target.</summary>
     public BlendState Blend;
 
-    /// <summary>The color write mask applied to every color target.</summary>
+    /// <summary>The color write mask applied to every color target unless overridden per target.</summary>
     public byte WriteMask;
 
     /// <summary>The rasterizer configuration.</summary>
@@ -197,6 +250,12 @@ public record struct PipelineState
     /// <summary>The vertex assembly topology.</summary>
     public PrimitiveTopology Topology;
 
+    /// <summary>Bitmask of color attachment indices whose blend or write mask overrides the shared default.</summary>
+    public byte TargetOverrideMask;
+
+    /// <summary>Per-attachment blend and write-mask overrides indexed by color target slot.</summary>
+    public ColorTargetBlendArray TargetOverrides;
+
     /// <summary>Initializes a triangle-list state with disabled blending and all color channels writable.</summary>
     public PipelineState()
     {
@@ -204,14 +263,103 @@ public record struct PipelineState
         WriteMask = 0xf;
         Rasterization = new RasterizationState();
         Topology = PrimitiveTopology.TriangleList;
+        TargetOverrideMask = 0;
+        TargetOverrides = default;
+    }
+
+    /// <summary>Sets an independent blend state and write mask for color target <paramref name="index"/>.</summary>
+    /// <param name="index">The zero-based color attachment index.</param>
+    /// <param name="blend">The blend state for the target.</param>
+    /// <param name="writeMask">The RGBA channel write mask for the target.</param>
+    public void SetColorTarget(int index, BlendState blend, byte writeMask = 0xf)
+    {
+        if ((uint)index >= Backend.MaxColorAttachments)
+            throw new ArgumentOutOfRangeException(nameof(index), index, $"Color target index must be in [0, {Backend.MaxColorAttachments - 1}].");
+        TargetOverrideMask |= (byte)(1 << index);
+        TargetOverrides[index] = new ColorTargetBlendState { Blend = blend, WriteMask = writeMask };
+    }
+
+    /// <summary>Clears all per-target overrides so every target uses <see cref="Blend"/> and <see cref="WriteMask"/>.</summary>
+    public void ClearColorTargetOverrides()
+    {
+        TargetOverrideMask = 0;
+        TargetOverrides = default;
+    }
+
+    /// <summary>Resolves the effective blend state and write mask for color target <paramref name="index"/>.</summary>
+    /// <param name="index">The zero-based color attachment index.</param>
+    /// <returns>The overridden state if present; otherwise the shared <see cref="Blend"/> and <see cref="WriteMask"/>.</returns>
+    public readonly ColorTargetBlendState ResolveColorTarget(int index)
+    {
+        if ((uint)index >= Backend.MaxColorAttachments)
+            throw new ArgumentOutOfRangeException(nameof(index), index, $"Color target index must be in [0, {Backend.MaxColorAttachments - 1}].");
+        if ((TargetOverrideMask & (1 << index)) != 0)
+            return TargetOverrides[index];
+        return new ColorTargetBlendState { Blend = Blend, WriteMask = WriteMask };
+    }
+
+    /// <inheritdoc />
+    public readonly bool Equals(PipelineState other)
+    {
+        if (Blend != other.Blend || WriteMask != other.WriteMask ||
+            Rasterization != other.Rasterization || Topology != other.Topology ||
+            TargetOverrideMask != other.TargetOverrideMask)
+            return false;
+
+        byte mask = TargetOverrideMask;
+        while (mask != 0)
+        {
+            int index = BitOperations.TrailingZeroCount(mask);
+            if (TargetOverrides[index] != other.TargetOverrides[index])
+                return false;
+            mask &= (byte)(mask - 1);
+        }
+        return true;
+    }
+
+    /// <inheritdoc />
+    public override readonly int GetHashCode()
+    {
+        HashCode hash = default;
+        hash.Add(Blend);
+        hash.Add(WriteMask);
+        hash.Add(Rasterization);
+        hash.Add(Topology);
+        hash.Add(TargetOverrideMask);
+        byte mask = TargetOverrideMask;
+        while (mask != 0)
+        {
+            int index = BitOperations.TrailingZeroCount(mask);
+            hash.Add(TargetOverrides[index]);
+            mask &= (byte)(mask - 1);
+        }
+        return hash.ToHashCode();
     }
 
     internal readonly bool Matches(PipelineState state, ShaderKind kind)
     {
-        return Blend == state.Blend && WriteMask == state.WriteMask &&
-            Rasterization == state.Rasterization &&
-            (kind != ShaderKind.Graphics || Topology == state.Topology);
+        if (Blend != state.Blend || WriteMask != state.WriteMask ||
+            Rasterization != state.Rasterization ||
+            (kind == ShaderKind.Graphics && Topology != state.Topology) ||
+            TargetOverrideMask != state.TargetOverrideMask)
+            return false;
+
+        byte mask = TargetOverrideMask;
+        while (mask != 0)
+        {
+            int index = BitOperations.TrailingZeroCount(mask);
+            if (TargetOverrides[index] != state.TargetOverrides[index])
+                return false;
+            mask &= (byte)(mask - 1);
+        }
+        return true;
     }
+}
+
+[InlineArray((int)Backend.MaxColorAttachments)]
+internal struct TargetWordArray
+{
+    private ulong _element0;
 }
 
 internal readonly struct PipelineStateKey : IEquatable<PipelineStateKey>
@@ -219,18 +367,12 @@ internal readonly struct PipelineStateKey : IEquatable<PipelineStateKey>
     internal readonly ulong Word0;
     internal readonly ulong Word1;
     internal readonly ulong Word2;
+    internal readonly byte TargetOverrideMask;
+    internal readonly TargetWordArray TargetWords;
 
     internal PipelineStateKey(in PipelineState state, ShaderKind kind)
     {
-        ulong w0 = state.Blend.Enabled ? 1ul : 0ul;
-        w0 |= (ulong)(byte)state.Blend.Color.Source << 8;
-        w0 |= (ulong)(byte)state.Blend.Color.Destination << 16;
-        w0 |= (ulong)(byte)state.Blend.Color.Operation << 24;
-        w0 |= (ulong)(byte)state.Blend.Alpha.Source << 32;
-        w0 |= (ulong)(byte)state.Blend.Alpha.Destination << 40;
-        w0 |= (ulong)(byte)state.Blend.Alpha.Operation << 48;
-        w0 |= (ulong)state.WriteMask << 56;
-        Word0 = w0;
+        Word0 = PackTargetWord(state.Blend, state.WriteMask);
 
         byte topology = kind == ShaderKind.Graphics ? (byte)state.Topology : (byte)0;
         ulong w1 = topology;
@@ -242,14 +384,68 @@ internal readonly struct PipelineStateKey : IEquatable<PipelineStateKey>
         ulong w2 = CanonicalFloatBits(state.Rasterization.DepthBiasClamp);
         w2 |= (ulong)CanonicalFloatBits(state.Rasterization.DepthBiasSlope) << 32;
         Word2 = w2;
+
+        TargetOverrideMask = state.TargetOverrideMask;
+        TargetWordArray words = default;
+        byte mask = state.TargetOverrideMask;
+        while (mask != 0)
+        {
+            int index = BitOperations.TrailingZeroCount(mask);
+            ColorTargetBlendState target = state.TargetOverrides[index];
+            words[index] = PackTargetWord(target.Blend, target.WriteMask);
+            mask &= (byte)(mask - 1);
+        }
+        TargetWords = words;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool Equals(PipelineStateKey other) => Word0 == other.Word0 && Word1 == other.Word1 && Word2 == other.Word2;
+    private static ulong PackTargetWord(BlendState blend, byte writeMask)
+    {
+        ulong word = blend.Enabled ? 1ul : 0ul;
+        word |= (ulong)(byte)blend.Color.Source << 8;
+        word |= (ulong)(byte)blend.Color.Destination << 16;
+        word |= (ulong)(byte)blend.Color.Operation << 24;
+        word |= (ulong)(byte)blend.Alpha.Source << 32;
+        word |= (ulong)(byte)blend.Alpha.Destination << 40;
+        word |= (ulong)(byte)blend.Alpha.Operation << 48;
+        word |= (ulong)writeMask << 56;
+        return word;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public bool Equals(PipelineStateKey other)
+    {
+        if (Word0 != other.Word0 || Word1 != other.Word1 || Word2 != other.Word2 || TargetOverrideMask != other.TargetOverrideMask)
+            return false;
+        byte mask = TargetOverrideMask;
+        while (mask != 0)
+        {
+            int index = BitOperations.TrailingZeroCount(mask);
+            if (TargetWords[index] != other.TargetWords[index])
+                return false;
+            mask &= (byte)(mask - 1);
+        }
+        return true;
+    }
 
     public override bool Equals(object? obj) => obj is PipelineStateKey other && Equals(other);
 
-    public override int GetHashCode() => HashCode.Combine(Word0, Word1, Word2);
+    public override int GetHashCode()
+    {
+        HashCode hash = default;
+        hash.Add(Word0);
+        hash.Add(Word1);
+        hash.Add(Word2);
+        hash.Add(TargetOverrideMask);
+        byte mask = TargetOverrideMask;
+        while (mask != 0)
+        {
+            int index = BitOperations.TrailingZeroCount(mask);
+            hash.Add(TargetWords[index]);
+            mask &= (byte)(mask - 1);
+        }
+        return hash.ToHashCode();
+    }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static uint CanonicalFloatBits(float value)
@@ -512,11 +708,12 @@ internal sealed class ShaderVariant
         Span<ColorTargetDesc> targets = targetStorage[..colorCount];
         for (int index = 0; index < colorCount; ++index)
         {
+            ColorTargetBlendState resolved = state.ResolveColorTarget(index);
             targets[index] = new ColorTargetDesc
             {
                 Format = pass.GetColorFormat(index),
-                Blend = state.Blend,
-                WriteMask = state.WriteMask,
+                Blend = resolved.Blend,
+                WriteMask = resolved.WriteMask,
             };
         }
 
@@ -552,6 +749,17 @@ internal sealed class ShaderVariant
         hash = BitOperations.RotateLeft(hash ^ stateKey.Word0, 17) * 0xBF58476D1CE4E5B9ul;
         hash = BitOperations.RotateLeft(hash ^ stateKey.Word1, 23) * 0x94D049BB133111EBul;
         hash ^= stateKey.Word2;
+        if (stateKey.TargetOverrideMask != 0)
+        {
+            hash = BitOperations.RotateLeft(hash ^ stateKey.TargetOverrideMask, 13) * 0xBF58476D1CE4E5B9ul;
+            byte mask = stateKey.TargetOverrideMask;
+            while (mask != 0)
+            {
+                int index = BitOperations.TrailingZeroCount(mask);
+                hash = BitOperations.RotateLeft(hash ^ stateKey.TargetWords[index], 19) * 0x94D049BB133111EBul;
+                mask &= (byte)(mask - 1);
+            }
+        }
         hash ^= hash >> 30;
         hash *= 0xBF58476D1CE4E5B9ul;
         hash ^= hash >> 27;

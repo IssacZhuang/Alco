@@ -346,6 +346,23 @@ public sealed class AlcoGraphicsNoGpuTests
                 Assert.That(point.Semaphore?.CompletedValue, Is.GreaterThanOrEqualTo(point.Value));
                 gfxMat.WriteMask = 0x7;
                 gfxMat.WarmUpPipeline([Format.Rgba8Unorm]).GetAwaiter().GetResult();
+
+                ReadOnlySpan<Format> mrtFormats =
+                [
+                    Format.Rgba16Float,
+                    Format.Rgba16Float,
+                    Format.Rgba16Float,
+                    Format.R16Float,
+                    Format.R32Uint,
+                ];
+                gfxMat.SetSingleColorTarget(BlendState.AlphaBlend);
+                GPUPipeline mrtBase = gfxMat.GetPipeline(mrtFormats, Format.D32Float);
+                MaterialInstance mrtChild = gfxMat.CreateInstance();
+                Assert.That(mrtChild.GetPipeline(mrtFormats, Format.D32Float), Is.SameAs(mrtBase));
+                gfxMat.SetColorTarget(2, BlendState.Opaque, 0xf);
+                Assert.That(gfxMat.GetPipeline(mrtFormats, Format.D32Float), Is.Not.SameAs(mrtBase));
+                gfxMat.ClearColorTargetOverrides();
+                gfxMat.WriteMask = 0xf;
             }
             finally
             {

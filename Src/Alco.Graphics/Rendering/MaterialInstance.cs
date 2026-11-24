@@ -17,13 +17,7 @@ public sealed class MaterialInstance : Material
     {
         _parent = parent;
         if (Shader.Kind != ShaderKind.Compute)
-        {
-            Blend = parent.Blend;
-            WriteMask = parent.WriteMask;
-            Rasterization = parent.Rasterization;
-            Topology = parent.Topology;
-            DepthStencilState = parent.DepthStencilState;
-        }
+            CopyPipelineStateFrom(parent);
     }
 
     /// <summary>The material this instance resolves unset root fields from.</summary>

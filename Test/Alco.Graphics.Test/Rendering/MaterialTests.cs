@@ -2749,6 +2749,31 @@ internal static class MaterialTests
         long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
         check(reused, "alternating pass formats and attachment counts reuse their cached pipelines");
         check(allocated == 0, $"warmed alternating material pipeline queries allocate zero managed bytes (actual={allocated})");
+
+        ReadOnlySpan<Format> gbufferFormats =
+        [
+            Format.Rgba16Float,
+            Format.Rgba16Float,
+            Format.Rgba16Float,
+            Format.R16Float,
+            Format.R32Uint,
+        ];
+        material.SetSingleColorTarget(BlendState.AlphaBlend);
+        GPUPipeline singleSlotPipeline = material.GetPipeline(gbufferFormats, Format.D32Float);
+        MaterialInstance inheritedMrt = material.CreateInstance();
+        check(inheritedMrt.GetPipeline(gbufferFormats, Format.D32Float) == singleSlotPipeline,
+            "material instances inherit per-target MRT blend and write-mask overrides");
+
+        material.SetColorTarget(1, BlendState.Additive, 0x7);
+        GPUPipeline twoSlotPipeline = material.GetPipeline(gbufferFormats, Format.D32Float);
+        check(twoSlotPipeline != singleSlotPipeline,
+            "adding an independent per-target override creates a distinct pipeline");
+
+        material.ClearColorTargetOverrides();
+        material.Blend = blend;
+        material.WriteMask = writeMask;
+        check(material.GetPipeline(colorFormats, Format.D32Float) == original,
+            "clearing per-target overrides restores the original shared pipeline");
     }
 
     private static void CheckVariantLayoutsAndCaching(RenderingSystem system, Buffer buffer, Buffer overrideBuffer, Texture texture,

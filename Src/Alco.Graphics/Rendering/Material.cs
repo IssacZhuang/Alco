@@ -113,6 +113,48 @@ public class Material
         }
     }
 
+    /// <summary>Overrides the blend state and write mask for a single color target without modifying other targets.</summary>
+    /// <param name="targetIndex">The zero-based color attachment index.</param>
+    /// <param name="blend">The blend state applied to <paramref name="targetIndex"/>.</param>
+    /// <param name="writeMask">The RGBA channel write mask applied to <paramref name="targetIndex"/>.</param>
+    public void SetColorTarget(int targetIndex, BlendState blend, byte writeMask = 0xf)
+    {
+        Debug.Assert(_shader.Kind != ShaderKind.Compute);
+        _state.SetColorTarget(targetIndex, blend, writeMask);
+        _stateKey = new PipelineStateKey(in _state, _shader.Kind);
+        ++_version;
+    }
+
+    /// <summary>Configures the material to write and blend only color target 0, masking off all higher MRT targets.</summary>
+    /// <param name="blend">The blend state applied to color target 0.</param>
+    /// <param name="writeMask">The RGBA channel write mask applied to color target 0.</param>
+    public void SetSingleColorTarget(BlendState blend, byte writeMask = 0xf)
+    {
+        Debug.Assert(_shader.Kind != ShaderKind.Compute);
+        _state.Blend = BlendState.Opaque;
+        _state.WriteMask = 0;
+        _state.ClearColorTargetOverrides();
+        _state.SetColorTarget(0, blend, writeMask);
+        _stateKey = new PipelineStateKey(in _state, _shader.Kind);
+        ++_version;
+    }
+
+    /// <summary>Clears all per-target blend and write-mask overrides so every target uses <see cref="Blend"/> and <see cref="WriteMask"/>.</summary>
+    public void ClearColorTargetOverrides()
+    {
+        Debug.Assert(_shader.Kind != ShaderKind.Compute);
+        _state.ClearColorTargetOverrides();
+        _stateKey = new PipelineStateKey(in _state, _shader.Kind);
+        ++_version;
+    }
+
+    internal void CopyPipelineStateFrom(Material source)
+    {
+        _state = source._state;
+        _stateKey = source._stateKey;
+        _depthStencil = source._depthStencil;
+    }
+
     /// <summary>Selects a shader specialization, preserving compatible root fields by name and overriding inheritance for instances.</summary>
     /// <param name="specializations">Boolean, integer, enum, or Slang expression string specialization arguments.</param>
     public void SetSpecializations(params ReadOnlySpan<object> specializations)
