@@ -140,6 +140,16 @@ public struct SpriteScenePassHeader
     public Vector2 OriginOffset;
 }
 
+/// <summary>Per-bucket draw ordering mode applied to visible slots after GPU culling.</summary>
+public enum SpriteSceneSortMode : uint
+{
+    /// <summary>No post-cull sorting; visible slots remain in parallel compaction order.</summary>
+    None = 0u,
+
+    /// <summary>Sorts visible slots back-to-front by descending <see cref="SpriteSceneInstance.Depth"/> and ascending slot index.</summary>
+    BackToFront = 1u,
+}
+
 /// <summary>Registration descriptor for one draw bucket inside <see cref="SpriteScene2D"/>.</summary>
 /// <param name="Tier">Caller-defined render tier key queried by <see cref="SpriteScene2D.RenderTier"/>.</param>
 /// <param name="Material">Graphics material compiled from <c>SpriteScenePass</c> (or compatible root layout).</param>
@@ -148,6 +158,7 @@ public struct SpriteScenePassHeader
 /// <param name="LocalExtentScale">Conservative local bounding extent multiplier used for rotated AABB culling (defaults to 0.5).</param>
 /// <param name="BucketTag">Opaque caller-defined identifier forwarded to custom <c>ISpriteSceneSurface</c> shaders.</param>
 /// <param name="MaterialParamsBuffer">Optional shared parameter table indexed by <see cref="SpriteSceneInstance.MaterialParamId"/>.</param>
+/// <param name="SortMode">Optional post-cull GPU ordering mode for this bucket.</param>
 public readonly record struct SpriteSceneBucketDesc(
     int Tier,
     Material Material,
@@ -155,7 +166,8 @@ public readonly record struct SpriteSceneBucketDesc(
     uint VertexCount = 6u,
     float LocalExtentScale = 0.5f,
     uint BucketTag = 0u,
-    Alco.Graphics.Buffer? MaterialParamsBuffer = null);
+    Alco.Graphics.Buffer? MaterialParamsBuffer = null,
+    SpriteSceneSortMode SortMode = SpriteSceneSortMode.None);
 
 /// <summary>Per-frame telemetry reported by <see cref="SpriteScene2D.Stats"/>.</summary>
 /// <param name="TotalSlots">High-water slot count allocated in the pool.</param>

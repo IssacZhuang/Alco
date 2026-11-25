@@ -36,6 +36,15 @@ public static class AlcoSprite2DShaders
     /// <summary>Compute shader module that culls and compacts visible slots per bucket.</summary>
     public const string SpriteSceneCullModule = "SpriteSceneCull";
 
+    /// <summary>Compute shader module that prepares indirect workgroup counts for visible-slot sorting.</summary>
+    public const string SpriteSceneSortPrepareModule = "SpriteSceneSortPrepare";
+
+    /// <summary>Compute shader module that performs workgroup-local bitonic sort and disperse steps.</summary>
+    public const string SpriteSceneSortLocalModule = "SpriteSceneSortLocal";
+
+    /// <summary>Compute shader module that performs global bitonic merge flip and disperse steps.</summary>
+    public const string SpriteSceneSortGlobalModule = "SpriteSceneSortGlobal";
+
     /// <summary>Built-in standard textured sprite scene surface module.</summary>
     public const string SpriteSceneSurfaceStandardModule = "SpriteSceneSurfaceStandard";
 
@@ -49,6 +58,9 @@ public static class AlcoSprite2DShaders
         SpriteSceneSurfaceContractModule,
         SpriteSceneResetArgsModule,
         SpriteSceneCullModule,
+        SpriteSceneSortPrepareModule,
+        SpriteSceneSortLocalModule,
+        SpriteSceneSortGlobalModule,
         SpriteScenePassTemplateModule,
         SpriteSceneSurfaceStandardModule,
     ];

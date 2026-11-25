@@ -49,6 +49,40 @@ public unsafe class TestSpriteScene2D
         public Vector2 OriginOffset;
     }
 
+    [StructLayout(LayoutKind.Sequential)]
+    private struct ExpectedSpriteSceneSortPrepareRoot
+    {
+        public GPUBufferView DrawArgs;
+        public GPUBufferView SortArgs;
+        public uint BucketCount;
+        public uint Pad0;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct ExpectedSpriteSceneSortLocalRoot
+    {
+        public GPUBufferView Pool;
+        public GPUBufferView DrawArgs;
+        public GPUBufferView VisibleSlots;
+        public GPUBufferView VisibleKeys;
+        public uint BucketId;
+        public uint VisibleBase;
+        public uint Mode;
+        public uint Pad0;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct ExpectedSpriteSceneSortGlobalRoot
+    {
+        public GPUBufferView DrawArgs;
+        public GPUBufferView VisibleSlots;
+        public GPUBufferView VisibleKeys;
+        public uint BucketId;
+        public uint VisibleBase;
+        public uint HalfSpanShift;
+        public uint Mode;
+    }
+
     private const string CustomSurfaceModule = "TestCustomSpriteSceneSurface";
 
     private const string CustomSurfaceSource = """
@@ -178,12 +212,33 @@ public unsafe class TestSpriteScene2D
             AlcoSprite2DShaders.LoadEmbeddedSource("SpriteSceneCull.slang"),
             ShaderPipelineKind.Compute);
 
+        CompiledShader sortPrepare = compiler.CompileSource(
+            AlcoSprite2DShaders.SpriteSceneSortPrepareModule,
+            AlcoSprite2DShaders.SpriteSceneSortPrepareModule + ".slang",
+            AlcoSprite2DShaders.LoadEmbeddedSource("SpriteSceneSortPrepare.slang"),
+            ShaderPipelineKind.Compute);
+
+        CompiledShader sortLocal = compiler.CompileSource(
+            AlcoSprite2DShaders.SpriteSceneSortLocalModule,
+            AlcoSprite2DShaders.SpriteSceneSortLocalModule + ".slang",
+            AlcoSprite2DShaders.LoadEmbeddedSource("SpriteSceneSortLocal.slang"),
+            ShaderPipelineKind.Compute);
+
+        CompiledShader sortGlobal = compiler.CompileSource(
+            AlcoSprite2DShaders.SpriteSceneSortGlobalModule,
+            AlcoSprite2DShaders.SpriteSceneSortGlobalModule + ".slang",
+            AlcoSprite2DShaders.LoadEmbeddedSource("SpriteSceneSortGlobal.slang"),
+            ShaderPipelineKind.Compute);
+
         Assert.Multiple(() =>
         {
             Assert.That(scatter.Reflection.MatchesStructLayout<ExpectedInstanceScatterRoot>("InstanceScatterRoot"), Is.True);
             Assert.That(resetArgs.Reflection.MatchesStructLayout<ExpectedSpriteSceneResetArgsRoot>("SpriteSceneResetArgsRoot"), Is.True);
             Assert.That(cull.Reflection.MatchesStructLayout<ExpectedSpriteSceneCullRoot>("SpriteSceneCullRoot"), Is.True);
             Assert.That(cull.Reflection.Root?.Find("CullMargin")?.OffsetBytes, Is.EqualTo(64u));
+            Assert.That(sortPrepare.Reflection.MatchesStructLayout<ExpectedSpriteSceneSortPrepareRoot>("SpriteSceneSortPrepareRoot"), Is.True);
+            Assert.That(sortLocal.Reflection.MatchesStructLayout<ExpectedSpriteSceneSortLocalRoot>("SpriteSceneSortLocalRoot"), Is.True);
+            Assert.That(sortGlobal.Reflection.MatchesStructLayout<ExpectedSpriteSceneSortGlobalRoot>("SpriteSceneSortGlobalRoot"), Is.True);
         });
 
         (string Surface, uint ExpectedMinTailBytes)[] surfaces =
@@ -860,6 +915,215 @@ public unsafe class TestSpriteScene2D
                 if (!depthTarget.IsDisposed) depthTarget.Dispose();
                 if (!texRed.IsDisposed) texRed.Dispose();
                 if (!texGreen.IsDisposed) texGreen.Dispose();
+            }
+        }
+    }
+
+    /// <summary>Verifies deterministic back-to-front GPU sorting across single-workgroup and large non-power-of-two merge levels.</summary>
+    [TestCase(GraphicsBackend.VulkanCompact)]
+    [TestCase(GraphicsBackend.Vulkan)]
+    [TestCase(GraphicsBackend.Dx12)]
+    public void SpriteScene2D_BackToFrontSort_MultiLayerAlphaAndLargeNonPow2(GraphicsBackend backend)
+    {
+        if (!TryCreateGpuHost(backend, out RenderingTestHost? host))
+        {
+            return;
+        }
+
+        using (host!)
+        {
+            RenderingSystem rendering = host.RenderingSystem;
+            const int width = 128;
+            const int height = 128;
+
+            Texture colorTarget = CreateColorTarget(rendering, width, height);
+            Texture depthTarget = CreateDepthTarget(rendering, width, height);
+            Texture texRedAlpha = CreateRgbaTexture(rendering, 2, 2, (255, 0, 0, 128));
+            Texture texGreenAlpha = CreateRgbaTexture(rendering, 2, 2, (0, 255, 0, 128));
+            Texture texBlueAlpha = CreateRgbaTexture(rendering, 2, 2, (0, 0, 255, 128));
+            Texture texWhite = CreateRgbaTexture(rendering, 2, 2, (255, 255, 255, 255));
+
+            Shader stdShader = AlcoSprite2DShaders.ComposeSpriteSceneSurface(
+                rendering.Shaders, AlcoSprite2DShaders.SpriteSceneSurfaceStandardModule, "TestSortStd");
+            Material alphaMat = stdShader.CreateMaterial("TestSortAlphaMat", false);
+            alphaMat.Blend = BlendState.AlphaBlend;
+
+            using var scene = new SpriteScene2D(rendering);
+            var context = new RenderContext(rendering);
+            var camera = new Camera2D { Size = new Vector2(width, height), Near = -100f, Far = 100f };
+            var passSig = new RenderPassSignature([Format.Rgba8Unorm], Format.D32Float);
+
+            try
+            {
+                uint bucketSingleWg = scene.RegisterBucket(new SpriteSceneBucketDesc(
+                    0, alphaMat, DepthStencilState.Read, SortMode: SpriteSceneSortMode.BackToFront));
+                uint bucketMerge1500 = scene.RegisterBucket(new SpriteSceneBucketDesc(
+                    0, alphaMat, DepthStencilState.Read, SortMode: SpriteSceneSortMode.BackToFront));
+                uint bucketMerge2500 = scene.RegisterBucket(new SpriteSceneBucketDesc(
+                    0, alphaMat, DepthStencilState.Read, SortMode: SpriteSceneSortMode.BackToFront));
+
+                uint flags = SpriteSceneInstance.PackFlags(SpriteSceneSamplerMode.NearestClamp);
+
+                // Scramble LIFO _freeSlots first, then free in descending order so subsequent AddDirect calls allocate increasing slots.
+                List<int> dummySlots = new(400);
+                for (int i = 0; i < 400; ++i)
+                {
+                    dummySlots.Add(scene.AddDirect(
+                        bucketSingleWg,
+                        MakeQuad(new Vector2(300f, 300f), Vector2.One, 0f, texWhite, flags),
+                        texWhite));
+                }
+                for (int i = dummySlots.Count - 1; i >= 0; --i)
+                {
+                    scene.RemoveDirect(dummySlots[i]);
+                }
+
+                // Zone 1 (N <= 1024): 3 overlapping Filth-depth quads inserted in reverse draw order across spread slots + same-depth tie-breaker.
+                int tieLowSlot = scene.AddDirect(
+                    bucketSingleWg,
+                    MakeQuad(new Vector2(-40f, 24f), new Vector2(12f, 12f), -0.0022f, texRedAlpha, flags),
+                    texRedAlpha);
+                _ = scene.AddDirect(
+                    bucketSingleWg,
+                    MakeQuad(new Vector2(-40f, 0f), new Vector2(12f, 12f), -0.0022f, texBlueAlpha, flags),
+                    texBlueAlpha);
+
+                for (int i = 0; i < 200; ++i)
+                {
+                    Vector2 fillerPos = new(-58f + (i % 60) * 1.9f, -56f + (i / 60) * 4f);
+                    _ = scene.AddDirect(
+                        bucketSingleWg,
+                        MakeQuad(fillerPos, new Vector2(0.5f, 0.5f), -0.001f, texWhite, flags),
+                        texWhite);
+                }
+
+                _ = scene.AddDirect(
+                    bucketSingleWg,
+                    MakeQuad(new Vector2(-40f, 0f), new Vector2(12f, 12f), -0.0021f, texGreenAlpha, flags),
+                    texGreenAlpha);
+
+                for (int i = 200; i < 400; ++i)
+                {
+                    Vector2 fillerPos = new(-58f + (i % 60) * 1.9f, -56f + (i / 60) * 4f);
+                    _ = scene.AddDirect(
+                        bucketSingleWg,
+                        MakeQuad(fillerPos, new Vector2(0.5f, 0.5f), -0.001f, texWhite, flags),
+                        texWhite);
+                }
+
+                _ = scene.AddDirect(
+                    bucketSingleWg,
+                    MakeQuad(new Vector2(-40f, 0f), new Vector2(12f, 12f), -0.0020f, texRedAlpha, flags),
+                    texRedAlpha);
+                int tieHighSlot = scene.AddDirect(
+                    bucketSingleWg,
+                    MakeQuad(new Vector2(-40f, 24f), new Vector2(12f, 12f), -0.0022f, texBlueAlpha, flags),
+                    texBlueAlpha);
+                Assert.That(tieHighSlot - tieLowSlot, Is.GreaterThan(256));
+
+                // Zone 2 (N = 1500 visible + 500 culled, exercises merge level 0 + LocalDisperse).
+                for (int i = 0; i < 1500; ++i)
+                {
+                    SpriteSceneInstance inst = i switch
+                    {
+                        10 => MakeQuad(new Vector2(0f, 0f), new Vector2(12f, 12f), -0.0022f, texBlueAlpha, flags),
+                        700 => MakeQuad(new Vector2(0f, 0f), new Vector2(12f, 12f), -0.0021f, texGreenAlpha, flags),
+                        1400 => MakeQuad(new Vector2(0f, 0f), new Vector2(12f, 12f), -0.0020f, texRedAlpha, flags),
+                        _ => MakeQuad(new Vector2(-58f + (i % 100) * 1.15f, -56f + (i / 100) * 2.4f), new Vector2(0.5f, 0.5f), -0.001f, texWhite, flags),
+                    };
+                    Texture tex = i switch
+                    {
+                        10 => texBlueAlpha,
+                        700 => texGreenAlpha,
+                        1400 => texRedAlpha,
+                        _ => texWhite,
+                    };
+                    _ = scene.AddDirect(bucketMerge1500, in inst, tex);
+                }
+                for (int i = 0; i < 500; ++i)
+                {
+                    _ = scene.AddDirect(
+                        bucketMerge1500,
+                        MakeQuad(new Vector2(300f + (i & 31), 300f + (i >> 5)), Vector2.One, -0.003f, texRedAlpha, flags),
+                        texRedAlpha);
+                }
+
+                // Zone 3 (N = 2500 visible across 3 local blocks, exercises merge level 1 BigFlip + BigDisperse + LocalDisperse).
+                for (int i = 0; i < 2500; ++i)
+                {
+                    SpriteSceneInstance inst = i switch
+                    {
+                        15 => MakeQuad(new Vector2(40f, 0f), new Vector2(12f, 12f), -0.0022f, texBlueAlpha, flags),
+                        1500 => MakeQuad(new Vector2(40f, 0f), new Vector2(12f, 12f), -0.0021f, texGreenAlpha, flags),
+                        2450 => MakeQuad(new Vector2(40f, 0f), new Vector2(12f, 12f), -0.0020f, texRedAlpha, flags),
+                        _ => MakeQuad(new Vector2(-58f + (i % 120) * 0.96f, -56f + (i / 120) * 1.7f), new Vector2(0.5f, 0.5f), -0.001f, texWhite, flags),
+                    };
+                    Texture tex = i switch
+                    {
+                        15 => texBlueAlpha,
+                        1500 => texGreenAlpha,
+                        2450 => texRedAlpha,
+                        _ => texWhite,
+                    };
+                    _ = scene.AddDirect(bucketMerge2500, in inst, tex);
+                }
+
+                var passDesc = new RenderingDesc
+                {
+                    Colors = [new ColorAttachment { Target = colorTarget, Load = LoadOp.Clear, Store = StoreOp.Store, Clear = new Vector4(0f, 0f, 0f, 1f) }],
+                    Depth = new DepthAttachment { Target = depthTarget, Load = LoadOp.Clear, Store = StoreOp.Store, Clear = 1f },
+                };
+
+                byte[]? baselinePixels = null;
+                for (int frame = 0; frame < 5; ++frame)
+                {
+                    context.BeginFrame();
+                    scene.PrepareAndCull(context, camera.GetViewport(), cullMargin: 0f);
+                    int drawCalls;
+                    using (RenderContext.RenderScope render = context.BeginRenderPass(passDesc, passSig))
+                    {
+                        render.SetViewport(new Viewport { Width = width, Height = height });
+                        render.SetScissor(new Scissor { Width = width, Height = height });
+                        drawCalls = scene.RenderTier(context, in render, tier: 0, camera);
+                    }
+
+                    GpuDrawIndirectArgs[] args = ReadBackDrawArgsAndSubmit(host.Device, context, scene.DrawArgsBuffer, 3);
+                    byte[] pixels = ReadBackRgba8FreshFrame(host.Device, rendering, colorTarget, width, height);
+
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(drawCalls, Is.EqualTo(3));
+                        Assert.That(args[0].InstanceCount, Is.EqualTo(405u));
+                        Assert.That(args[1].InstanceCount, Is.EqualTo(1500u));
+                        Assert.That(args[2].InstanceCount, Is.EqualTo(2500u));
+
+                        // Back-to-front blend over black with alpha=128/255: Red -> Green -> Blue = (32, 64, 128).
+                        AssertPixel(pixels, width, height, -40f, 0f, 32, 64, 128, 255, 4, $"Frame {frame} SingleWG depth sort");
+                        // Equal depth tie-breaker (lower slot Red -> higher slot Blue) = (64, 0, 128).
+                        AssertPixel(pixels, width, height, -40f, 24f, 64, 0, 128, 255, 4, $"Frame {frame} Equal-depth slot tie-break");
+                        AssertPixel(pixels, width, height, 0f, 0f, 32, 64, 128, 255, 4, $"Frame {frame} Merge 1500 non-pow2");
+                        AssertPixel(pixels, width, height, 40f, 0f, 32, 64, 128, 255, 4, $"Frame {frame} Merge 2500 non-pow2");
+
+                        if (baselinePixels == null)
+                        {
+                            baselinePixels = pixels;
+                        }
+                        else
+                        {
+                            Assert.That(pixels, Is.EqualTo(baselinePixels), $"Frame {frame} output must be byte-identical to Frame 0");
+                        }
+                    });
+                }
+            }
+            finally
+            {
+                context.Dispose();
+                if (!colorTarget.IsDisposed) colorTarget.Dispose();
+                if (!depthTarget.IsDisposed) depthTarget.Dispose();
+                if (!texRedAlpha.IsDisposed) texRedAlpha.Dispose();
+                if (!texGreenAlpha.IsDisposed) texGreenAlpha.Dispose();
+                if (!texBlueAlpha.IsDisposed) texBlueAlpha.Dispose();
+                if (!texWhite.IsDisposed) texWhite.Dispose();
             }
         }
     }

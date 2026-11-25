@@ -37,6 +37,12 @@ public sealed class CanvasRenderGraphNode : RenderGraphNode
     /// <summary>The canvas driven by this node.</summary>
     public Canvas Canvas => _canvas;
 
+    /// <summary>Optional callback invoked immediately before the canvas prepares and draws.</summary>
+    public Action? BeforeExecute { get; set; }
+
+    /// <summary>Optional callback invoked immediately after the canvas finishes preparing and drawing.</summary>
+    public Action? AfterExecute { get; set; }
+
     /// <inheritdoc/>
     protected override void SetupPass(RenderGraphBuilder builder, RenderGraphPassBuilder pass)
     {
@@ -58,12 +64,20 @@ public sealed class CanvasRenderGraphNode : RenderGraphNode
     /// <inheritdoc/>
     protected override void ExecutePass(in RenderGraphContext context)
     {
-        _canvas.PrepareRender(context.DeltaTime);
-        _canvas.Draw(
-            context.RenderContext,
-            context.GetRenderTarget(_colorTarget),
-            context.GetRenderTarget(_stencilTarget),
-            _colorLoadOp,
-            _clearColor);
+        BeforeExecute?.Invoke();
+        try
+        {
+            _canvas.PrepareRender(context.DeltaTime);
+            _canvas.Draw(
+                context.RenderContext,
+                context.GetRenderTarget(_colorTarget),
+                context.GetRenderTarget(_stencilTarget),
+                _colorLoadOp,
+                _clearColor);
+        }
+        finally
+        {
+            AfterExecute?.Invoke();
+        }
     }
 }

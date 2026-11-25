@@ -11,6 +11,16 @@ namespace Alco.Rendering;
 public sealed unsafe class SpriteScene2D : AutoDisposable
 {
     private const int InitialBucketCapacity = 64;
+    private const int SortBlockShift = 10;
+    private const int SortBlockSize = 1 << SortBlockShift;
+    private const int SortMaxMergeLevels = 16;
+    private const int SortArgsStride = 1 + 2 * SortMaxMergeLevels;
+    private const ulong SortArgsEntryBytes = 16ul;
+    private const ulong SortIndirectSliceBytes = 12ul;
+    private const uint SortLocalModeSort = 0u;
+    private const uint SortLocalModeDisperse = 1u;
+    private const uint SortGlobalModeFlip = 0u;
+    private const uint SortGlobalModeDisperse = 1u;
 
     private sealed class BucketState
     {
@@ -19,6 +29,7 @@ public sealed unsafe class SpriteScene2D : AutoDisposable
         public required uint VertexCount;
         public required float LocalExtentScale;
         public required uint BucketTag;
+        public required SpriteSceneSortMode SortMode;
         public uint VisibleBase;
     }
 
@@ -57,14 +68,53 @@ public sealed unsafe class SpriteScene2D : AutoDisposable
         public Vector2 OriginOffset;
     }
 
+    [StructLayout(LayoutKind.Sequential)]
+    private struct SpriteSceneSortPrepareRoot
+    {
+        public GPUBufferView DrawArgs;
+        public GPUBufferView SortArgs;
+        public uint BucketCount;
+        public uint Pad0;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct SpriteSceneSortLocalRoot
+    {
+        public GPUBufferView Pool;
+        public GPUBufferView DrawArgs;
+        public GPUBufferView VisibleSlots;
+        public GPUBufferView VisibleKeys;
+        public uint BucketId;
+        public uint VisibleBase;
+        public uint Mode;
+        public uint Pad0;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct SpriteSceneSortGlobalRoot
+    {
+        public GPUBufferView DrawArgs;
+        public GPUBufferView VisibleSlots;
+        public GPUBufferView VisibleKeys;
+        public uint BucketId;
+        public uint VisibleBase;
+        public uint HalfSpanShift;
+        public uint Mode;
+    }
+
     private readonly RenderingSystem _system;
     private readonly GpuInstancePool<SpriteSceneInstance> _pool;
     private readonly TransientBufferPool _transientBuffers;
     private readonly Shader _scatterShader;
     private readonly Shader _resetArgsShader;
     private readonly Shader _cullShader;
+    private readonly Shader _sortPrepareShader;
+    private readonly Shader _sortLocalShader;
+    private readonly Shader _sortGlobalShader;
 
     private readonly List<BucketState> _buckets = new();
+    private readonly List<BucketState> _sortedBuckets = new();
+    private readonly List<BucketState> _activeSortBuckets = new();
     private readonly Dictionary<int, List<BucketState>> _tiers = new();
     private SpriteSceneBucketMeta[] _bucketMetaStaging = new SpriteSceneBucketMeta[InitialBucketCapacity];
     private uint[] _bucketSlotIndices = BuildSequentialIndices(InitialBucketCapacity);
@@ -73,6 +123,8 @@ public sealed unsafe class SpriteScene2D : AutoDisposable
     private Alco.Graphics.Buffer _drawArgsBuffer;
     private int _bucketCapacity = InitialBucketCapacity;
     private Alco.Graphics.Buffer _visibleSlotsBuffer;
+    private Alco.Graphics.Buffer? _visibleKeysBuffer;
+    private Alco.Graphics.Buffer? _sortArgsBuffer;
     private int _visibleSlotsCapacity;
     private bool _bucketsDirty = true;
     private int _drawCallsSubmitted;
@@ -92,6 +144,9 @@ public sealed unsafe class SpriteScene2D : AutoDisposable
         _scatterShader = resolvedShaders.GetShader(AlcoSprite2DShaders.GpuInstanceScatterModule, ShaderKind.Compute);
         _resetArgsShader = resolvedShaders.GetShader(AlcoSprite2DShaders.SpriteSceneResetArgsModule, ShaderKind.Compute);
         _cullShader = resolvedShaders.GetShader(AlcoSprite2DShaders.SpriteSceneCullModule, ShaderKind.Compute);
+        _sortPrepareShader = resolvedShaders.GetShader(AlcoSprite2DShaders.SpriteSceneSortPrepareModule, ShaderKind.Compute);
+        _sortLocalShader = resolvedShaders.GetShader(AlcoSprite2DShaders.SpriteSceneSortLocalModule, ShaderKind.Compute);
+        _sortGlobalShader = resolvedShaders.GetShader(AlcoSprite2DShaders.SpriteSceneSortGlobalModule, ShaderKind.Compute);
 
         VerifyLayouts();
 
@@ -176,8 +231,15 @@ public sealed unsafe class SpriteScene2D : AutoDisposable
             VertexCount = desc.VertexCount,
             LocalExtentScale = desc.LocalExtentScale,
             BucketTag = desc.BucketTag,
+            SortMode = desc.SortMode,
         };
         _buckets.Add(state);
+        if (desc.SortMode != SpriteSceneSortMode.None)
+        {
+            _sortedBuckets.Add(state);
+            _visibleKeysBuffer ??= _system.CreateBuffer((ulong)_visibleSlotsCapacity * sizeof(uint));
+            _sortArgsBuffer ??= _system.CreateBuffer((ulong)_bucketCapacity * SortArgsStride * SortArgsEntryBytes);
+        }
 
         if (!_tiers.TryGetValue(desc.Tier, out List<BucketState>? tierList))
         {
@@ -333,6 +395,7 @@ public sealed unsafe class SpriteScene2D : AutoDisposable
                     OriginOffset = originOffset,
                 };
                 compute.Dispatch(_cullShader, in cullRoot, new Extent3D((uint)((_pool.TotalSlots + 63) / 64), 1u, 1u));
+                DispatchSortedBuckets(in compute);
             }
         }
 
@@ -461,6 +524,189 @@ public sealed unsafe class SpriteScene2D : AutoDisposable
         {
             _visibleSlotsBuffer.Dispose();
         }
+
+        if (_visibleKeysBuffer != null && !_visibleKeysBuffer.IsDisposed)
+        {
+            _visibleKeysBuffer.Dispose();
+        }
+
+        if (_sortArgsBuffer != null && !_sortArgsBuffer.IsDisposed)
+        {
+            _sortArgsBuffer.Dispose();
+        }
+    }
+
+    private void DispatchSortedBuckets(in RenderContext.ComputeScope compute)
+    {
+        if (_sortedBuckets.Count == 0)
+        {
+            return;
+        }
+
+        _activeSortBuckets.Clear();
+        int maxLiveCount = 0;
+        for (int i = 0; i < _sortedBuckets.Count; ++i)
+        {
+            BucketState bucket = _sortedBuckets[i];
+            int liveCount = _pool.GetBucketCount(bucket.Id);
+            if (liveCount > 1)
+            {
+                _activeSortBuckets.Add(bucket);
+                if (liveCount > maxLiveCount)
+                {
+                    maxLiveCount = liveCount;
+                }
+            }
+        }
+
+        if (_activeSortBuckets.Count == 0)
+        {
+            return;
+        }
+
+        Alco.Graphics.Buffer sortArgsBuffer = _sortArgsBuffer!;
+        Alco.Graphics.Buffer visibleKeysBuffer = _visibleKeysBuffer!;
+
+        compute.Barrier(
+            Stage.Compute, Access.ShaderWrite,
+            Stage.Compute, Access.ShaderRead);
+
+        SpriteSceneSortPrepareRoot prepareRoot = new()
+        {
+            DrawArgs = _drawArgsBuffer.View,
+            SortArgs = sortArgsBuffer.View,
+            BucketCount = (uint)_buckets.Count,
+        };
+        compute.Dispatch(_sortPrepareShader, in prepareRoot, new Extent3D((uint)((_buckets.Count + 63) / 64), 1u, 1u));
+
+        compute.Barrier(
+            Stage.Compute, Access.ShaderWrite,
+            Stage.Indirect | Stage.Compute,
+            Access.IndirectRead | Access.ShaderRead | Access.ShaderWrite);
+
+        GPUBufferView poolView = _pool.PoolBuffer.View;
+        GPUBufferView drawArgsView = _drawArgsBuffer.View;
+        GPUBufferView visibleSlotsView = _visibleSlotsBuffer.View;
+        GPUBufferView visibleKeysView = visibleKeysBuffer.View;
+
+        for (int i = 0; i < _activeSortBuckets.Count; ++i)
+        {
+            BucketState bucket = _activeSortBuckets[i];
+            SpriteSceneSortLocalRoot localRoot = new()
+            {
+                Pool = poolView,
+                DrawArgs = drawArgsView,
+                VisibleSlots = visibleSlotsView,
+                VisibleKeys = visibleKeysView,
+                BucketId = bucket.Id,
+                VisibleBase = bucket.VisibleBase,
+                Mode = SortLocalModeSort,
+            };
+            ulong localArgOffset = (ulong)bucket.Id * SortArgsStride * SortArgsEntryBytes;
+            compute.DispatchIndirect(_sortLocalShader, in localRoot, sortArgsBuffer.Slice(localArgOffset, SortIndirectSliceBytes));
+        }
+
+        for (int level = 0; level < SortMaxMergeLevels; ++level)
+        {
+            int halfH = SortBlockSize << level;
+            if (maxLiveCount <= halfH)
+            {
+                break;
+            }
+
+            compute.Barrier(
+                Stage.Compute, Access.ShaderWrite,
+                Stage.Compute, Access.ShaderRead | Access.ShaderWrite);
+
+            ulong globalArgOffset = (1ul + (ulong)level * 2ul) * SortArgsEntryBytes;
+            ulong localDisperseOffset = (1ul + (ulong)level * 2ul + 1ul) * SortArgsEntryBytes;
+
+            for (int i = 0; i < _activeSortBuckets.Count; ++i)
+            {
+                BucketState bucket = _activeSortBuckets[i];
+                if (_pool.GetBucketCount(bucket.Id) <= halfH)
+                {
+                    continue;
+                }
+
+                SpriteSceneSortGlobalRoot flipRoot = new()
+                {
+                    DrawArgs = drawArgsView,
+                    VisibleSlots = visibleSlotsView,
+                    VisibleKeys = visibleKeysView,
+                    BucketId = bucket.Id,
+                    VisibleBase = bucket.VisibleBase,
+                    HalfSpanShift = (uint)(SortBlockShift + level),
+                    Mode = SortGlobalModeFlip,
+                };
+                ulong bucketBaseOffset = (ulong)bucket.Id * SortArgsStride * SortArgsEntryBytes;
+                compute.DispatchIndirect(
+                    _sortGlobalShader,
+                    in flipRoot,
+                    sortArgsBuffer.Slice(bucketBaseOffset + globalArgOffset, SortIndirectSliceBytes));
+            }
+
+            for (int sub = level - 1; sub >= 0; --sub)
+            {
+                compute.Barrier(
+                    Stage.Compute, Access.ShaderWrite,
+                    Stage.Compute, Access.ShaderRead | Access.ShaderWrite);
+
+                for (int i = 0; i < _activeSortBuckets.Count; ++i)
+                {
+                    BucketState bucket = _activeSortBuckets[i];
+                    if (_pool.GetBucketCount(bucket.Id) <= halfH)
+                    {
+                        continue;
+                    }
+
+                    SpriteSceneSortGlobalRoot disperseRoot = new()
+                    {
+                        DrawArgs = drawArgsView,
+                        VisibleSlots = visibleSlotsView,
+                        VisibleKeys = visibleKeysView,
+                        BucketId = bucket.Id,
+                        VisibleBase = bucket.VisibleBase,
+                        HalfSpanShift = (uint)(SortBlockShift + sub),
+                        Mode = SortGlobalModeDisperse,
+                    };
+                    ulong bucketBaseOffset = (ulong)bucket.Id * SortArgsStride * SortArgsEntryBytes;
+                    compute.DispatchIndirect(
+                        _sortGlobalShader,
+                        in disperseRoot,
+                        sortArgsBuffer.Slice(bucketBaseOffset + globalArgOffset, SortIndirectSliceBytes));
+                }
+            }
+
+            compute.Barrier(
+                Stage.Compute, Access.ShaderWrite,
+                Stage.Compute, Access.ShaderRead | Access.ShaderWrite);
+
+            for (int i = 0; i < _activeSortBuckets.Count; ++i)
+            {
+                BucketState bucket = _activeSortBuckets[i];
+                if (_pool.GetBucketCount(bucket.Id) <= halfH)
+                {
+                    continue;
+                }
+
+                SpriteSceneSortLocalRoot localDisperseRoot = new()
+                {
+                    Pool = poolView,
+                    DrawArgs = drawArgsView,
+                    VisibleSlots = visibleSlotsView,
+                    VisibleKeys = visibleKeysView,
+                    BucketId = bucket.Id,
+                    VisibleBase = bucket.VisibleBase,
+                    Mode = SortLocalModeDisperse,
+                };
+                ulong bucketBaseOffset = (ulong)bucket.Id * SortArgsStride * SortArgsEntryBytes;
+                compute.DispatchIndirect(
+                    _sortLocalShader,
+                    in localDisperseRoot,
+                    sortArgsBuffer.Slice(bucketBaseOffset + localDisperseOffset, SortIndirectSliceBytes));
+            }
+        }
     }
 
     private void UploadBucketMeta(RenderContext context, in RenderContext.ComputeScope compute)
@@ -514,6 +760,11 @@ public sealed unsafe class SpriteScene2D : AutoDisposable
         _drawArgsBuffer.Dispose();
         _bucketMetaBuffer = _system.CreateBuffer((ulong)nextCapacity * (ulong)sizeof(SpriteSceneBucketMeta));
         _drawArgsBuffer = _system.CreateBuffer((ulong)nextCapacity * (ulong)sizeof(GpuDrawIndirectArgs));
+        if (_sortArgsBuffer != null)
+        {
+            _sortArgsBuffer.Dispose();
+            _sortArgsBuffer = _system.CreateBuffer((ulong)nextCapacity * SortArgsStride * SortArgsEntryBytes);
+        }
         _bucketCapacity = nextCapacity;
         _bucketsDirty = true;
     }
@@ -523,6 +774,11 @@ public sealed unsafe class SpriteScene2D : AutoDisposable
         _visibleSlotsBuffer.Dispose();
         _visibleSlotsCapacity = nextCapacity;
         _visibleSlotsBuffer = _system.CreateBuffer((ulong)nextCapacity * sizeof(uint));
+        if (_visibleKeysBuffer != null)
+        {
+            _visibleKeysBuffer.Dispose();
+            _visibleKeysBuffer = _system.CreateBuffer((ulong)nextCapacity * sizeof(uint));
+        }
     }
 
     private void ValidateBucketId(uint bucketId)
@@ -545,6 +801,24 @@ public sealed unsafe class SpriteScene2D : AutoDisposable
             !_cullShader.Reflection.MatchesStructLayout<SpriteSceneCullRoot>("SpriteSceneCullRoot"))
         {
             throw new InvalidOperationException("SpriteSceneCull shader layout mismatch.");
+        }
+
+        if ((uint)sizeof(SpriteSceneSortPrepareRoot) != _sortPrepareShader.Root.SizeBytes ||
+            !_sortPrepareShader.Reflection.MatchesStructLayout<SpriteSceneSortPrepareRoot>("SpriteSceneSortPrepareRoot"))
+        {
+            throw new InvalidOperationException("SpriteSceneSortPrepare shader layout mismatch.");
+        }
+
+        if ((uint)sizeof(SpriteSceneSortLocalRoot) != _sortLocalShader.Root.SizeBytes ||
+            !_sortLocalShader.Reflection.MatchesStructLayout<SpriteSceneSortLocalRoot>("SpriteSceneSortLocalRoot"))
+        {
+            throw new InvalidOperationException("SpriteSceneSortLocal shader layout mismatch.");
+        }
+
+        if ((uint)sizeof(SpriteSceneSortGlobalRoot) != _sortGlobalShader.Root.SizeBytes ||
+            !_sortGlobalShader.Reflection.MatchesStructLayout<SpriteSceneSortGlobalRoot>("SpriteSceneSortGlobalRoot"))
+        {
+            throw new InvalidOperationException("SpriteSceneSortGlobal shader layout mismatch.");
         }
     }
 
