@@ -6,7 +6,7 @@ namespace Alco.Effects;
 /// A live instance of a 2D particle effect asset owning per-group runtime state (pool slice,
 /// emitter slot, emission timeline) and emitter transform. Created through
 /// <see cref="GpuParticleSystem2D.CreateInstance"/>; disposal returns slices and slots to the pool.
-/// Main-thread only.
+/// Property updates and lifecycle controls are thread-safe.
 /// </summary>
 public sealed class ParticleEffectInstance2D : AutoDisposable
 {
@@ -34,7 +34,13 @@ public sealed class ParticleEffectInstance2D : AutoDisposable
 
     private readonly GpuParticleSystem2D _system;
     private readonly GroupState[] _groups;
+    private readonly Lock _propLock = new();
     private FastRandom _random;
+    private Transform2D _transform;
+    private float _height;
+    private float _depthBase;
+    private bool _isPlaying;
+    private bool _isActive = true;
     private bool _isVisible = true;
 
     internal ParticleEffectInstance2D(
@@ -47,46 +53,66 @@ public sealed class ParticleEffectInstance2D : AutoDisposable
     {
         _system = system;
         Asset = asset;
-        Transform = transform;
-        Height = height;
+        _transform = transform;
+        _height = height;
         _random = new FastRandom(unchecked((uint)(seed == 0 ? Environment.TickCount : seed)));
         _groups = groups;
-        IsPlaying = true;
+        _isPlaying = true;
     }
 
     /// <summary>The effect asset this instance plays.</summary>
     public ParticleEffect2D Asset { get; }
 
     /// <summary>The emitter transform applied to every group of the effect.</summary>
-    public Transform2D Transform { get; set; }
+    public Transform2D Transform
+    {
+        get { using Lock.Scope _ = _propLock.EnterScope(); return _transform; }
+        set { using Lock.Scope _ = _propLock.EnterScope(); _transform = value; }
+    }
 
     /// <summary>The emitter's height above its ground-plane transform.</summary>
-    public float Height { get; set; }
+    public float Height
+    {
+        get => Volatile.Read(ref _height);
+        set => Volatile.Write(ref _height, value);
+    }
 
     /// <summary>The base world z written into <see cref="EmitterParams2D.DepthBase"/> when depth testing is enabled.</summary>
-    public float DepthBase { get; set; }
+    public float DepthBase
+    {
+        get => Volatile.Read(ref _depthBase);
+        set => Volatile.Write(ref _depthBase, value);
+    }
 
     /// <summary>Whether the effect is currently emitting.</summary>
-    public bool IsPlaying { get; private set; }
+    public bool IsPlaying
+    {
+        get => Volatile.Read(ref _isPlaying);
+        private set => Volatile.Write(ref _isPlaying, value);
+    }
 
     /// <summary>Whether the instance still does GPU work (emitting or particles alive).</summary>
-    public bool IsActive { get; private set; } = true;
+    public bool IsActive
+    {
+        get => Volatile.Read(ref _isActive);
+        private set => Volatile.Write(ref _isActive, value);
+    }
 
     /// <summary>Whether the instance is visible for simulation and rendering.</summary>
     public bool IsVisible
     {
-        get => _isVisible;
+        get => Volatile.Read(ref _isVisible);
         set
         {
-            if (_isVisible == value)
+            if (Volatile.Read(ref _isVisible) == value)
                 return;
-            _isVisible = value;
+            Volatile.Write(ref _isVisible, value);
             _system.InvalidatePlan();
         }
     }
 
     /// <summary>The unwrapped emission timeline position in seconds.</summary>
-    public float Time => _groups.Length > 0 ? _groups[0].Time : 0f;
+    public float Time => _groups.Length > 0 ? Volatile.Read(ref _groups[0].Time) : 0f;
 
     /// <summary>The group states (diagnostics).</summary>
     internal GroupState[] Groups => _groups;
@@ -98,33 +124,38 @@ public sealed class ParticleEffectInstance2D : AutoDisposable
     public string GetGroupName(int groupIndex) => _groups[groupIndex].Asset.Name;
 
     /// <summary>Gets the live emission rate of a group in particles per second.</summary>
-    public float GetGroupEmissionRate(int groupIndex) => _groups[groupIndex].EmissionRate;
+    public float GetGroupEmissionRate(int groupIndex) => Volatile.Read(ref _groups[groupIndex].EmissionRate);
 
     /// <summary>Overrides the emission rate of a group for future spawns without mutating the asset.</summary>
     public void SetGroupEmissionRate(int groupIndex, float rate)
     {
-        _groups[groupIndex].EmissionRate = Math.Max(rate, 0f);
+        Volatile.Write(ref _groups[groupIndex].EmissionRate, Math.Max(rate, 0f));
     }
 
     /// <summary>Whether a group is visible for simulation and rendering.</summary>
-    public bool IsGroupVisible(int groupIndex) => _groups[groupIndex].Visible;
+    public bool IsGroupVisible(int groupIndex) => Volatile.Read(ref _groups[groupIndex].Visible);
 
     /// <summary>Shows or hides a group on this instance without mutating the asset.</summary>
     public void SetGroupVisible(int groupIndex, bool visible)
     {
         ref GroupState group = ref _groups[groupIndex];
-        if (group.Visible == visible)
+        if (Volatile.Read(ref group.Visible) == visible)
             return;
-        group.Visible = visible;
+        Volatile.Write(ref group.Visible, visible);
         _system.InvalidatePlan();
     }
 
     /// <summary>Returns a copy of the group's live <see cref="EmitterParams2D"/> record.</summary>
-    public EmitterParams2D GetGroupParams(int groupIndex) => _system.ParamsRef(_groups[groupIndex].Slot);
+    public EmitterParams2D GetGroupParams(int groupIndex)
+    {
+        using Lock.Scope _ = _system.StateLock.EnterScope();
+        return _system.ParamsRef(_groups[groupIndex].Slot);
+    }
 
     /// <summary>Replaces the static parameter fields of a group for this instance without respawning.</summary>
     public void SetGroupParams(int groupIndex, in EmitterParams2D parameters)
     {
+        using Lock.Scope _ = _system.StateLock.EnterScope();
         ref GroupState group = ref _groups[groupIndex];
         ref EmitterParams2D slot = ref _system.ParamsRef(group.Slot);
         slot = EmitterParams2D.MergeEdited(slot, parameters);
@@ -135,6 +166,7 @@ public sealed class ParticleEffectInstance2D : AutoDisposable
     /// <summary>Resumes emission.</summary>
     public void Play()
     {
+        using Lock.Scope _ = _system.StateLock.EnterScope();
         IsPlaying = true;
         for (int i = 0; i < _groups.Length; i++)
         {
@@ -154,12 +186,13 @@ public sealed class ParticleEffectInstance2D : AutoDisposable
     /// <summary>Kills every live particle and restarts the emission timeline.</summary>
     public void Restart()
     {
+        using Lock.Scope _ = _system.StateLock.EnterScope();
         for (int i = 0; i < _groups.Length; i++)
         {
             ref GroupState group = ref _groups[i];
             _system.Pool.QueueKill(group.Slice);
             group.Cursor = 0;
-            group.Time = 0f;
+            Volatile.Write(ref group.Time, 0f);
             group.Accumulator = 0f;
             group.IdleTimer = 0f;
             group.Active = true;
@@ -172,17 +205,23 @@ public sealed class ParticleEffectInstance2D : AutoDisposable
     internal void AdvanceFrame(float deltaTime, ref uint dirtyMin, ref uint dirtyMax)
     {
         bool anyActive = false;
+        bool playing = IsPlaying;
+        Transform2D transform = Transform;
+        float height = Height;
+        float depthBase = DepthBase;
+
         for (int i = 0; i < _groups.Length; i++)
         {
             ref GroupState group = ref _groups[i];
             ParticleGroup2D asset = group.Asset;
+            float time = Volatile.Read(ref group.Time);
             group.SpawnCount = ParticleEmission.AdvanceLifecycle(
-                ref group.Time,
+                ref time,
                 ref group.Accumulator,
                 ref group.IdleTimer,
                 deltaTime,
-                IsPlaying,
-                group.EmissionRate,
+                playing,
+                Volatile.Read(ref group.EmissionRate),
                 asset.Duration,
                 asset.Looping,
                 asset.Bursts,
@@ -190,6 +229,7 @@ public sealed class ParticleEffectInstance2D : AutoDisposable
                 group.Slice.Capacity,
                 group.Lifetime.Max,
                 out bool active);
+            Volatile.Write(ref group.Time, time);
             group.Active = active;
             if (!group.Active)
                 continue;
@@ -199,11 +239,11 @@ public sealed class ParticleEffectInstance2D : AutoDisposable
             parameters.SpawnCount = group.SpawnCount;
             parameters.EmitCursor = group.Cursor;
             parameters.DeltaTime = deltaTime;
-            parameters.EmitterTime = asset.Duration > 0f ? group.Time % asset.Duration : group.Time;
+            parameters.EmitterTime = asset.Duration > 0f ? time % asset.Duration : time;
             parameters.FrameSeed = _random.NextUint();
-            parameters.WorldMatrix = Transform.Matrix;
-            parameters.EmitterHeight = Height;
-            parameters.DepthBase = DepthBase;
+            parameters.WorldMatrix = transform.Matrix;
+            parameters.EmitterHeight = height;
+            parameters.DepthBase = depthBase;
             group.Cursor = (group.Cursor + group.SpawnCount) % group.Slice.Capacity;
             dirtyMin = Math.Min(dirtyMin, group.Slot);
             dirtyMax = Math.Max(dirtyMax, group.Slot);

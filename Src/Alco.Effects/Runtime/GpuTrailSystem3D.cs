@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -8,7 +9,7 @@ namespace Alco.Effects;
 
 /// <summary>
 /// Renders camera-facing 3D trail ribbons GPU-resident using segment instancing and vertex pulling over <see cref="Alco.Graphics"/>.
-/// Callers drive point emission, <see cref="Update"/>, <see cref="PrepareRender"/>, and <see cref="Render"/> on the main thread.
+/// Instance lifecycle, point emission, and clock updates are thread-safe while GPU staging transfers and rendering execute lock-free on the hot path.
 /// </summary>
 public sealed class GpuTrailSystem3D : AutoDisposable
 {
@@ -95,6 +96,7 @@ public sealed class GpuTrailSystem3D : AutoDisposable
     private sealed record CachedMaterial(Material Material, RootField<TrailPassData3D> PassField);
     private readonly record struct DrawBatch(Material Material, RootField<TrailPassData3D> PassField, DepthStencilState DepthStencil, uint FirstSegment, uint SegmentCount);
     private readonly record struct PointRange(uint Offset, uint Count);
+    private readonly record struct StagedCopy(ulong SrcOffset, Alco.Graphics.Buffer Dst, ulong DstOffset, ulong Bytes);
 
     private sealed class MaterialKeyComparer : IEqualityComparer<(MaterialAsset Asset, BlendState Blend)>
     {
@@ -129,20 +131,24 @@ public sealed class GpuTrailSystem3D : AutoDisposable
     private readonly TrailState[] _states;
     private readonly Stack<int> _freeSlots;
     private readonly List<PointRange> _freeSlices;
-    private readonly Dictionary<(MaterialAsset Asset, BlendState Blend), CachedMaterial> _materials = new(new MaterialKeyComparer());
+    private readonly ConcurrentDictionary<(MaterialAsset Asset, BlendState Blend), CachedMaterial> _materials = new(new MaterialKeyComparer());
     private readonly MaterialAsset _defaultAsset = new() { Name = "trails3d-default" };
+    private readonly Lock _stateLock = new();
 
     private readonly Dictionary<(Material Material, DepthStencilState Depth), List<int>> _drawBuckets = new(new BatchKeyComparer());
     private readonly List<(Material Material, DepthStencilState Depth)> _drawBucketKeys = [];
     private readonly List<DrawBatch> _drawBatches = [];
     private readonly List<TrailSegment> _segments = [];
     private readonly List<int> _inFlightPointSlots = [];
+    private readonly List<StagedCopy> _stagedCopies = [];
     private Alco.Graphics.Buffer? _activeSegmentBuffer;
     private RenderContext? _preparedContext;
     private ulong _preparedFrameId;
     private ulong _preparedDiscardVersion;
     private DepthStencilState _depthStencilState = DepthStencilState.ReadReverseZ;
+    private bool _defaultDepthWrite = DepthStencilState.ReadReverseZ.DepthWrite;
     private float _time;
+    private float _renderTime;
     private uint _paramsDirtyMin = uint.MaxValue;
     private uint _paramsDirtyMax;
     private uint _inFlightParamsDirtyMin = uint.MaxValue;
@@ -200,14 +206,24 @@ public sealed class GpuTrailSystem3D : AutoDisposable
     /// <summary>Default depth state applied to trails without an explicit <see cref="TrailEffect3D.Depth"/> override.</summary>
     public DepthStencilState DepthStencilState
     {
-        get => _depthStencilState;
-        set => _depthStencilState = value;
+        get
+        {
+            using Lock.Scope _ = _stateLock.EnterScope();
+            return _depthStencilState;
+        }
+        set
+        {
+            using Lock.Scope _ = _stateLock.EnterScope();
+            _depthStencilState = value;
+            Volatile.Write(ref _defaultDepthWrite, value.DepthWrite);
+        }
     }
 
     internal int PlannedBatchCount => _drawBatches.Count;
     internal int PlannedSegmentCount => _segments.Count;
     internal bool HasDepthWritingEffects =>
-        _depthWriteOverrideCount > 0 || (_defaultDepthTrailCount > 0 && _depthStencilState.DepthWrite);
+        Volatile.Read(ref _depthWriteOverrideCount) > 0
+        || (Volatile.Read(ref _defaultDepthTrailCount) > 0 && Volatile.Read(ref _defaultDepthWrite));
     internal ReadOnlySpan<TrailPoint3D> PointsSpan => _cpuPoints;
     internal ReadOnlySpan<TrailParams3D> ParamsSpan => _cpuParams;
     internal ReadOnlySpan<TrailSegment> SegmentsSpan => CollectionsMarshal.AsSpan(_segments);
@@ -216,14 +232,19 @@ public sealed class GpuTrailSystem3D : AutoDisposable
     public void TrimUnusedCaches()
     {
         ObjectDisposedException.ThrowIf(IsDisposed, this);
-        if (_materials.Count == 0)
+        if (_materials.IsEmpty)
             return;
 
         HashSet<Material> inUse = [];
-        for (int i = 0; i < _states.Length; i++)
+        using (_stateLock.EnterScope())
         {
-            if (_states[i].Instance != null && _states[i].CachedMat != null)
-                inUse.Add(_states[i].CachedMat!.Material);
+            if (IsDisposed)
+                return;
+            for (int i = 0; i < _states.Length; i++)
+            {
+                if (_states[i].Instance != null && _states[i].CachedMat != null)
+                    inUse.Add(_states[i].CachedMat!.Material);
+            }
         }
 
         List<(MaterialAsset Asset, BlendState Blend)>? deadKeys = null;
@@ -239,12 +260,13 @@ public sealed class GpuTrailSystem3D : AutoDisposable
         if (deadKeys != null)
         {
             for (int i = 0; i < deadKeys.Count; i++)
-                _materials.Remove(deadKeys[i]);
+                _materials.TryRemove(deadKeys[i], out _);
         }
     }
 
     internal void SetSeed(int slot, float seed)
     {
+        using Lock.Scope _ = _stateLock.EnterScope();
         _cpuParams[slot].Misc.X = seed;
         MarkParamsDirty(slot);
     }
@@ -259,6 +281,9 @@ public sealed class GpuTrailSystem3D : AutoDisposable
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(effect.Spacing, 0f);
 
         CachedMaterial cachedMat = GetOrCreateMaterial(effect);
+
+        using Lock.Scope _ = _stateLock.EnterScope();
+        ObjectDisposedException.ThrowIf(IsDisposed, this);
         if (_freeSlots.Count == 0 || !TryAllocateSlice(effect.ExpectedPoints, out uint sliceOffset, out uint sliceCapacity))
             return false;
 
@@ -305,6 +330,7 @@ public sealed class GpuTrailSystem3D : AutoDisposable
     /// <summary>Advances the renderer clock and recycles trails whose points have all expired.</summary>
     public void Update(float delta)
     {
+        using Lock.Scope _ = _stateLock.EnterScope();
         ObjectDisposedException.ThrowIf(IsDisposed, this);
         _time += delta;
         for (int slot = 0; slot < _states.Length; slot++)
@@ -325,52 +351,23 @@ public sealed class GpuTrailSystem3D : AutoDisposable
         ArgumentNullException.ThrowIfNull(context);
         ObjectDisposedException.ThrowIf(IsDisposed, this);
 
-        ReconcileFrame(context);
+        Alco.Graphics.Buffer? staging = null;
+        _stagedCopies.Clear();
 
-        bool hasDirtyParams = _paramsDirtyMax >= _paramsDirtyMin;
-        ulong paramElemSize = (ulong)sizeof(TrailParams3D);
-        ulong pointElemSize = (ulong)sizeof(TrailPoint3D);
-        ulong totalStagingBytes = 0;
-
-        if (hasDirtyParams)
+        using (_stateLock.EnterScope())
         {
-            uint pCount = _paramsDirtyMax - _paramsDirtyMin + 1;
-            totalStagingBytes += (ulong)pCount * paramElemSize;
-        }
+            ObjectDisposedException.ThrowIf(IsDisposed, this);
+            ReconcileFrame(context);
 
-        for (int slot = 0; slot < _states.Length; slot++)
-        {
-            ref TrailState state = ref _states[slot];
-            if (!state.PointsDirty)
-                continue;
-            uint count = state.PointDirtyMax - state.PointDirtyMin + 1;
-            totalStagingBytes += (ulong)count * pointElemSize;
-        }
-
-        bool copied = false;
-        if (totalStagingBytes > 0)
-        {
-            context.Barrier(Stage.Vertex, Access.ShaderRead, Stage.Transfer, Access.TransferWrite);
-            Alco.Graphics.Buffer staging = _stagingPool.Acquire(context, totalStagingBytes);
-            ulong writeOffset = 0;
+            bool hasDirtyParams = _paramsDirtyMax >= _paramsDirtyMin;
+            ulong paramElemSize = (ulong)sizeof(TrailParams3D);
+            ulong pointElemSize = (ulong)sizeof(TrailPoint3D);
+            ulong totalStagingBytes = 0;
 
             if (hasDirtyParams)
             {
-                uint pMin = _paramsDirtyMin;
-                uint pMax = _paramsDirtyMax;
-                uint pCount = pMax - pMin + 1;
-                ulong byteSize = (ulong)pCount * paramElemSize;
-                staging.SetData(_cpuParams.AsSpan((int)pMin, (int)pCount), writeOffset);
-                context.CopyBuffer(
-                    staging.Slice(writeOffset, byteSize),
-                    _gpuParams.Slice((ulong)pMin * paramElemSize, byteSize));
-                writeOffset += byteSize;
-                _inFlightParamsDirtyMin = Math.Min(_inFlightParamsDirtyMin, pMin);
-                _inFlightParamsDirtyMax = Math.Max(_inFlightParamsDirtyMax, pMax);
-                _paramsDirtyMin = uint.MaxValue;
-                _paramsDirtyMax = 0;
-                _hasUnconfirmedUpload = true;
-                copied = true;
+                uint pCount = _paramsDirtyMax - _paramsDirtyMin + 1;
+                totalStagingBytes += (ulong)pCount * paramElemSize;
             }
 
             for (int slot = 0; slot < _states.Length; slot++)
@@ -378,35 +375,78 @@ public sealed class GpuTrailSystem3D : AutoDisposable
                 ref TrailState state = ref _states[slot];
                 if (!state.PointsDirty)
                     continue;
-                state.PointsDirty = false;
-                uint dMin = state.PointDirtyMin;
-                uint dMax = state.PointDirtyMax;
-                uint first = state.SliceOffset + dMin;
-                uint count = dMax - dMin + 1;
-                ulong byteSize = (ulong)count * pointElemSize;
-                staging.SetData(_cpuPoints.AsSpan((int)first, (int)count), writeOffset);
-                context.CopyBuffer(
-                    staging.Slice(writeOffset, byteSize),
-                    _gpuPoints.Slice((ulong)first * pointElemSize, byteSize));
-                writeOffset += byteSize;
-                if (state.InFlightPointsDirty)
-                {
-                    state.InFlightPointDirtyMin = Math.Min(state.InFlightPointDirtyMin, dMin);
-                    state.InFlightPointDirtyMax = Math.Max(state.InFlightPointDirtyMax, dMax);
-                }
-                else
-                {
-                    state.InFlightPointsDirty = true;
-                    state.InFlightPointDirtyMin = dMin;
-                    state.InFlightPointDirtyMax = dMax;
-                    _inFlightPointSlots.Add(slot);
-                }
-                _hasUnconfirmedUpload = true;
-                copied = true;
+                uint count = state.PointDirtyMax - state.PointDirtyMin + 1;
+                totalStagingBytes += (ulong)count * pointElemSize;
             }
+
+            if (totalStagingBytes > 0)
+            {
+                staging = _stagingPool.Acquire(context, totalStagingBytes);
+                ulong writeOffset = 0;
+
+                if (hasDirtyParams)
+                {
+                    uint pMin = _paramsDirtyMin;
+                    uint pMax = _paramsDirtyMax;
+                    uint pCount = pMax - pMin + 1;
+                    ulong byteSize = (ulong)pCount * paramElemSize;
+                    staging.SetData(_cpuParams.AsSpan((int)pMin, (int)pCount), writeOffset);
+                    _stagedCopies.Add(new StagedCopy(writeOffset, _gpuParams, (ulong)pMin * paramElemSize, byteSize));
+                    writeOffset += byteSize;
+                    _inFlightParamsDirtyMin = Math.Min(_inFlightParamsDirtyMin, pMin);
+                    _inFlightParamsDirtyMax = Math.Max(_inFlightParamsDirtyMax, pMax);
+                    _paramsDirtyMin = uint.MaxValue;
+                    _paramsDirtyMax = 0;
+                    _hasUnconfirmedUpload = true;
+                }
+
+                for (int slot = 0; slot < _states.Length; slot++)
+                {
+                    ref TrailState state = ref _states[slot];
+                    if (!state.PointsDirty)
+                        continue;
+                    state.PointsDirty = false;
+                    uint dMin = state.PointDirtyMin;
+                    uint dMax = state.PointDirtyMax;
+                    uint first = state.SliceOffset + dMin;
+                    uint count = dMax - dMin + 1;
+                    ulong byteSize = (ulong)count * pointElemSize;
+                    staging.SetData(_cpuPoints.AsSpan((int)first, (int)count), writeOffset);
+                    _stagedCopies.Add(new StagedCopy(writeOffset, _gpuPoints, (ulong)first * pointElemSize, byteSize));
+                    writeOffset += byteSize;
+                    if (state.InFlightPointsDirty)
+                    {
+                        state.InFlightPointDirtyMin = Math.Min(state.InFlightPointDirtyMin, dMin);
+                        state.InFlightPointDirtyMax = Math.Max(state.InFlightPointDirtyMax, dMax);
+                    }
+                    else
+                    {
+                        state.InFlightPointsDirty = true;
+                        state.InFlightPointDirtyMin = dMin;
+                        state.InFlightPointDirtyMax = dMax;
+                        _inFlightPointSlots.Add(slot);
+                    }
+                    _hasUnconfirmedUpload = true;
+                }
+            }
+
+            BuildDrawPlan();
+            _renderTime = _time;
         }
 
-        BuildDrawPlan();
+        bool copied = _stagedCopies.Count > 0 && staging != null;
+        if (copied)
+        {
+            context.Barrier(Stage.Vertex, Access.ShaderRead, Stage.Transfer, Access.TransferWrite);
+            for (int i = 0; i < _stagedCopies.Count; i++)
+            {
+                StagedCopy copy = _stagedCopies[i];
+                context.CopyBuffer(
+                    staging!.Slice(copy.SrcOffset, copy.Bytes),
+                    copy.Dst.Slice(copy.DstOffset, copy.Bytes));
+            }
+            _stagedCopies.Clear();
+        }
 
         if (_segments.Count > 0)
         {
@@ -526,7 +566,7 @@ public sealed class GpuTrailSystem3D : AutoDisposable
                 TrailParams = paramsView,
                 Segments = segmentsBaseView.OffsetBy(batch.FirstSegment * (uint)sizeof(TrailSegment)),
                 CameraPosition = cameraPosition,
-                Time = _time,
+                Time = _renderTime,
             };
 
             render.Draw(batch.Material, batch.PassField, in passData, batch.DepthStencil, vertexCount: 6u, instanceCount: batch.SegmentCount);
@@ -534,10 +574,14 @@ public sealed class GpuTrailSystem3D : AutoDisposable
     }
 
     internal bool GetEmitting(int slot, uint generation)
-        => !IsDisposed && IsValid(slot, generation) && _states[slot].Emitting;
+    {
+        using Lock.Scope _ = _stateLock.EnterScope();
+        return !IsDisposed && IsValid(slot, generation) && _states[slot].Emitting;
+    }
 
     internal bool GetAlive(int slot, uint generation)
     {
+        using Lock.Scope _ = _stateLock.EnterScope();
         if (IsDisposed || !IsValid(slot, generation))
             return false;
         ref TrailState state = ref _states[slot];
@@ -545,16 +589,21 @@ public sealed class GpuTrailSystem3D : AutoDisposable
     }
 
     internal bool GetVisible(int slot, uint generation)
-        => !IsDisposed && IsValid(slot, generation) && _states[slot].Visible;
+    {
+        using Lock.Scope _ = _stateLock.EnterScope();
+        return !IsDisposed && IsValid(slot, generation) && _states[slot].Visible;
+    }
 
     internal void SetVisible(int slot, uint generation, bool visible)
     {
+        using Lock.Scope _ = _stateLock.EnterScope();
         if (!IsDisposed && IsValid(slot, generation))
             _states[slot].Visible = visible;
     }
 
     internal void ExtendTo(int slot, uint generation, Vector3 position)
     {
+        using Lock.Scope _ = _stateLock.EnterScope();
         if (IsDisposed || !IsValid(slot, generation))
             return;
         ref TrailState state = ref _states[slot];
@@ -583,6 +632,7 @@ public sealed class GpuTrailSystem3D : AutoDisposable
 
     internal void Finish(int slot, uint generation, Vector3 position)
     {
+        using Lock.Scope _ = _stateLock.EnterScope();
         if (IsDisposed || !IsValid(slot, generation))
             return;
         ref TrailState state = ref _states[slot];
@@ -617,12 +667,14 @@ public sealed class GpuTrailSystem3D : AutoDisposable
 
     internal void Stop(int slot, uint generation)
     {
+        using Lock.Scope _ = _stateLock.EnterScope();
         if (!IsDisposed && IsValid(slot, generation))
             StopCore(ref _states[slot]);
     }
 
     internal void ReleaseTrail(int slot, uint generation)
     {
+        using Lock.Scope _ = _stateLock.EnterScope();
         if (!IsDisposed && IsValid(slot, generation))
             RecycleSlot(slot, ref _states[slot]);
     }
@@ -633,6 +685,7 @@ public sealed class GpuTrailSystem3D : AutoDisposable
         if (!disposing)
             return;
 
+        using Lock.Scope _ = _stateLock.EnterScope();
         _gpuPoints.Dispose();
         _gpuParams.Dispose();
         _stagingPool.Dispose();
@@ -642,8 +695,11 @@ public sealed class GpuTrailSystem3D : AutoDisposable
             _states[slot].Instance = null;
             _states[slot].CachedMat = null;
         }
+        Volatile.Write(ref _depthWriteOverrideCount, 0);
+        Volatile.Write(ref _defaultDepthTrailCount, 0);
         _materials.Clear();
         _inFlightPointSlots.Clear();
+        _stagedCopies.Clear();
         _drawBatches.Clear();
         _segments.Clear();
         _activeSegmentBuffer = null;
@@ -654,11 +710,11 @@ public sealed class GpuTrailSystem3D : AutoDisposable
         if (depthOverride is { } explicitDepth)
         {
             if (explicitDepth.DepthWrite)
-                _depthWriteOverrideCount++;
+                Volatile.Write(ref _depthWriteOverrideCount, _depthWriteOverrideCount + 1);
         }
         else
         {
-            _defaultDepthTrailCount++;
+            Volatile.Write(ref _defaultDepthTrailCount, _defaultDepthTrailCount + 1);
         }
     }
 
@@ -667,11 +723,11 @@ public sealed class GpuTrailSystem3D : AutoDisposable
         if (depthOverride is { } explicitDepth)
         {
             if (explicitDepth.DepthWrite)
-                _depthWriteOverrideCount--;
+                Volatile.Write(ref _depthWriteOverrideCount, _depthWriteOverrideCount - 1);
         }
         else
         {
-            _defaultDepthTrailCount--;
+            Volatile.Write(ref _defaultDepthTrailCount, _defaultDepthTrailCount - 1);
         }
     }
 
@@ -695,7 +751,7 @@ public sealed class GpuTrailSystem3D : AutoDisposable
             ? shader.CreateMaterial($"trails3d:{asset.Name}")
             : asset.CreateMaterial(shader, $"trails3d:{asset.Name}", ParticleShaderKeys.Material + ".");
         material.Blend = blend;
-        material.DepthStencilState = effect.Depth ?? _depthStencilState;
+        material.DepthStencilState = effect.Depth ?? DepthStencilState;
         material.Rasterization = RasterizationState.CullNone;
 
         if (!material.TryGetRootField(ParticleShaderKeys.Pass, out RootField<TrailPassData3D> passField))
@@ -703,8 +759,7 @@ public sealed class GpuTrailSystem3D : AutoDisposable
                 $"Trail render template '{_renderTemplateModule}' does not declare expected '{ParticleShaderKeys.Pass}' block ({sizeof(TrailPassData3D)}B).");
 
         var created = new CachedMaterial(material, passField);
-        _materials[key] = created;
-        return created;
+        return _materials.GetOrAdd(key, created);
     }
 
     private void WritePoint(ref TrailState state, Vector3 position, Vector3 tangent, float u)

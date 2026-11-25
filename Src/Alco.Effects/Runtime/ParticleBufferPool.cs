@@ -21,10 +21,11 @@ internal readonly struct ParticleSlice
 }
 
 /// <summary>
-/// Main-thread-only shared GPU buffers of one particle dimension (2D or 3D): the particle pool,
+/// Shared GPU buffers of one particle dimension (2D or 3D): the particle pool,
 /// per-batch indirect draw arguments, compacted instance records, and the CPU-mirrored parameter array.
 /// Buffers grow geometrically when exhausted, migrating live contents via <see cref="RecordUploadsAndMigration"/>
 /// and retiring outgrown buffers once their last referencing GPU frame has completed.
+/// Pool mutations are synchronized by the owning particle system while <see cref="TouchBuffersUsed"/> is safe from lock-free <c>Render()</c> paths.
 /// </summary>
 /// <typeparam name="TParticle">The particle record type (GPU layout twin).</typeparam>
 /// <typeparam name="TParams">The per-emitter parameter record type (GPU layout twin).</typeparam>
@@ -130,10 +131,10 @@ internal sealed class ParticleBufferPool<TParticle, TParams> : AutoDisposable
     public int AllocatedSlotCount => _slotCapacity - _freeSlots.Count;
 
     /// <summary>The most recent render context that accessed the pool buffers.</summary>
-    public RenderContext? LastUseContext => _lastUseContext;
+    public RenderContext? LastUseContext => Volatile.Read(ref _lastUseContext);
 
     /// <summary>The frame identifier within <see cref="LastUseContext"/> of the most recent pool buffer access.</summary>
-    public ulong LastUseFrameId => _lastUseFrameId;
+    public ulong LastUseFrameId => Volatile.Read(ref _lastUseFrameId);
 
     /// <summary>Whether any particle slice initialization/kill work is queued.</summary>
     public bool HasPendingKills => _pendingKills.Count > 0;
@@ -171,9 +172,11 @@ internal sealed class ParticleBufferPool<TParticle, TParams> : AutoDisposable
     public bool ReconcileFrame(RenderContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
+        RenderContext? lastUseContext = Volatile.Read(ref _lastUseContext);
+        ulong lastUseFrameId = Volatile.Read(ref _lastUseFrameId);
         if (_staleBuffers.Count > 0 &&
-            (_lastUseContext == null || _lastUseContext.IsDisposed ||
-             !ReferenceEquals(_lastUseContext, context) || _lastUseContext.CurrentFrameId != _lastUseFrameId))
+            (lastUseContext == null || lastUseContext.IsDisposed ||
+             !ReferenceEquals(lastUseContext, context) || lastUseContext.CurrentFrameId != lastUseFrameId))
         {
             for (int i = 0; i < _staleBuffers.Count; i++)
                 _staleBuffers[i].Dispose();
@@ -243,8 +246,8 @@ internal sealed class ParticleBufferPool<TParticle, TParams> : AutoDisposable
         _ = paramsBuffer;
         _ = drawArgs;
         _ = instanceData;
-        _lastUseContext = context;
-        _lastUseFrameId = context.CurrentFrameId;
+        Volatile.Write(ref _lastUseContext, context);
+        Volatile.Write(ref _lastUseFrameId, context.CurrentFrameId);
     }
 
     /// <summary>Writes one emitter's parameter record into the CPU mirror and marks it dirty for upload.</summary>
@@ -325,8 +328,8 @@ internal sealed class ParticleBufferPool<TParticle, TParams> : AutoDisposable
     {
         ArgumentNullException.ThrowIfNull(context);
         ReconcileFrame(context);
-        _lastUseContext = context;
-        _lastUseFrameId = context.CurrentFrameId;
+        Volatile.Write(ref _lastUseContext, context);
+        Volatile.Write(ref _lastUseFrameId, context.CurrentFrameId);
 
         int dirtyMin = 0;
         int dirtyCount = 0;
@@ -438,8 +441,10 @@ internal sealed class ParticleBufferPool<TParticle, TParams> : AutoDisposable
 
     private void RetireBuffer(Alco.Graphics.Buffer buffer)
     {
-        if (_lastUseContext != null && !_lastUseContext.IsDisposed && _lastUseFrameId != 0 &&
-            _lastUseContext.CurrentFrameId == _lastUseFrameId)
+        RenderContext? lastUseContext = Volatile.Read(ref _lastUseContext);
+        ulong lastUseFrameId = Volatile.Read(ref _lastUseFrameId);
+        if (lastUseContext != null && !lastUseContext.IsDisposed && lastUseFrameId != 0 &&
+            lastUseContext.CurrentFrameId == lastUseFrameId)
         {
             _staleBuffers.Add(buffer);
             return;

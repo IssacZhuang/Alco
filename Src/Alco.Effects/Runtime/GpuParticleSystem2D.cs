@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Numerics;
 using System.Runtime.CompilerServices;
@@ -10,7 +11,8 @@ namespace Alco.Effects;
 /// <summary>
 /// Simulates and renders any number of <see cref="ParticleEffect2D"/> instances entirely on the GPU,
 /// using bindless sprite/over-life textures and vertex pulling over <see cref="Alco.Graphics"/>.
-/// Main-thread only.
+/// Instance lifecycle, cache maintenance, and shader/material preparation are thread-safe while
+/// simulation recording and rendering execute lock-free on the hot path.
 /// </summary>
 public sealed class GpuParticleSystem2D : AutoDisposable
 {
@@ -117,10 +119,11 @@ public sealed class GpuParticleSystem2D : AutoDisposable
     private readonly TransientBufferPool _emitWorkPool;
     private readonly TransientBufferPool _simulateWorkPool;
 
-    private readonly Dictionary<string, (Shader Emit, Shader Simulate)> _behaviorShaders = new(StringComparer.Ordinal);
-    private readonly Dictionary<(MaterialAsset Asset, BlendState Blend), CachedMaterial> _materials = new(new MaterialKeyComparer());
+    private readonly ConcurrentDictionary<string, (Shader Emit, Shader Simulate)> _behaviorShaders = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<(MaterialAsset Asset, BlendState Blend), CachedMaterial> _materials = new(new MaterialKeyComparer());
     private readonly Dictionary<ParticleGroup2D, GroupTextureEntry> _groupTextures = [];
     private readonly List<ParticleGroup2D> _idleTextureGroups = [];
+    private readonly List<Texture> _texturesToDispose = [];
     private readonly List<ParticleEffectInstance2D> _instances = [];
 
     private readonly Dictionary<(Material Material, DepthStencilState Depth), List<ParticleEffectInstance2D.GroupState>> _drawBuckets =
@@ -143,10 +146,16 @@ public sealed class GpuParticleSystem2D : AutoDisposable
     private readonly MaterialAsset _defaultAsset = new() { Name = "particles2d-default" };
     private readonly ParticleMaterialModules _materialModules;
 
+    private readonly Lock _stateLock = new();
+    private readonly Lock _textureLock = new();
+    private readonly Lock _materialLock = new();
     private float _simulationAccumulator;
     private ulong _simulationStepCounter;
+    private int _idleTextureGroupCount;
     private int _depthWriteGroupCount;
-    private bool _hasValidPlan;
+    private volatile bool _hasValidPlan;
+
+    internal Lock StateLock => _stateLock;
 
     /// <summary>Creates a 2D particle system using <paramref name="rendering"/>'s default <see cref="RenderingSystem.Shaders"/>.</summary>
     public GpuParticleSystem2D(
@@ -179,7 +188,7 @@ public sealed class GpuParticleSystem2D : AutoDisposable
 
         _pool = new ParticleBufferPool<GpuParticle2D, EmitterParams2D>(rendering, particleCapacity, emitterSlots);
         _pool.Reallocated += OnPoolReallocated;
-        _materialModules = new ParticleMaterialModules();
+        _materialModules = new ParticleMaterialModules(_materialLock);
         _emitWorkPool = new TransientBufferPool(rendering);
         _simulateWorkPool = new TransientBufferPool(rendering);
 
@@ -196,8 +205,15 @@ public sealed class GpuParticleSystem2D : AutoDisposable
     /// <summary>The simulation step interval when <see cref="SimulationRateLimitEnabled"/> is enabled.</summary>
     public float SimulationInterval { get; set; } = DefaultSimulationInterval;
 
-    /// <summary>Currently live effect instances.</summary>
-    public IReadOnlyList<ParticleEffectInstance2D> Instances => _instances;
+    /// <summary>Snapshot of currently live effect instances.</summary>
+    public IReadOnlyList<ParticleEffectInstance2D> Instances
+    {
+        get
+        {
+            using Lock.Scope _ = _stateLock.EnterScope();
+            return _instances.Count == 0 ? [] : _instances.ToArray();
+        }
+    }
 
     internal ParticleBufferPool<GpuParticle2D, EmitterParams2D> Pool => _pool;
     internal int PlannedDrawGroupCount => _drawGroups.Count;
@@ -206,13 +222,27 @@ public sealed class GpuParticleSystem2D : AutoDisposable
     internal int PlannedSimulateDispatchCount => _simulateDispatches.Count;
     internal int PlannedEmitBlockCount => _emitBlocks.Count;
     internal int PlannedSimulateBlockCount => _simulateBlocks.Count;
-    internal bool HasDepthWritingEffects => _depthWriteGroupCount > 0;
+    internal bool HasDepthWritingEffects => Volatile.Read(ref _depthWriteGroupCount) > 0;
 
     /// <summary>Current particle slot capacity of the shared pool.</summary>
-    public int PoolParticleCapacity => _pool.ParticleCapacity;
+    public int PoolParticleCapacity
+    {
+        get
+        {
+            using Lock.Scope _ = _stateLock.EnterScope();
+            return _pool.ParticleCapacity;
+        }
+    }
 
     /// <summary>Current emitter slot capacity of the shared pool.</summary>
-    public int PoolEmitterSlotCapacity => _pool.SlotCapacity;
+    public int PoolEmitterSlotCapacity
+    {
+        get
+        {
+            using Lock.Scope _ = _stateLock.EnterScope();
+            return _pool.SlotCapacity;
+        }
+    }
 
     /// <summary>Destroys idle cached gradient/curve textures whose GPU frames have completed and removes unused materials.</summary>
     public void TrimUnusedCaches()
@@ -220,31 +250,41 @@ public sealed class GpuParticleSystem2D : AutoDisposable
         ObjectDisposedException.ThrowIf(IsDisposed, this);
         ProcessIdleAndRetiredTextures(forceIdleEvict: true);
 
-        if (_materials.Count == 0)
+        if (_materials.IsEmpty)
             return;
 
         HashSet<Material> inUse = [];
-        for (int i = 0; i < _instances.Count; i++)
+        using (_stateLock.EnterScope())
         {
-            ParticleEffectInstance2D.GroupState[] groups = _instances[i].Groups;
-            for (int g = 0; g < groups.Length; g++)
-                inUse.Add(groups[g].Material);
-        }
-
-        List<(MaterialAsset Asset, BlendState Blend)>? deadKeys = null;
-        foreach (KeyValuePair<(MaterialAsset Asset, BlendState Blend), CachedMaterial> kv in _materials)
-        {
-            if (!inUse.Contains(kv.Value.Material))
+            if (IsDisposed)
+                return;
+            for (int i = 0; i < _instances.Count; i++)
             {
-                deadKeys ??= [];
-                deadKeys.Add(kv.Key);
+                ParticleEffectInstance2D.GroupState[] groups = _instances[i].Groups;
+                for (int g = 0; g < groups.Length; g++)
+                    inUse.Add(groups[g].Material);
             }
         }
 
-        if (deadKeys != null)
+        using (_materialLock.EnterScope())
         {
-            for (int i = 0; i < deadKeys.Count; i++)
-                _materials.Remove(deadKeys[i]);
+            if (IsDisposed)
+                return;
+            List<(MaterialAsset Asset, BlendState Blend)>? deadKeys = null;
+            foreach (KeyValuePair<(MaterialAsset Asset, BlendState Blend), CachedMaterial> kv in _materials)
+            {
+                if (!inUse.Contains(kv.Value.Material))
+                {
+                    deadKeys ??= [];
+                    deadKeys.Add(kv.Key);
+                }
+            }
+
+            if (deadKeys != null)
+            {
+                for (int i = 0; i < deadKeys.Count; i++)
+                    _materials.TryRemove(deadKeys[i], out _);
+            }
         }
     }
 
@@ -252,18 +292,21 @@ public sealed class GpuParticleSystem2D : AutoDisposable
     public IDisposable AddMaterialModule(IParticleMaterialModule module)
     {
         ArgumentNullException.ThrowIfNull(module);
+        using Lock.Scope _ = _materialLock.EnterScope();
         ObjectDisposedException.ThrowIf(IsDisposed, this);
         IDisposable registration = _materialModules.Add(module);
-        foreach (CachedMaterial entry in _materials.Values)
-            module.ConfigureMaterial(entry.Material);
+        foreach (KeyValuePair<(MaterialAsset Asset, BlendState Blend), CachedMaterial> entry in _materials)
+            module.ConfigureMaterial(entry.Value.Material);
         return registration;
     }
 
     /// <summary>Re-applies all registered material modules onto cached materials.</summary>
     public void RefreshMaterialModules()
     {
-        foreach (CachedMaterial entry in _materials.Values)
-            _materialModules.Apply(entry.Material);
+        using Lock.Scope _ = _materialLock.EnterScope();
+        ObjectDisposedException.ThrowIf(IsDisposed, this);
+        foreach (KeyValuePair<(MaterialAsset Asset, BlendState Blend), CachedMaterial> entry in _materials)
+            _materialModules.Apply(entry.Value.Material);
     }
 
     /// <summary>Creates an effect instance at ground height 0 that starts playing immediately.</summary>
@@ -279,12 +322,8 @@ public sealed class GpuParticleSystem2D : AutoDisposable
             throw new InvalidDataException($"Particle effect '{effect.Name}' has no groups.");
 
         int groupCount = effect.Groups.Count;
-        var groups = new ParticleEffectInstance2D.GroupState[groupCount];
-        ParticleGroup2D? pendingTexAsset = null;
-        uint pendingSlot = 0;
-        bool hasPendingSlot = false;
-        ParticleSlice pendingSlice = default;
-        int built = 0;
+        var prepared = new (CachedMaterial Mat, Shader Emit, Shader Sim, GroupTextureEntry Texs)[groupCount];
+        int acquiredTexCount = 0;
 
         try
         {
@@ -294,66 +333,100 @@ public sealed class GpuParticleSystem2D : AutoDisposable
                 CachedMaterial cachedMat = GetOrCreateMaterial(groupAsset);
                 (Shader emitShader, Shader simulateShader) = GetBehaviorShaders(groupAsset.Behavior);
                 GroupTextureEntry texs = GetOrCreateGroupTextures(groupAsset);
-                pendingTexAsset = groupAsset;
-
-                pendingSlot = _pool.AllocateSlot();
-                hasPendingSlot = true;
-                pendingSlice = _pool.AllocateSlice(Math.Max(groupAsset.MaxParticles, 1));
-
-                EmitterParams2D parameters = EmitterParams2D.FromAsset(groupAsset);
-                parameters.Capacity = pendingSlice.Capacity;
-                parameters.SliceOffset = pendingSlice.Offset;
-                parameters.SpriteTextureId = texs.Sprite.SampledIndex;
-                parameters.ColorGradientTextureId = texs.ColorGradient.SampledIndex;
-                parameters.SizeCurveTextureId = texs.SizeCurve.SampledIndex;
-                _pool.SetParams(pendingSlot, parameters);
-
-                DepthStencilState depthStencil = groupAsset.Depth ?? DepthStencilState.None;
-                groups[i] = new ParticleEffectInstance2D.GroupState
-                {
-                    Asset = groupAsset,
-                    Slot = pendingSlot,
-                    Slice = pendingSlice,
-                    Material = cachedMat.Material,
-                    PassField = cachedMat.PassField,
-                    DepthStencil = depthStencil,
-                    EmitShader = emitShader,
-                    SimulateShader = simulateShader,
-                    EmissionRate = groupAsset.EmissionRate,
-                    Lifetime = groupAsset.Lifetime,
-                    Active = true,
-                    Visible = true,
-                };
-                if (depthStencil.DepthWrite)
-                    _depthWriteGroupCount++;
-                built++;
-                pendingTexAsset = null;
-                hasPendingSlot = false;
-                pendingSlice = default;
+                prepared[i] = (cachedMat, emitShader, simulateShader, texs);
+                acquiredTexCount++;
             }
         }
         catch
         {
-            _pool.FreeSlice(pendingSlice);
-            if (hasPendingSlot)
-                _pool.FreeSlot(pendingSlot);
-            if (pendingTexAsset != null)
-                ReleaseGroupTextureRef(pendingTexAsset);
-            for (int i = 0; i < built; i++)
+            if (acquiredTexCount > 0)
             {
-                if (groups[i].DepthStencil.DepthWrite)
-                    _depthWriteGroupCount--;
-                _pool.FreeSlice(groups[i].Slice);
-                _pool.FreeSlot(groups[i].Slot);
-                ReleaseGroupTextureRef(groups[i].Asset);
+                using Lock.Scope _ = _textureLock.EnterScope();
+                for (int i = 0; i < acquiredTexCount; i++)
+                    ReleaseGroupTextureRefLocked(effect.Groups[i]);
             }
             throw;
         }
 
-        var instance = new ParticleEffectInstance2D(this, effect, transform, height, seed, groups);
-        _instances.Add(instance);
-        _hasValidPlan = false;
-        return instance;
+        var groups = new ParticleEffectInstance2D.GroupState[groupCount];
+        uint pendingSlot = 0;
+        bool hasPendingSlot = false;
+        ParticleSlice pendingSlice = default;
+        int built = 0;
+
+        try
+        {
+            using Lock.Scope _ = _stateLock.EnterScope();
+            ObjectDisposedException.ThrowIf(IsDisposed, this);
+            try
+            {
+                for (int i = 0; i < groupCount; i++)
+                {
+                    ParticleGroup2D groupAsset = effect.Groups[i];
+                    (CachedMaterial cachedMat, Shader emitShader, Shader simulateShader, GroupTextureEntry texs) = prepared[i];
+
+                    pendingSlot = _pool.AllocateSlot();
+                    hasPendingSlot = true;
+                    pendingSlice = _pool.AllocateSlice(Math.Max(groupAsset.MaxParticles, 1));
+
+                    EmitterParams2D parameters = EmitterParams2D.FromAsset(groupAsset);
+                    parameters.Capacity = pendingSlice.Capacity;
+                    parameters.SliceOffset = pendingSlice.Offset;
+                    parameters.SpriteTextureId = texs.Sprite.SampledIndex;
+                    parameters.ColorGradientTextureId = texs.ColorGradient.SampledIndex;
+                    parameters.SizeCurveTextureId = texs.SizeCurve.SampledIndex;
+                    _pool.SetParams(pendingSlot, parameters);
+
+                    DepthStencilState depthStencil = groupAsset.Depth ?? DepthStencilState.None;
+                    groups[i] = new ParticleEffectInstance2D.GroupState
+                    {
+                        Asset = groupAsset,
+                        Slot = pendingSlot,
+                        Slice = pendingSlice,
+                        Material = cachedMat.Material,
+                        PassField = cachedMat.PassField,
+                        DepthStencil = depthStencil,
+                        EmitShader = emitShader,
+                        SimulateShader = simulateShader,
+                        EmissionRate = groupAsset.EmissionRate,
+                        Lifetime = groupAsset.Lifetime,
+                        Active = true,
+                        Visible = true,
+                    };
+                    if (depthStencil.DepthWrite)
+                        Volatile.Write(ref _depthWriteGroupCount, _depthWriteGroupCount + 1);
+                    built++;
+                    hasPendingSlot = false;
+                    pendingSlice = default;
+                }
+            }
+            catch
+            {
+                _pool.FreeSlice(pendingSlice);
+                if (hasPendingSlot)
+                    _pool.FreeSlot(pendingSlot);
+                for (int i = 0; i < built; i++)
+                {
+                    if (groups[i].DepthStencil.DepthWrite)
+                        Volatile.Write(ref _depthWriteGroupCount, _depthWriteGroupCount - 1);
+                    _pool.FreeSlice(groups[i].Slice);
+                    _pool.FreeSlot(groups[i].Slot);
+                }
+                throw;
+            }
+
+            var instance = new ParticleEffectInstance2D(this, effect, transform, height, seed, groups);
+            _instances.Add(instance);
+            _hasValidPlan = false;
+            return instance;
+        }
+        catch
+        {
+            using Lock.Scope _ = _textureLock.EnterScope();
+            for (int i = 0; i < acquiredTexCount; i++)
+                ReleaseGroupTextureRefLocked(effect.Groups[i]);
+            throw;
+        }
     }
 
     /// <summary>
@@ -365,59 +438,77 @@ public sealed class GpuParticleSystem2D : AutoDisposable
         ArgumentNullException.ThrowIfNull(context);
         ObjectDisposedException.ThrowIf(IsDisposed, this);
 
-        _simulationStepCounter++;
-        if (_idleTextureGroups.Count > 0)
+        Volatile.Write(ref _simulationStepCounter, Volatile.Read(ref _simulationStepCounter) + 1);
+        if (Volatile.Read(ref _idleTextureGroupCount) > 0)
             ProcessIdleAndRetiredTextures(forceIdleEvict: false);
 
-        if (_pool.ReconcileFrame(context))
-            _hasValidPlan = false;
+        bool rateLimitReturn = false;
+        bool didTransfer;
+        int killCount = 0;
+        bool anyDrawGroups = false;
 
-        if (SimulationRateLimitEnabled && SimulationInterval > 0f && deltaTime > 0f)
+        using (_stateLock.EnterScope())
         {
-            if (_hasValidPlan)
+            ObjectDisposedException.ThrowIf(IsDisposed, this);
+            if (_pool.ReconcileFrame(context))
+                _hasValidPlan = false;
+
+            if (SimulationRateLimitEnabled && SimulationInterval > 0f && deltaTime > 0f)
             {
-                _simulationAccumulator += deltaTime;
-                if (_simulationAccumulator < SimulationInterval)
+                if (_hasValidPlan)
                 {
-                    if (_pool.RecordUploadsAndMigration(context))
+                    _simulationAccumulator += deltaTime;
+                    if (_simulationAccumulator < SimulationInterval)
                     {
-                        context.Barrier(
-                            Stage.Transfer, Access.TransferWrite,
-                            Stage.Compute | Stage.Vertex | Stage.Indirect,
-                            Access.ShaderRead | Access.ShaderWrite | Access.IndirectRead);
+                        didTransfer = _pool.RecordUploadsAndMigration(context);
+                        rateLimitReturn = true;
+                        goto DonePhaseA;
                     }
-                    return;
+                    deltaTime = Math.Min(SimulationInterval, ParticleEmission.MaxDeltaTime);
+                    _simulationAccumulator = Math.Min(_simulationAccumulator - deltaTime, SimulationInterval);
                 }
-                deltaTime = Math.Min(SimulationInterval, ParticleEmission.MaxDeltaTime);
-                _simulationAccumulator = Math.Min(_simulationAccumulator - deltaTime, SimulationInterval);
+                else
+                {
+                    deltaTime = Math.Min(_simulationAccumulator + deltaTime, ParticleEmission.MaxDeltaTime);
+                    _simulationAccumulator = 0f;
+                }
             }
-            else
-            {
-                deltaTime = Math.Min(_simulationAccumulator + deltaTime, ParticleEmission.MaxDeltaTime);
-                _simulationAccumulator = 0f;
-            }
+
+            deltaTime = Math.Min(deltaTime, ParticleEmission.MaxDeltaTime);
+
+            uint dirtyMin = uint.MaxValue;
+            uint dirtyMax = 0;
+            for (int i = 0; i < _instances.Count; i++)
+                _instances[i].AdvanceFrame(deltaTime, ref dirtyMin, ref dirtyMax);
+
+            if (dirtyMin <= dirtyMax)
+                _pool.UpdateParams(dirtyMin, dirtyMax - dirtyMin + 1);
+
+            didTransfer = _pool.RecordUploadsAndMigration(context);
+
+            BuildDrawPlan();
+            _plannedBuffers = new(_pool.Particles, _pool.Params, _pool.DrawArgs, _pool.InstanceData);
+            _hasValidPlan = true;
+
+            _pool.DrainPendingKills(context, _kills);
+            killCount = _kills.Count;
+            anyDrawGroups = _drawGroups.Count > 0;
+        DonePhaseA: ;
         }
 
-        deltaTime = Math.Min(deltaTime, ParticleEmission.MaxDeltaTime);
+        if (rateLimitReturn)
+        {
+            if (didTransfer)
+            {
+                context.Barrier(
+                    Stage.Transfer, Access.TransferWrite,
+                    Stage.Compute | Stage.Vertex | Stage.Indirect,
+                    Access.ShaderRead | Access.ShaderWrite | Access.IndirectRead);
+            }
+            return;
+        }
 
-        uint dirtyMin = uint.MaxValue;
-        uint dirtyMax = 0;
-        for (int i = 0; i < _instances.Count; i++)
-            _instances[i].AdvanceFrame(deltaTime, ref dirtyMin, ref dirtyMax);
-
-        if (dirtyMin <= dirtyMax)
-            _pool.UpdateParams(dirtyMin, dirtyMax - dirtyMin + 1);
-
-        bool didTransfer = _pool.RecordUploadsAndMigration(context);
-
-        BuildDrawPlan();
-        PlannedBuffers plannedBuffers = new(_pool.Particles, _pool.Params, _pool.DrawArgs, _pool.InstanceData);
-        _plannedBuffers = plannedBuffers;
-        _hasValidPlan = true;
-
-        _pool.DrainPendingKills(context, _kills);
-        bool anyDrawGroups = _drawGroups.Count > 0;
-        if (_kills.Count == 0 && !anyDrawGroups)
+        if (killCount == 0 && !anyDrawGroups)
         {
             if (didTransfer)
             {
@@ -456,10 +547,11 @@ public sealed class GpuParticleSystem2D : AutoDisposable
             bool didKills = false;
             bool didResetArgs = false;
             bool didEmit = false;
-            GPUBufferView particlesView = plannedBuffers.Particles.View;
-            GPUBufferView emittersView = plannedBuffers.Params.View;
-            GPUBufferView drawArgsView = plannedBuffers.DrawArgs.View;
-            GPUBufferView instanceView = plannedBuffers.InstanceData.View;
+            PlannedBuffers buffers = _plannedBuffers;
+            GPUBufferView particlesView = buffers.Particles.View;
+            GPUBufferView emittersView = buffers.Params.View;
+            GPUBufferView drawArgsView = buffers.DrawArgs.View;
+            GPUBufferView instanceView = buffers.InstanceData.View;
 
             for (int i = 0; i < _kills.Count; i++)
             {
@@ -746,19 +838,27 @@ public sealed class GpuParticleSystem2D : AutoDisposable
 
     internal void ReleaseInstance(ParticleEffectInstance2D instance)
     {
-        if (!_instances.Remove(instance))
-            return;
-
-        foreach (ParticleEffectInstance2D.GroupState group in instance.Groups)
+        using (_stateLock.EnterScope())
         {
-            if (group.DepthStencil.DepthWrite)
-                _depthWriteGroupCount--;
-            _pool.FreeSlice(group.Slice);
-            _pool.FreeSlot(group.Slot);
-            ReleaseGroupTextureRef(group.Asset);
+            if (!_instances.Remove(instance))
+                return;
+
+            foreach (ParticleEffectInstance2D.GroupState group in instance.Groups)
+            {
+                if (group.DepthStencil.DepthWrite)
+                    Volatile.Write(ref _depthWriteGroupCount, _depthWriteGroupCount - 1);
+                _pool.FreeSlice(group.Slice);
+                _pool.FreeSlot(group.Slot);
+            }
+            if (instance.IsActive && instance.IsVisible)
+                _hasValidPlan = false;
         }
-        if (instance.IsActive && instance.IsVisible)
-            _hasValidPlan = false;
+
+        using (_textureLock.EnterScope())
+        {
+            foreach (ParticleEffectInstance2D.GroupState group in instance.Groups)
+                ReleaseGroupTextureRefLocked(group.Asset);
+        }
     }
 
     private (Shader Emit, Shader Simulate) GetBehaviorShaders(string? behavior)
@@ -774,8 +874,7 @@ public sealed class GpuParticleSystem2D : AutoDisposable
         Shader simulate = _shaders.Compose(ParticleAssetPipeline.SimulateModule2D, moduleName, ShaderKind.Compute, $"particles2d_sim:{moduleName}");
 
         var pair = (emit, simulate);
-        _behaviorShaders[moduleName] = pair;
-        return pair;
+        return _behaviorShaders.GetOrAdd(moduleName, pair);
     }
 
     private unsafe CachedMaterial GetOrCreateMaterial(ParticleGroup2D group)
@@ -804,17 +903,26 @@ public sealed class GpuParticleSystem2D : AutoDisposable
                 $"Render template '{_renderTemplateModule}' does not declare expected '{ParticleShaderKeys.Pass}' block ({sizeof(ParticlePassData2D)}B).");
 
         var created = new CachedMaterial(material, passField);
-        _materials[key] = created;
+        using Lock.Scope _ = _materialLock.EnterScope();
+        ObjectDisposedException.ThrowIf(IsDisposed, this);
+        if (_materials.TryGetValue(key, out CachedMaterial raceWinner))
+            return raceWinner;
+
+        _materials.TryAdd(key, created);
         _materialModules.Apply(material);
         return created;
     }
 
     private GroupTextureEntry GetOrCreateGroupTextures(ParticleGroup2D group)
     {
-        if (_groupTextures.TryGetValue(group, out GroupTextureEntry? existing))
+        using (_textureLock.EnterScope())
         {
-            ActivateGroupTextureRef(group, existing);
-            return existing;
+            ObjectDisposedException.ThrowIf(IsDisposed, this);
+            if (_groupTextures.TryGetValue(group, out GroupTextureEntry? existing))
+            {
+                ActivateGroupTextureRefLocked(group, existing);
+                return existing;
+            }
         }
 
         Texture sprite = group.Texture?.Texture
@@ -875,21 +983,41 @@ public sealed class GpuParticleSystem2D : AutoDisposable
             OwnsSize = ownsSize,
             RefCount = 1,
         };
-        _groupTextures[group] = entry;
-        return entry;
+
+        using (_textureLock.EnterScope())
+        {
+            if (IsDisposed)
+            {
+                if (ownsGradient) colorGradient.Dispose();
+                if (ownsSize) sizeCurve.Dispose();
+                throw new ObjectDisposedException(nameof(GpuParticleSystem2D));
+            }
+
+            if (_groupTextures.TryGetValue(group, out GroupTextureEntry? raceWinner))
+            {
+                if (ownsGradient) colorGradient.Dispose();
+                if (ownsSize) sizeCurve.Dispose();
+                ActivateGroupTextureRefLocked(group, raceWinner);
+                return raceWinner;
+            }
+
+            _groupTextures[group] = entry;
+            return entry;
+        }
     }
 
-    private void ActivateGroupTextureRef(ParticleGroup2D group, GroupTextureEntry entry)
+    private void ActivateGroupTextureRefLocked(ParticleGroup2D group, GroupTextureEntry entry)
     {
         entry.RefCount++;
         if (entry.InIdleList)
         {
             entry.InIdleList = false;
             _idleTextureGroups.Remove(group);
+            Volatile.Write(ref _idleTextureGroupCount, _idleTextureGroups.Count);
         }
     }
 
-    private void ReleaseGroupTextureRef(ParticleGroup2D group)
+    private void ReleaseGroupTextureRefLocked(ParticleGroup2D group)
     {
         if (!_groupTextures.TryGetValue(group, out GroupTextureEntry? entry))
             return;
@@ -898,42 +1026,54 @@ public sealed class GpuParticleSystem2D : AutoDisposable
         if (entry.RefCount <= 0 && !entry.InIdleList)
         {
             entry.RefCount = 0;
-            entry.IdleSinceFrame = _simulationStepCounter;
+            entry.IdleSinceFrame = Volatile.Read(ref _simulationStepCounter);
             entry.InIdleList = true;
             _idleTextureGroups.Add(group);
+            Volatile.Write(ref _idleTextureGroupCount, _idleTextureGroups.Count);
         }
     }
 
     private void ProcessIdleAndRetiredTextures(bool forceIdleEvict)
     {
-        for (int i = _idleTextureGroups.Count - 1; i >= 0; i--)
+        _texturesToDispose.Clear();
+        ulong currentStep = Volatile.Read(ref _simulationStepCounter);
+
+        using (_textureLock.EnterScope())
         {
-            ParticleGroup2D group = _idleTextureGroups[i];
-            if (!_groupTextures.TryGetValue(group, out GroupTextureEntry? entry))
+            for (int i = _idleTextureGroups.Count - 1; i >= 0; i--)
             {
-                RemoveIdleAt(i);
-                continue;
-            }
-            if (entry.RefCount > 0)
-            {
-                entry.InIdleList = false;
-                RemoveIdleAt(i);
-                continue;
-            }
+                ParticleGroup2D group = _idleTextureGroups[i];
+                if (!_groupTextures.TryGetValue(group, out GroupTextureEntry? entry))
+                {
+                    RemoveIdleAt(i);
+                    continue;
+                }
+                if (entry.RefCount > 0)
+                {
+                    entry.InIdleList = false;
+                    RemoveIdleAt(i);
+                    continue;
+                }
 
-            bool expired = forceIdleEvict
-                || _idleTextureGroups.Count > MaxIdleTextureGroups
-                || (_simulationStepCounter - entry.IdleSinceFrame) >= IdleTextureRetireFrames;
-            if (!expired)
-                continue;
+                bool expired = forceIdleEvict
+                    || _idleTextureGroups.Count > MaxIdleTextureGroups
+                    || (currentStep - entry.IdleSinceFrame) >= IdleTextureRetireFrames;
+                if (!expired)
+                    continue;
 
-            _groupTextures.Remove(group);
-            RemoveIdleAt(i);
-            if (entry.OwnsGradient)
-                entry.ColorGradient.Dispose();
-            if (entry.OwnsSize)
-                entry.SizeCurve.Dispose();
+                _groupTextures.Remove(group);
+                RemoveIdleAt(i);
+                if (entry.OwnsGradient)
+                    _texturesToDispose.Add(entry.ColorGradient);
+                if (entry.OwnsSize)
+                    _texturesToDispose.Add(entry.SizeCurve);
+            }
+            Volatile.Write(ref _idleTextureGroupCount, _idleTextureGroups.Count);
         }
+
+        for (int i = 0; i < _texturesToDispose.Count; i++)
+            _texturesToDispose[i].Dispose();
+        _texturesToDispose.Clear();
     }
 
     private void RemoveIdleAt(int index)
@@ -955,25 +1095,45 @@ public sealed class GpuParticleSystem2D : AutoDisposable
         if (!disposing)
             return;
 
-        for (int i = _instances.Count - 1; i >= 0; i--)
-            _instances[i].Dispose();
-
-        foreach (GroupTextureEntry entry in _groupTextures.Values)
+        using (_stateLock.EnterScope())
         {
-            if (entry.OwnsGradient) entry.ColorGradient.Dispose();
-            if (entry.OwnsSize) entry.SizeCurve.Dispose();
+            for (int i = _instances.Count - 1; i >= 0; i--)
+            {
+                foreach (ParticleEffectInstance2D.GroupState group in _instances[i].Groups)
+                {
+                    _pool.FreeSlice(group.Slice);
+                    _pool.FreeSlot(group.Slot);
+                }
+            }
+            _instances.Clear();
+            Volatile.Write(ref _depthWriteGroupCount, 0);
+            _drawBatches.Clear();
+            _plannedBuffers = default;
+
+            _emitWorkPool.Dispose();
+            _simulateWorkPool.Dispose();
+            _pool.Reallocated -= OnPoolReallocated;
+            _pool.Dispose();
         }
-        _groupTextures.Clear();
-        _idleTextureGroups.Clear();
 
-        _materials.Clear();
+        using (_textureLock.EnterScope())
+        {
+            foreach (GroupTextureEntry entry in _groupTextures.Values)
+            {
+                if (entry.OwnsGradient) entry.ColorGradient.Dispose();
+                if (entry.OwnsSize) entry.SizeCurve.Dispose();
+            }
+            _groupTextures.Clear();
+            _idleTextureGroups.Clear();
+            Volatile.Write(ref _idleTextureGroupCount, 0);
+        }
+
+        using (_materialLock.EnterScope())
+        {
+            _materials.Clear();
+            _materialModules.Clear();
+        }
+
         _behaviorShaders.Clear();
-        _drawBatches.Clear();
-        _plannedBuffers = default;
-
-        _emitWorkPool.Dispose();
-        _simulateWorkPool.Dispose();
-        _pool.Reallocated -= OnPoolReallocated;
-        _pool.Dispose();
     }
 }
