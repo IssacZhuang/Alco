@@ -28,10 +28,12 @@ public unsafe class Sdl3Gamepad : Gamepad
     }
 
     private ButtonState _state;
+    private bool _isConnected;
 
     internal Sdl3Gamepad(SDL_Gamepad native)
     {
         _native = native;
+        _isConnected = SDL_GamepadConnected(_native);
         Name = SDL_GetGamepadName(_native) ?? "Unknown gamepad";
         GamepadType = ConvertGamepadType(SDL_GetGamepadType(_native));
     }
@@ -49,7 +51,12 @@ public unsafe class Sdl3Gamepad : Gamepad
     /// <summary>
     /// Indicates whether the device is currently connected.
     /// </summary>
-    public override bool IsConnected =>  SDL_GamepadConnected(_native);
+    public override bool IsConnected => _isConnected;
+
+    /// <summary>
+    /// Marks this gamepad as disconnected immediately upon a device-removal event.
+    /// </summary>
+    public void MarkDisconnected() => _isConnected = false;
 
     /// <summary>
     /// Gets the normalized axis value in range [-1, 1] (triggers [0, 1]).
@@ -132,6 +139,7 @@ public unsafe class Sdl3Gamepad : Gamepad
 
     internal void CleanUp()
     {
+        _isConnected = false;
         SDL_CloseGamepad(_native);
     }
 
@@ -140,6 +148,7 @@ public unsafe class Sdl3Gamepad : Gamepad
     /// </summary>
     internal void ResetFrame()
     {
+        _isConnected = SDL_GamepadConnected(_native);
         for (int i = 0; i < MaxButtonCount; i++)
         {
             _state.isDown[i] = false;

@@ -32,6 +32,7 @@ public unsafe class Sdl3Platform : Platform
     {
         _timer = new EngineTimer();
         _events = new NativeBuffer<SDL_Event>(PeepEventsCount);
+        _input.OnGlobalMousePositionChanged = SyncWindowsMousePosition;
     }
 
     /// <inheritdoc/>
@@ -96,6 +97,7 @@ public unsafe class Sdl3Platform : Platform
         _input.Init();
         _timer.Start(TargetFrameRate);
         _isDrainingInitialEvents = true;
+        SyncWindowsMousePositionFromSdl();
         while (!_isStopped)
         {
             VisualStudioProfiler? profiler = null;
@@ -124,6 +126,7 @@ public unsafe class Sdl3Platform : Platform
                 }
             } while (eventRead > 0);
             _isDrainingInitialEvents = false;
+            SyncWindowsMousePositionFromSdl();
 
             DoUpdate(updateDeltaTime);
 
@@ -132,6 +135,21 @@ public unsafe class Sdl3Platform : Platform
             profiler?.Dispose();
 
             _timer.WaitForNextFrame();
+        }
+    }
+
+    private void SyncWindowsMousePositionFromSdl()
+    {
+        System.Numerics.Vector2 globalMouse = default;
+        _ = SDL_GetGlobalMouseState(&globalMouse.X, &globalMouse.Y);
+        SyncWindowsMousePosition(globalMouse);
+    }
+
+    private void SyncWindowsMousePosition(System.Numerics.Vector2 globalMouse)
+    {
+        foreach (Sdl3Window window in _windows.Values)
+        {
+            window.SyncFrameMousePosition(globalMouse);
         }
     }
 
@@ -179,44 +197,71 @@ public unsafe class Sdl3Platform : Platform
                 _input.OnSdlMouseWheel(e.wheel.x, e.wheel.y);
                 break;
             case SDL_EventType.TextInput:
-                Sdl3Window window1 = _windows[e.window.windowID];
-                ReadOnlySpan<byte> str = MemoryMarshal.CreateReadOnlySpanFromNullTerminated(e.text.text);
-                int length = Encoding.UTF8.GetCharCount(str);
-                if (length <= StackAllocationCharSizeLimit)
+                if (_windows.TryGetValue(e.window.windowID, out Sdl3Window? textWindow))
                 {
-                    Span<char> chars = stackalloc char[length];
-                    Encoding.UTF8.GetChars(str, chars);
-                    window1.DoTextInputCore(chars);
+                    ReadOnlySpan<byte> str = MemoryMarshal.CreateReadOnlySpanFromNullTerminated(e.text.text);
+                    int length = Encoding.UTF8.GetCharCount(str);
+                    if (length <= StackAllocationCharSizeLimit)
+                    {
+                        Span<char> chars = stackalloc char[length];
+                        Encoding.UTF8.GetChars(str, chars);
+                        textWindow.DoTextInputCore(chars);
+                    }
+                    else
+                    {
+                        textWindow.DoTextInputCore(e.text.GetText() ?? string.Empty);
+                    }
                 }
-                else
-                {
-                    window1.DoTextInputCore(e.text.GetText() ?? string.Empty);
-                }
-
-
                 break;
             case SDL_EventType.Quit:
                 StopMainLoop();
                 break;
+            case SDL_EventType.WindowMoved:
+                if (_windows.TryGetValue(e.window.windowID, out Sdl3Window? movedWindow))
+                {
+                    movedWindow.UpdateCachedPosition(new int2(e.window.data1, e.window.data2));
+                }
+                break;
             case SDL_EventType.WindowResized:
-                Sdl3Window window = _windows[e.window.windowID];
-                window.DoResize(new uint2(e.window.data1, e.window.data2));
+                if (_windows.TryGetValue(e.window.windowID, out Sdl3Window? resizedWindow))
+                {
+                    uint2 newSize = new uint2(e.window.data1, e.window.data2);
+                    resizedWindow.UpdateCachedSize(newSize);
+                    resizedWindow.DoResize(newSize);
+                }
+                break;
+            case SDL_EventType.WindowPixelSizeChanged:
+            case SDL_EventType.WindowMaximized:
+                if (_windows.TryGetValue(e.window.windowID, out Sdl3Window? metricsWindow))
+                {
+                    metricsWindow.RefreshWindowMetrics();
+                }
                 break;
             case SDL_EventType.WindowMinimized:
-                Sdl3Window window2 = _windows[e.window.windowID];
-                window2.DoMinimize();
+                if (_windows.TryGetValue(e.window.windowID, out Sdl3Window? minimizedWindow))
+                {
+                    minimizedWindow.RefreshWindowMetrics();
+                    minimizedWindow.DoMinimize();
+                }
                 break;
             case SDL_EventType.WindowRestored:
-                Sdl3Window window3 = _windows[e.window.windowID];
-                window3.DoRestore();
+                if (_windows.TryGetValue(e.window.windowID, out Sdl3Window? restoredWindow))
+                {
+                    restoredWindow.RefreshWindowMetrics();
+                    restoredWindow.DoRestore();
+                }
                 break;
             case SDL_EventType.WindowFocusGained:
-                Sdl3Window window4 = _windows[e.window.windowID];
-                window4.ResumeTextInputIfNeeded();
+                if (_windows.TryGetValue(e.window.windowID, out Sdl3Window? focusedWindow))
+                {
+                    focusedWindow.ResumeTextInputIfNeeded();
+                }
                 break;
             case SDL_EventType.WindowFocusLost:
-                Sdl3Window window5 = _windows[e.window.windowID];
-                window5.ForceStopTextInput();
+                if (_windows.TryGetValue(e.window.windowID, out Sdl3Window? unfocusedWindow))
+                {
+                    unfocusedWindow.ForceStopTextInput();
+                }
                 break;
             case SDL_EventType.GamepadButtonDown:
                 _input.OnSdlGamepadButtonDown(e.gbutton.which, (SDL_GamepadButton)e.gbutton.button);
@@ -226,6 +271,9 @@ public unsafe class Sdl3Platform : Platform
                 break;
             case SDL_EventType.GamepadAxisMotion:
                 _input.OnSdlGamepadAxisMotion(e.gaxis.which, (SDL_GamepadAxis)e.gaxis.axis, e.gaxis.value);
+                break;
+            case SDL_EventType.GamepadRemoved:
+                _input.OnSdlGamepadRemoved(e.gdevice.which);
                 break;
             case SDL_EventType.AudioDeviceAdded:
                 if (!e.adevice.recording && !_isDrainingInitialEvents)

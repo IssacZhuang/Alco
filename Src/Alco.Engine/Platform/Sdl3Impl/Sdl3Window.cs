@@ -31,10 +31,15 @@ public unsafe partial class Sdl3Window : View
 
 
     private readonly SDL_Window _window;
+    private readonly SDL_WindowID _windowId;
     private readonly GPUSwapchain _swapchain;
     private string _title;
+    private uint2 _size;
+    private int2 _position;
+    private Vector2 _cachedGlobalMouse;
+    private bool _useFrameCache;
 
-    internal SDL_WindowID WindowId => SDL_GetWindowID(_window);
+    internal SDL_WindowID WindowId => _windowId;
 
     /// <summary>Gets the underlying SDL window handle.</summary>
     public SDL_Window NativeWindow => _window;
@@ -72,20 +77,17 @@ public unsafe partial class Sdl3Window : View
                     _ = SDL_SetWindowSize(_window, mode->w, mode->h);
                     break;
             }
+            RefreshWindowMetrics();
         }
     }
 
     public override int2 Position
     {
-        get
-        {
-            int2 result = default;
-            SDL_GetWindowPosition(_window, out result.X, out result.Y);
-            return result;
-        }
+        get => _useFrameCache ? _position : QueryWindowPosition();
         set
         {
             _ = SDL_SetWindowPosition(_window, value.X, value.Y);
+            RefreshWindowMetrics();
         }
     }
 
@@ -95,23 +97,25 @@ public unsafe partial class Sdl3Window : View
     {
         get
         {
+            if (_useFrameCache)
+            {
+                return _cachedGlobalMouse - new Vector2(_position.X, _position.Y);
+            }
+
             Vector2 globalPosition = default;
             SDL_GetGlobalMouseState(&globalPosition.X, &globalPosition.Y);
-            Vector2 windowPosition = Position;
+            Vector2 windowPosition = QueryWindowPosition();
             return globalPosition - windowPosition;
         }
     }
 
     public override uint2 Size
     {
-        get
-        {
-            SDL_GetWindowSize(_window, out int x, out int y);
-            return new uint2(x, y);
-        }
+        get => _useFrameCache ? _size : QueryWindowSize();
         set
         {
             _ = SDL_SetWindowSize(_window, (int)value.X, (int)value.Y);
+            RefreshWindowMetrics();
         }
     }
     public override string Title
@@ -130,6 +134,48 @@ public unsafe partial class Sdl3Window : View
     public override GPUSwapchain? Swapchain
     {
         get => _swapchain;
+    }
+
+    /// <summary>Refreshes cached window position and size from SDL.</summary>
+    public void RefreshWindowMetrics()
+    {
+        _position = QueryWindowPosition();
+        _size = QueryWindowSize();
+    }
+
+    /// <summary>Updates the cached window size in pixels.</summary>
+    /// <param name="size">The new window size.</param>
+    public void UpdateCachedSize(uint2 size)
+    {
+        _size = size;
+    }
+
+    /// <summary>Updates the cached window position in screen coordinates.</summary>
+    /// <param name="position">The new window position.</param>
+    public void UpdateCachedPosition(int2 position)
+    {
+        _position = position;
+    }
+
+    /// <summary>Updates the cached global mouse coordinates for frame-scoped queries.</summary>
+    /// <param name="globalMousePosition">The current global mouse position.</param>
+    public void SyncFrameMousePosition(Vector2 globalMousePosition)
+    {
+        _cachedGlobalMouse = globalMousePosition;
+        _useFrameCache = true;
+    }
+
+    private int2 QueryWindowPosition()
+    {
+        int2 result = default;
+        SDL_GetWindowPosition(_window, out result.X, out result.Y);
+        return result;
+    }
+
+    private uint2 QueryWindowSize()
+    {
+        SDL_GetWindowSize(_window, out int x, out int y);
+        return new uint2(x, y);
     }
 
     /// <summary>
@@ -160,10 +206,13 @@ public unsafe partial class Sdl3Window : View
                 throw new Exception("Failed to create SDL window");
             }
 
+            _windowId = SDL_GetWindowID(_window);
+            RefreshWindowMetrics();
+
             SwapchainDesc descriptor = new()
             {
                 Surface = GetSurfaceSource(_window, setting.LinuxUseWayland),
-                Extent = new Extent2D(Size.X, Size.Y),
+                Extent = new Extent2D(_size.X, _size.Y),
                 Format = setting.SurfaceFormat ?? Format.Undefined,
                 VSync = setting.VSync,
             };
@@ -186,11 +235,13 @@ public unsafe partial class Sdl3Window : View
         _window = window;
         try
         {
+            _windowId = SDL_GetWindowID(_window);
+            RefreshWindowMetrics();
             _title = SDL_GetWindowTitle(window) ?? string.Empty;
             _swapchain = device.CreateSwapchain(new SwapchainDesc
             {
                 Surface = GetSurfaceSource(_window, false),
-                Extent = new Extent2D(Size.X, Size.Y),
+                Extent = new Extent2D(_size.X, _size.Y),
                 Format = surfaceFormat,
             });
         }

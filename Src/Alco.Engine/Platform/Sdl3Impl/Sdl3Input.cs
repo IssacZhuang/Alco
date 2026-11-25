@@ -68,6 +68,11 @@ public unsafe class Sdl3Input : Input
     }
 
 
+    /// <summary>
+    /// Optional callback invoked when input code warps or resyncs the global mouse position.
+    /// </summary>
+    public Action<Vector2>? OnGlobalMousePositionChanged { get; set; }
+
     public override Vector2 MousePosition
     {
         get
@@ -78,6 +83,7 @@ public unsafe class Sdl3Input : Input
         {
             _ = SDL_WarpMouseGlobal((int)value.X, (int)value.Y);
             _mousePosition = value;
+            OnGlobalMousePositionChanged?.Invoke(value);
         }
     }
 
@@ -96,6 +102,7 @@ public unsafe class Sdl3Input : Input
         _warpDelta += actual - currentPos;
         _ = SDL_WarpMouseGlobal((int)globalPosition.X, (int)globalPosition.Y);
         _mousePosition = actual;
+        OnGlobalMousePositionChanged?.Invoke(actual);
     }
 
     /// <inheritdoc />
@@ -259,6 +266,7 @@ public unsafe class Sdl3Input : Input
             _mousePosition = resync;
             _lastMousePosition = resync;
             _warpDelta = Vector2.Zero;
+            OnGlobalMousePositionChanged?.Invoke(resync);
         }
     }
 
@@ -518,6 +526,18 @@ public unsafe class Sdl3Input : Input
         if (value > threshold)
         {
             _isGamepadInputting = true;
+        }
+    }
+
+    /// <summary>
+    /// Marks a gamepad disconnected immediately when SDL reports device removal.
+    /// </summary>
+    /// <param name="which">The SDL joystick instance ID.</param>
+    public void OnSdlGamepadRemoved(SDL_JoystickID which)
+    {
+        if (_gamepadMap.TryGetValue(which, out var gp))
+        {
+            gp.MarkDisconnected();
         }
     }
 
