@@ -14,7 +14,7 @@ namespace Alco.Editor;
 public sealed class PreviewViewport2D : PreviewViewport
 {
     private readonly float _baseViewWidth;
-    private readonly Camera2DBuffer _camera;
+    private readonly Camera2D _camera;
     private float _zoom = 1f;
 
     /// <summary>Creates the viewport with its 2D camera.</summary>
@@ -26,14 +26,19 @@ public sealed class PreviewViewport2D : PreviewViewport
         : base(context, name, pipelineFactory)
     {
         _baseViewWidth = baseViewWidth;
-        _camera = context.RenderingSystem.CreateCamera2D(baseViewWidth, baseViewWidth * 9f / 16f, 100f, name + "_2d");
+        _camera = new Camera2D
+        {
+            Size = new Vector2(baseViewWidth, baseViewWidth * 9f / 16f),
+            Near = -100f,
+            Far = 100f,
+        };
     }
 
     /// <summary>The 2D camera, for systems that render into the scene pass.</summary>
-    public Camera2DBuffer Camera => _camera;
+    public Camera2D Camera => _camera;
 
     /// <summary>The camera state: the zoom multiplier over the base view width and the view center.</summary>
-    public (float Zoom, Vector2 Position) CameraState => (_zoom, _camera.Position);
+    public (float Zoom, Vector2 Position) CameraState => (_zoom, _camera.Transform.Position);
 
     /// <summary>Sets the camera zoom and center, applying the viewport's zoom clamps.</summary>
     /// <param name="zoom">The zoom multiplier over the base view width (smaller zooms in).</param>
@@ -41,15 +46,15 @@ public sealed class PreviewViewport2D : PreviewViewport
     public void SetCameraState(float zoom, Vector2 position)
     {
         _zoom = Math.Clamp(zoom, 0.05f, 40f);
-        _camera.Position = position;
+        _camera.Transform.Position = position;
         UpdateCamera();
     }
 
     /// <inheritdoc />
-    protected override Matrix4x4 ViewProjection => _camera.Data.ViewProjectionMatrix;
+    protected override Matrix4x4 ViewProjection => _camera.ViewProjectionMatrix;
 
     /// <inheritdoc />
-    protected override float PixelsPerUnit => (float)Target.Width / _camera.ViewSize.X;
+    protected override float PixelsPerUnit => (float)TargetWidth / _camera.Size.X;
 
     /// <inheritdoc />
     protected override void AppendCameraStatus(FixedString256 status)
@@ -65,14 +70,13 @@ public sealed class PreviewViewport2D : PreviewViewport
     /// <inheritdoc />
     protected override void CommitCamera()
     {
-        _camera.UpdateMatrixToGPU();
     }
 
     /// <inheritdoc />
     public override void ResetCamera()
     {
         _zoom = 1f;
-        _camera.Position = Vector2.Zero;
+        _camera.Transform.Position = Vector2.Zero;
         UpdateCamera();
     }
 
@@ -94,16 +98,16 @@ public sealed class PreviewViewport2D : PreviewViewport
     {
         // Grab-style pan: the content follows the mouse. World Y points up but
         // screen Y points down, so the vertical component is flipped.
-        Vector2 worldPerPixel = _camera.ViewSize / imageSize;
-        _camera.Position -= new Vector2(delta.X, -delta.Y) * worldPerPixel;
+        Vector2 worldPerPixel = _camera.Size / imageSize;
+        _camera.Transform.Position -= new Vector2(delta.X, -delta.Y) * worldPerPixel;
     }
 
     /// <summary>Applies the zoom to the camera, keeping the base view width.</summary>
     private void UpdateCamera()
     {
-        float aspect = Target.Height == 0 ? 16f / 9f : (float)Target.Width / Target.Height;
+        float aspect = TargetHeight == 0 ? 16f / 9f : (float)TargetWidth / TargetHeight;
         float width = _baseViewWidth * _zoom;
-        _camera.ViewSize = new Vector2(width, width / aspect);
+        _camera.Size = new Vector2(width, width / aspect);
     }
 
     /// <inheritdoc />
@@ -111,8 +115,8 @@ public sealed class PreviewViewport2D : PreviewViewport
     {
         uint color = ImGui.GetColorU32(new Vector4(1f, 1f, 1f, 0.12f));
         // Cover the visible world rectangle.
-        Vector2 center = _camera.Position;
-        Vector2 half = _camera.ViewSize * 0.5f;
+        Vector2 center = _camera.Transform.Position;
+        Vector2 half = _camera.Size * 0.5f;
         for (float x = MathF.Floor((center.X - half.X) / step) * step; x <= center.X + half.X; x += step)
         {
             DrawWorldLine(drawList, viewProjection, imageMin, imageSize,
@@ -131,21 +135,11 @@ public sealed class PreviewViewport2D : PreviewViewport
         uint xColor = ImGui.GetColorU32(new Vector4(1f, 0.3f, 0.3f, 0.8f));
         uint yColor = ImGui.GetColorU32(new Vector4(0.35f, 0.9f, 0.35f, 0.8f));
         const float thickness = 1.5f;
-        Vector2 center = _camera.Position;
-        Vector2 half = _camera.ViewSize * 0.5f;
+        Vector2 center = _camera.Transform.Position;
+        Vector2 half = _camera.Size * 0.5f;
         DrawWorldLine(drawList, viewProjection, imageMin, imageSize,
             new Vector3(center.X - half.X, 0f, 0f), new Vector3(center.X + half.X, 0f, 0f), xColor, thickness);
         DrawWorldLine(drawList, viewProjection, imageMin, imageSize,
             new Vector3(0f, center.Y - half.Y, 0f), new Vector3(0f, center.Y + half.Y, 0f), yColor, thickness);
-    }
-
-    /// <inheritdoc />
-    protected override void Dispose(bool disposing)
-    {
-        if (disposing)
-        {
-            _camera.Dispose();
-        }
-        base.Dispose(disposing);
     }
 }

@@ -1091,6 +1091,20 @@ internal sealed class SlangModuleHandle
         }
     }
 
+    internal List<ShaderTypeLayout> GetTypes()
+    {
+        lock (SlangCompiler.NativeLock)
+        {
+            Owner.ThrowIfDisposed();
+            IntPtr moduleDecl = Native.GetModuleReflectionDecl();
+            IntPtr moduleLayout = Native.AsComponentType().GetLayout(out _);
+            if (moduleDecl == IntPtr.Zero || moduleLayout == IntPtr.Zero)
+                return [];
+
+            return SlangLayoutReader.ReadModuleTypes(moduleLayout, moduleDecl);
+        }
+    }
+
     private static void CollectImplementations(IntPtr reflection, IntPtr parentDecl, IntPtr interfaceType, List<string> results, int depth)
     {
         if (depth > 16)

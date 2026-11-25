@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using Alco.Editor.Extensibility;
 using Alco.Engine;
 using Alco.Graphics;
@@ -16,7 +17,7 @@ namespace Alco.Editor;
 /// </summary>
 public sealed class EditorEngine : GameEngine
 {
-    private readonly GPUCommandBuffer _commandBuffer;
+    private readonly RenderContext? _renderContext;
     private readonly EditorSystem _editorSystem;
 
     /// <summary>
@@ -46,7 +47,10 @@ public sealed class EditorEngine : GameEngine
             AddSystem(new EditorApiHost(this, _editorSystem, apiPort));
         }
 
-        _commandBuffer = GraphicsDevice.CreateCommandBuffer();
+        if (setting.HasGPU)
+        {
+            _renderContext = new RenderContext(RenderingSystem);
+        }
 
         if (AssetSystem.TryLoadRaw(BuiltInAssetsPath.Font_Default, out SafeMemoryHandle data))
         {
@@ -74,7 +78,7 @@ public sealed class EditorEngine : GameEngine
 
         // Particle effect assets (.afx) open in the particle effect document; the
         // loader also serves games that load effects through the editor's asset system.
-        yield return new AssetLoaderParticleEffect(AssetSystem, RenderingSystem.ShaderSystem);
+        yield return new AssetLoaderParticleEffect(AssetSystem, RenderingSystem.Shaders);
     }
 
     protected override void OnUpdate(float delta)
@@ -84,18 +88,64 @@ public sealed class EditorEngine : GameEngine
             Stop();
         }
 
-        if (MainPresenter.FrameBuffer is { } frameBuffer)
+        if (_renderContext != null && MainPresenter.HasValidFrame)
         {
-            _commandBuffer.Begin();
-            using (_commandBuffer.BeginRender(frameBuffer, ColorFloat.Black))
+            RenderTarget target = MainPresenter.CurrentRenderTarget;
+            if (target.IsValid)
             {
+                bool begun = false;
+                try
+                {
+                    _renderContext.BeginFrame();
+                    begun = true;
+
+                    ColorAttachment colorAttachment = new()
+                    {
+                        Target = target,
+                        Load = LoadOp.Clear,
+                        Store = StoreOp.Store,
+                        Clear = new System.Numerics.Vector4(0f, 0f, 0f, 1f),
+                    };
+                    RenderingDesc pass = new()
+                    {
+                        Colors = MemoryMarshal.CreateReadOnlySpan(ref colorAttachment, 1),
+                    };
+                    using (_renderContext.BeginRenderPass(pass))
+                    {
+                    }
+
+                    MainPresenter.EnqueueFrameContext(_renderContext);
+                }
+                catch
+                {
+                    if (begun)
+                    {
+                        _renderContext.DiscardFrame();
+                    }
+                    throw;
+                }
             }
-            _commandBuffer.End();
-            GraphicsDevice.Submit(_commandBuffer);
         }
 
         // ImGui content goes between ImGUISystem's frame begin and render: the game
         // update phase is exactly that window (systems update first).
         _editorSystem.DoUI(delta);
+    }
+
+    /// <inheritdoc />
+    public override void Dispose()
+    {
+        if (IsDisposed)
+        {
+            return;
+        }
+
+        if (_renderContext != null)
+        {
+            GraphicsDevice.WaitIdle();
+            _renderContext.Dispose();
+        }
+
+        base.Dispose();
     }
 }

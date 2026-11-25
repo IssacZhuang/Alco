@@ -1,12 +1,13 @@
+using System.Numerics;
+using System.Runtime.InteropServices;
+using Alco.Graphics;
 using Alco.Rendering;
 
 namespace Alco.Editor.Extensibility;
 
 /// <summary>
-/// The built-in <see cref="IPreviewPipelineFactory"/>: an HDR single-slot scene
-/// pipeline, the viewport's record and scene-content nodes, the default tonemap node
-/// (Neutral operator — the game's post chain) and an RGBA8 target. Stateless; use
-/// <see cref="Instance"/>.
+/// The built-in <see cref="IPreviewPipelineFactory"/>: an HDR scene pass (Rgba16Float + D32Float)
+/// followed by a Neutral <see cref="RGNode_Tonemap"/> writing into the viewport's RGBA8 output target.
 /// </summary>
 public sealed class DefaultPreviewPipelineFactory : IPreviewPipelineFactory
 {
@@ -23,26 +24,78 @@ public sealed class DefaultPreviewPipelineFactory : IPreviewPipelineFactory
         ArgumentNullException.ThrowIfNull(context);
         RenderingSystem rendering = context.Editor.RenderingSystem;
 
-        var pipeline = new RenderPipeline(rendering, new RenderPipeline.Descriptor
+        var graph = new RenderGraph(rendering, new Extent2D((uint)context.Width, (uint)context.Height), context.Name);
+        var chain = new RenderChain();
+        var sceneNode = new HdrSceneNode(context, chain, context.Name + "_Scene");
+        RGNode_Tonemap tonemap = context.CreateDefaultTonemap(chain);
+
+        graph
+            .Use(context.CreateRecordNode())
+            .Use(sceneNode)
+            .Use(tonemap);
+
+        return new PreviewPipeline(
+            graph,
+            chain,
+            tonemap,
+            color => sceneNode.ClearColor = new Vector4(color.R, color.G, color.B, color.A));
+    }
+
+    private sealed class HdrSceneNode(PreviewPipelineContext pipelineContext, RenderChain chain, string name)
+        : RenderGraphNode(name)
+    {
+        private RGTexture _color;
+        private RGTexture _depth;
+
+        public Vector4 ClearColor { get; set; } = new(0.15f, 0.15f, 0.15f, 1f);
+
+        protected override void SetupPass(RenderGraphBuilder builder, RenderGraphPassBuilder pass)
         {
-            SceneLayout = rendering.PreferredHDRPass,
-            BlitShader = context.Editor.Engine.BuiltInAssets.Shader_Blit,
-            Width = (uint)context.Width,
-            Height = (uint)context.Height,
-            Name = context.Name,
-        });
-        pipeline.Use(context.RecordNode);
-        pipeline.Use(context.CreateSceneNode(pipeline.Graph, pipeline.Chain));
+            _color = builder.CreateTexture(new RGTextureDesc
+            {
+                Name = Name + "_Color",
+                Format = Format.Rgba16Float,
+                Usage = TextureUsage.ColorAttachment | TextureUsage.Sampled,
+            });
+            _depth = builder.CreateTexture(new RGTextureDesc
+            {
+                Name = Name + "_Depth",
+                Format = Format.D32Float,
+                Usage = TextureUsage.DepthStencilAttachment,
+            });
 
-        RGNode_Tonemap tonemap = context.CreateDefaultTonemap(pipeline.Graph, pipeline.Chain, pipeline.PostProcessLayout);
-        // Neutral with its default data is the game's post chain (Engine.cs uses
-        // the same operator), so the preview shows authored colors the way they
-        // present in game. The toolbar can switch operators for comparison.
-        tonemap.Operator = TonemapType.Neutral;
-        pipeline.Use(tonemap);
+            pass.Write(_color, RGUsage.ColorAttachmentWrite);
+            pass.Write(_depth, RGUsage.DepthStencil);
+            chain.Reset(_color);
+        }
 
-        RenderTexture target = rendering.CreateRenderTexture(
-            rendering.PreferredRGBATexturePass, (uint)context.Width, (uint)context.Height, context.Name + "_target");
-        return new PreviewPipeline(pipeline, target, tonemap);
+        protected override void ExecutePass(in RenderGraphContext context)
+        {
+            ColorAttachment colorAttachment = new()
+            {
+                Target = context.GetRenderTarget(_color),
+                Load = LoadOp.Clear,
+                Store = StoreOp.Store,
+                Clear = ClearColor,
+            };
+            DepthAttachment depthAttachment = new()
+            {
+                Target = context.GetRenderTarget(_depth),
+                Load = LoadOp.Clear,
+                Store = StoreOp.Store,
+                Clear = 1.0f,
+            };
+            RenderingDesc passDesc = new()
+            {
+                Colors = MemoryMarshal.CreateReadOnlySpan(ref colorAttachment, 1),
+                Depth = depthAttachment,
+            };
+
+            Extent2D vp = context.Viewport;
+            using RenderContext.RenderScope scope = context.RenderContext.BeginRenderPass(passDesc);
+            scope.SetViewport(new Viewport { Width = vp.X, Height = vp.Y });
+            scope.SetScissor(new Scissor { Width = vp.X, Height = vp.Y });
+            pipelineContext.InvokeSceneContent(context.RenderContext, in scope);
+        }
     }
 }

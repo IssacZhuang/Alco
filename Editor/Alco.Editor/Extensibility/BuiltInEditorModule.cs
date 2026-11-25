@@ -65,7 +65,7 @@ public sealed class BuiltInEditorModule : IEditorModule
         registry.AssetTemplates.Register(new ParticleEffect3DTemplate());
 
         // Meta types: the engine's meta sidecars.
-        registry.MetaTypes.Register<Texture2DMeta>();
+        registry.MetaTypes.Register<ImageMeta>();
     }
 
     /// <summary>The minimal 2D particle effect starter (see <see cref="ParticleEffectTemplates"/>).</summary>

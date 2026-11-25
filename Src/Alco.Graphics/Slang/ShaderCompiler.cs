@@ -1615,6 +1615,14 @@ public sealed class ShaderModule
         return Handle.FindImplementations(interfaceTypeName);
     }
 
+    /// <summary>Reads the declared struct and enum type layouts in this module without linking an entry point.</summary>
+    /// <returns>The module's reflected type layouts.</returns>
+    public IReadOnlyList<ShaderTypeLayout> GetTypes()
+    {
+        _compiler.ThrowIfDisposed();
+        return Handle.GetTypes();
+    }
+
     /// <summary>Compiles entry points selected automatically by <paramref name="pipeline"/>.</summary>
     /// <param name="pipeline">The pipeline family to compile.</param>
     /// <param name="options">Optional specialization arguments and ABI validation override.</param>

@@ -22,8 +22,7 @@ public sealed class TestParticleEffectTemplates
     public void Template2DParses()
     {
         using EngineHost engine = new();
-        JsonSerializerOptions options = AssetLoaderParticleEffect.CreateJsonOptions(
-            engine.AssetSystem, engine.RenderingSystem.ShaderSystem);
+        JsonSerializerOptions options = AssetLoaderParticleEffect.CreateJsonOptions(engine.AssetSystem);
 
         ParticleEffect asset = JsonSerializer.Deserialize<ParticleEffect>(
             ParticleEffectTemplates.Effect2D, options)!;
@@ -42,8 +41,7 @@ public sealed class TestParticleEffectTemplates
     public void Template3DParses()
     {
         using EngineHost engine = new();
-        JsonSerializerOptions options = AssetLoaderParticleEffect.CreateJsonOptions(
-            engine.AssetSystem, engine.RenderingSystem.ShaderSystem);
+        JsonSerializerOptions options = AssetLoaderParticleEffect.CreateJsonOptions(engine.AssetSystem);
 
         ParticleEffect asset = JsonSerializer.Deserialize<ParticleEffect>(
             ParticleEffectTemplates.Effect3D, options)!;
@@ -59,8 +57,7 @@ public sealed class TestParticleEffectTemplates
     public void TemplateSurvivesSerializeRoundtrip()
     {
         using EngineHost engine = new();
-        JsonSerializerOptions options = AssetLoaderParticleEffect.CreateJsonOptions(
-            engine.AssetSystem, engine.RenderingSystem.ShaderSystem);
+        JsonSerializerOptions options = AssetLoaderParticleEffect.CreateJsonOptions(engine.AssetSystem);
 
         ParticleEffect asset = JsonSerializer.Deserialize<ParticleEffect>(
             ParticleEffectTemplates.Effect2D, options)!;

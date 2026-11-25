@@ -12,9 +12,18 @@ namespace Alco.Editor;
 /// </summary>
 public abstract class PreviewViewport : AutoDisposable
 {
-    private readonly RenderPipeline _pipeline;
+    private const uint DefaultWidth = 512;
+    private const uint DefaultHeight = 288;
+
+    private readonly EditorContext _context;
+    private readonly string _name;
+    private readonly PreviewPipeline _pipeline;
     private readonly RGNode_Tonemap? _tonemap;
-    private readonly RenderTexture _target;
+    private readonly RenderContext? _renderContext;
+    private Texture? _target;
+    private uint _targetWidth = DefaultWidth;
+    private uint _targetHeight = DefaultHeight;
+
     /// <summary>The smallest on-screen cell size before the grid falls back to a coarser decade.</summary>
     private const float MinGridCellPixels = 24f;
 
@@ -22,12 +31,8 @@ public abstract class PreviewViewport : AutoDisposable
     private static readonly TonemapType[] DisplayOperators =
     [
         TonemapType.Linear,
-        TonemapType.Reinhard,
-        TonemapType.Uncharted2,
-        TonemapType.Filmic,
         TonemapType.ACES,
         TonemapType.Neutral,
-        TonemapType.AgX,
     ];
 
     /// <summary>The finest grid step; finer measurement is the scale bar's job.</summary>
@@ -42,28 +47,39 @@ public abstract class PreviewViewport : AutoDisposable
     /// <summary>Creates the pipeline, target and overlay plumbing.</summary>
     /// <param name="context">The editor context (engine services).</param>
     /// <param name="name">The base name for the pipeline and its resources.</param>
-    /// <param name="pipelineFactory">The factory producing the render pipeline, its
-    /// target and its optional tonemap node; null uses
-    /// <see cref="DefaultPreviewPipelineFactory.Instance"/>.</param>
+    /// <param name="pipelineFactory">The factory producing the render graph and optional tonemap node;
+    /// null uses <see cref="DefaultPreviewPipelineFactory.Instance"/>.</param>
     protected PreviewViewport(EditorContext context, string name, IPreviewPipelineFactory? pipelineFactory = null)
     {
         ArgumentNullException.ThrowIfNull(context);
+        ArgumentException.ThrowIfNullOrEmpty(name);
 
-        // The content nodes are owned by the viewport: their callbacks read the
-        // RecordFrame/SceneContent delegates, so owners can swap content freely.
-        var recordNode = new RGNode_Callback { Callback = renderContext => RecordFrame?.Invoke(renderContext) };
+        _context = context;
+        _name = name;
+
         var pipelineContext = new PreviewPipelineContext(
-            context, name, 512, 288, recordNode,
-            (graph, chain) => new SceneNode(this, graph, chain));
-        PreviewPipeline preview = (pipelineFactory ?? DefaultPreviewPipelineFactory.Instance).Create(pipelineContext);
-        _pipeline = preview.Pipeline;
-        _pipeline.ClearColor = _background;
-        _tonemap = preview.Tonemap;
-        _target = preview.Target;
+            context,
+            name,
+            (int)DefaultWidth,
+            (int)DefaultHeight,
+            renderContext => RecordFrame?.Invoke(renderContext),
+            (renderContext, scope) => SceneContent?.Invoke(renderContext, scope));
+        _pipeline = (pipelineFactory ?? DefaultPreviewPipelineFactory.Instance).Create(pipelineContext);
+        _pipeline.SetClearColor(_background);
+        _tonemap = _pipeline.Tonemap;
+
+        if (context.Engine.Setting.HasGPU)
+        {
+            _renderContext = new RenderContext(context.RenderingSystem);
+            _target = CreateTargetTexture(context.RenderingSystem, name, _targetWidth, _targetHeight);
+        }
     }
 
-    /// <summary>The render target the pipeline draws into (for aspect ratios).</summary>
-    protected RenderTexture Target => _target;
+    /// <summary>Gets the current viewport pixel width (for aspect ratio and grid calculations).</summary>
+    protected uint TargetWidth => _targetWidth;
+
+    /// <summary>Gets the current viewport pixel height (for aspect ratio and grid calculations).</summary>
+    protected uint TargetHeight => _targetHeight;
 
     /// <summary>The viewport clear color, editable in the toolbar.</summary>
     public ColorFloat Background
@@ -72,7 +88,7 @@ public abstract class PreviewViewport : AutoDisposable
         set
         {
             _background = value;
-            _pipeline.ClearColor = value;
+            _pipeline.SetClearColor(value);
         }
     }
 
@@ -83,7 +99,7 @@ public abstract class PreviewViewport : AutoDisposable
     public Action<RenderGraphContext>? RecordFrame { get; set; }
 
     /// <summary>Draws the scene content into the viewport's render pass.</summary>
-    public Action<RenderPassScope>? SceneContent { get; set; }
+    public Action<RenderContext, RenderContext.RenderScope>? SceneContent { get; set; }
 
     /// <summary>Draws extra toolbar widgets ahead of the view controls (e.g. transport).</summary>
     public Action? ToolbarLeading { get; set; }
@@ -171,7 +187,7 @@ public abstract class PreviewViewport : AutoDisposable
         ImGui.SetNextItemWidth(90f);
         if (ImGui.ColorEdit3("##background", ref _background, ImGuiColorEditFlags.NoInputs))
         {
-            _pipeline.ClearColor = _background;
+            _pipeline.SetClearColor(_background);
         }
         if (ImGui.IsItemHovered())
         {
@@ -221,12 +237,8 @@ public abstract class PreviewViewport : AutoDisposable
         return type switch
         {
             TonemapType.Linear => "Linear",
-            TonemapType.Reinhard => "Reinhard",
-            TonemapType.Uncharted2 => "Uncharted 2",
-            TonemapType.Filmic => "Filmic",
             TonemapType.ACES => "ACES",
             TonemapType.Neutral => "Neutral",
-            TonemapType.AgX => "AgX",
             _ => type.ToString(),
         };
     }
@@ -243,22 +255,60 @@ public abstract class PreviewViewport : AutoDisposable
 
         uint pixelWidth = (uint)Math.Max((int)imageSize.X, 8);
         uint pixelHeight = (uint)Math.Max((int)imageSize.Y, 8);
-        if (pixelWidth != _target.Width || pixelHeight != _target.Height)
+        if (pixelWidth != _targetWidth || pixelHeight != _targetHeight)
         {
-            _pipeline.Resize(pixelWidth, pixelHeight);
-            _target.Resize(pixelWidth, pixelHeight);
+            _targetWidth = pixelWidth;
+            _targetHeight = pixelHeight;
+            if (_target != null)
+            {
+                _target.Dispose();
+                _target = CreateTargetTexture(_context.RenderingSystem, _name, pixelWidth, pixelHeight);
+            }
+            _pipeline.Graph.Resize(new Extent2D(pixelWidth, pixelHeight));
             OnTargetResize(pixelWidth, pixelHeight);
         }
 
-        // Camera buffers upload their matrices lazily via FlushDirty, which only
-        // runs when a material bind group reads the buffer. The preview's bind
-        // groups are cached across frames, so a dirty camera matrix would never
-        // reach the GPU and the scene would ignore camera moves. Upload it
-        // explicitly each frame.
         CommitCamera();
-        _pipeline.Render(_target.FrameBuffer);
+        if (_renderContext != null && _target != null)
+        {
+            bool begun = false;
+            try
+            {
+                _renderContext.BeginFrame();
+                begun = true;
+                _pipeline.Graph.Execute(
+                    _renderContext,
+                    RenderGraphTarget.FromTexture(_target),
+                    ImGui.GetIO().DeltaTime,
+                    outputFinalUsage: RGUsage.PixelRead);
 
-        ImGui.Image(_target.ColorTextures[0], imageSize);
+                if (_context.Engine.MainPresenter.HasValidFrame)
+                {
+                    _context.Engine.MainPresenter.EnqueueFrameContext(_renderContext);
+                }
+                else
+                {
+                    _renderContext.Submit();
+                }
+            }
+            catch
+            {
+                if (begun)
+                {
+                    _renderContext.DiscardFrame();
+                }
+                throw;
+            }
+        }
+
+        if (_target is { IsDisposed: false } targetTexture)
+        {
+            ImGui.Image(targetTexture, imageSize);
+        }
+        else
+        {
+            ImGui.Dummy(imageSize);
+        }
 
         // Viewport input overlay: the button must opt into middle-button
         // activation — by default ImGui widgets only respond to the left button.
@@ -511,21 +561,25 @@ public abstract class PreviewViewport : AutoDisposable
     {
         if (disposing)
         {
+            if (_context.Engine.Setting.HasGPU && !_context.Engine.IsDisposed)
+            {
+                _context.Engine.GraphicsDevice.WaitIdle();
+            }
+
             _pipeline.Dispose();
-            _target.Dispose();
+            _target?.Dispose();
+            _target = null;
+            _renderContext?.Dispose();
         }
     }
 
-    /// <summary>The scene content node the owner's <see cref="SceneContent"/> draws into.</summary>
-    private sealed class SceneNode(PreviewViewport owner, RenderGraph graph, RenderChain chain)
-        : RGNode_SceneContent(graph, chain)
+    private static Texture CreateTargetTexture(RenderingSystem rendering, string name, uint width, uint height)
     {
-        protected override void OnRender(in RenderGraphContext context, GPUFrameBuffer target, GPUAttachmentLayout layout)
+        return rendering.CreateTexture(new TextureDesc
         {
-            using (RenderPassScope pass = context.RenderContext.BeginPass(target))
-            {
-                owner.SceneContent?.Invoke(pass);
-            }
-        }
+            Extent = new Extent3D(width, height, 1u),
+            Format = Format.Rgba8Unorm,
+            Usage = TextureUsage.ColorAttachment | TextureUsage.Sampled,
+        });
     }
 }

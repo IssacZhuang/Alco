@@ -12,7 +12,7 @@ namespace Alco.Editor;
 /// </summary>
 public sealed class PreviewViewport3D : PreviewViewport
 {
-    private readonly CameraPerspectiveBuffer _camera;
+    private readonly CameraPerspective _camera;
     private float _orbitYaw = MathF.PI;
     private float _orbitPitch = 0.26f;
     private float _orbitDistance = 8f;
@@ -25,12 +25,19 @@ public sealed class PreviewViewport3D : PreviewViewport
     public PreviewViewport3D(EditorContext context, string name, IPreviewPipelineFactory? pipelineFactory = null)
         : base(context, name, pipelineFactory)
     {
-        _camera = context.RenderingSystem.CreateCameraPerspective(0.9f, 16f / 9f, 0.1f, 300f, name + "_3d");
+        _camera = new CameraPerspective
+        {
+            FieldOfView = 0.9f,
+            AspectRatio = 16f / 9f,
+            Near = 0.1f,
+            Far = 300f,
+            ReverseInfiniteDepth = false,
+        };
         UpdateCamera();
     }
 
     /// <summary>The perspective camera, for systems that render into the scene pass.</summary>
-    public CameraPerspectiveBuffer Camera => _camera;
+    public CameraPerspective Camera => _camera;
 
     /// <summary>The orbit camera state: yaw, pitch, distance and orbit target.</summary>
     public (float Yaw, float Pitch, float Distance, Vector3 Target) CameraState =>
@@ -51,10 +58,10 @@ public sealed class PreviewViewport3D : PreviewViewport
     }
 
     /// <inheritdoc />
-    protected override Matrix4x4 ViewProjection => _camera.Data.ViewProjectionMatrix;
+    protected override Matrix4x4 ViewProjection => _camera.ViewProjectionMatrix;
 
     /// <inheritdoc />
-    protected override float PixelsPerUnit => (float)Target.Height / (2f * _orbitDistance * MathF.Tan(_camera.FieldOfView * 0.5f));
+    protected override float PixelsPerUnit => (float)TargetHeight / (2f * _orbitDistance * MathF.Tan(_camera.FieldOfView * 0.5f));
 
     /// <inheritdoc />
     protected override void AppendCameraStatus(FixedString256 status)
@@ -69,9 +76,6 @@ public sealed class PreviewViewport3D : PreviewViewport
     /// <inheritdoc />
     protected override void CommitCamera()
     {
-        // Mutating the camera through its Transform ref does not flag the buffer
-        // dirty; upload explicitly (see the call site's comment).
-        _camera.UpdateMatrixToGPU();
     }
 
     /// <inheritdoc />
@@ -184,15 +188,5 @@ public sealed class PreviewViewport3D : PreviewViewport
         uint zColor = ImGui.GetColorU32(new Vector4(0.35f, 0.5f, 1f, 0.8f));
         DrawWorldLine(drawList, viewProjection, imageMin, imageSize,
             Vector3.Zero, new Vector3(0f, 0f, extent), zColor, thickness);
-    }
-
-    /// <inheritdoc />
-    protected override void Dispose(bool disposing)
-    {
-        if (disposing)
-        {
-            _camera.Dispose();
-        }
-        base.Dispose(disposing);
     }
 }

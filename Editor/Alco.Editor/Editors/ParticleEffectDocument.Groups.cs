@@ -1147,7 +1147,7 @@ public sealed partial class ParticleEffectDocument
         table.BeginCell("Texture");
         // Reserve the trailing browse button so the input fills the rest of the cell.
         ImGui.SetNextItemWidth(-(ImGui.CalcTextSize("...").X + (ImGui.GetStyle().FramePadding.X * 4f) + ImGui.GetStyle().ItemSpacing.X));
-        if (state.TexturePicker.Draw(Context, "##texture", ref state.TexturePath, typeof(Texture2D)))
+        if (state.TexturePicker.Draw(Context, "##texture", ref state.TexturePath, typeof(Image)))
         {
             state.ReferenceError = string.Empty;
             string path = state.TexturePath.Trim();
@@ -1160,7 +1160,7 @@ public sealed partial class ParticleEffectDocument
             {
                 try
                 {
-                    group.Texture = Context.AssetSystem.Load<Texture2D>(path);
+                    group.Texture = Context.AssetSystem.Load<Image>(path);
                     OnStructuralEdit();
                 }
                 catch (Exception e)
@@ -1175,7 +1175,7 @@ public sealed partial class ParticleEffectDocument
     /// <summary>The behavior module combo: default, the built-ins and every .slang file stem.</summary>
     private void DrawBehaviorRow(PropertyTable table, ParticleGroup group, GroupUiState state)
     {
-        string currentName = group.Behavior?.Name ?? string.Empty;
+        string currentName = group.Behavior ?? string.Empty;
         string[] candidates = GetBehaviorCandidates(currentName);
         int currentIndex = currentName.Length == 0 ? 0 : Math.Max(Array.IndexOf(candidates, currentName), 0);
 
@@ -1212,7 +1212,9 @@ public sealed partial class ParticleEffectDocument
         {
             try
             {
-                group.Behavior = Context.RenderingSystem.ShaderSystem.GetLibrary(picked);
+                AlcoEffectsShaders.EnsureBuiltInModulesLoaded(Context.RenderingSystem.Shaders);
+                _ = Context.RenderingSystem.Shaders.Compiler.LoadModule(picked);
+                group.Behavior = picked;
                 state.ReferenceError = string.Empty;
                 OnStructuralEdit();
             }

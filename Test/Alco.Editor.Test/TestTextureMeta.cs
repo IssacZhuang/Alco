@@ -18,7 +18,7 @@ public sealed class TestTextureMeta
     [Test]
     public void Save_OmitsNullFields()
     {
-        string json = JsonSerializer.Serialize(new Texture2DMeta(), TextureDocument.MetaJsonOptions);
+        string json = JsonSerializer.Serialize(new ImageMeta(), TextureDocument.MetaJsonOptions);
 
         Assert.Multiple(() =>
         {
@@ -33,7 +33,7 @@ public sealed class TestTextureMeta
     [Test]
     public void Save_WritesPascalCaseEnumAsString()
     {
-        var meta = new Texture2DMeta { FilterMode = FilterMode.Nearest };
+        var meta = new ImageMeta { FilterMode = Filter.Nearest };
 
         string json = JsonSerializer.Serialize(meta, TextureDocument.MetaJsonOptions);
 
@@ -44,21 +44,21 @@ public sealed class TestTextureMeta
     [Test]
     public void RoundTrip_PreservesAllFields()
     {
-        var meta = new Texture2DMeta
+        var meta = new ImageMeta
         {
-            FilterMode = FilterMode.Linear,
+            FilterMode = Filter.Linear,
             AddressMode = AddressMode.ClampToEdge,
             PremultiplyAlpha = true,
             SlicePadding = new Padding(1, 2, 3, 4),
-            Sprites = { ["head"] = new Texture2DMeta.Rect { X = 1, Y = 2, Width = 16, Height = 32 } },
+            Sprites = { ["head"] = new ImageMeta.Rect { X = 1, Y = 2, Width = 16, Height = 32 } },
         };
 
         string json = JsonSerializer.Serialize(meta, TextureDocument.MetaJsonOptions);
-        Texture2DMeta loaded = JsonSerializer.Deserialize<Texture2DMeta>(json, TextureDocument.MetaJsonOptions)!;
+        ImageMeta loaded = JsonSerializer.Deserialize<ImageMeta>(json, TextureDocument.MetaJsonOptions)!;
 
         Assert.Multiple(() =>
         {
-            Assert.That(loaded.FilterMode, Is.EqualTo(FilterMode.Linear));
+            Assert.That(loaded.FilterMode, Is.EqualTo(Filter.Linear));
             Assert.That(loaded.AddressMode, Is.EqualTo(AddressMode.ClampToEdge));
             Assert.That(loaded.PremultiplyAlpha, Is.True);
             Assert.That(loaded.SlicePadding!.Value.Left, Is.EqualTo(1f));
@@ -81,8 +81,8 @@ public sealed class TestTextureMeta
             }
             """;
 
-        Texture2DMeta meta = JsonSerializer.Deserialize<Texture2DMeta>(legacy, TextureDocument.MetaJsonOptions)!;
+        ImageMeta meta = JsonSerializer.Deserialize<ImageMeta>(legacy, TextureDocument.MetaJsonOptions)!;
 
-        Assert.That(meta.FilterMode, Is.EqualTo(FilterMode.Nearest));
+        Assert.That(meta.FilterMode, Is.EqualTo(Filter.Nearest));
     }
 }

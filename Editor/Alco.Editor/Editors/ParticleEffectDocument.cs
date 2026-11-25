@@ -30,7 +30,7 @@ public sealed partial class ParticleEffectDocument : AssetDocument
     /// <summary>Creates the document; throws when the file cannot be resolved or parsed.</summary>
     public ParticleEffectDocument(EditorContext context, string assetPath) : base(context, assetPath)
     {
-        _jsonOptions = AssetLoaderParticleEffect.CreateJsonOptions(Context.AssetSystem, Context.RenderingSystem.ShaderSystem);
+        _jsonOptions = AssetLoaderParticleEffect.CreateJsonOptions(Context.AssetSystem);
         // Indented output keeps the hand-editable files diff-friendly.
         _jsonWriteOptions = new JsonSerializerOptions(_jsonOptions) { WriteIndented = true };
 

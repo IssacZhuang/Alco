@@ -1,6 +1,7 @@
 using System.Numerics;
 using Alco.Editor.Extensibility;
 using Alco.Engine;
+using Alco.Graphics;
 using Alco.ImGUI;
 using Alco.Effects;
 using Alco.Rendering;
@@ -59,13 +60,11 @@ public sealed class ParticleEffectPreview : AutoDisposable
         {
             _viewport3D = new PreviewViewport3D(context, "particle_preview", pipelineFactory);
             _system3D = environment.CreateSystem3D(rendering);
-            _system3D.Camera = _viewport3D.Camera;
         }
         else
         {
             _viewport2D = new PreviewViewport2D(context, "particle_preview", pipelineFactory: pipelineFactory);
             _system2D = environment.CreateSystem2D(rendering);
-            _system2D.Camera = _viewport2D.Camera;
         }
         _viewport = (PreviewViewport?)_viewport2D ?? _viewport3D!;
         _viewport.RecordFrame = OnSimulate;
@@ -137,7 +136,7 @@ public sealed class ParticleEffectPreview : AutoDisposable
             return;
         }
         _instance2D.SetGroupEmissionRate(groupIndex, group.EmissionRate);
-        _instance2D.SetGroupParams(groupIndex, EmitterParams2D.FromAsset(group, _system2D!.QuadMesh.GetSubMesh(0).IndexCount));
+        _instance2D.SetGroupParams(groupIndex, EmitterParams2D.FromAsset(group));
     }
 
     /// <summary>The 3D counterpart of <see cref="LiveUpdateGroup(int, ParticleGroup2D)"/>.</summary>
@@ -148,7 +147,7 @@ public sealed class ParticleEffectPreview : AutoDisposable
             return;
         }
         _instance3D.SetGroupEmissionRate(groupIndex, group.EmissionRate);
-        _instance3D.SetGroupParams(groupIndex, EmitterParams3D.FromAsset(group, _system3D!.QuadMesh.GetSubMesh(0).IndexCount));
+        _instance3D.SetGroupParams(groupIndex, EmitterParams3D.FromAsset(group));
     }
 
     /// <summary>Whether a group is visible in the preview (true when there is no live instance).</summary>
@@ -274,24 +273,24 @@ public sealed class ParticleEffectPreview : AutoDisposable
         float delta = _paused ? 0f : context.DeltaTime * _timeScale;
         if (_is3D)
         {
-            _system3D!.RecordSimulation(context.RenderContext.CommandBuffer, delta);
+            _system3D!.RecordSimulation(context.RenderContext, delta);
         }
         else
         {
-            _system2D!.RecordSimulation(context.RenderContext.CommandBuffer, delta);
+            _system2D!.RecordSimulation(context.RenderContext, delta);
         }
     }
 
     /// <summary>Draws the particle systems into the viewport's scene pass.</summary>
-    private void RenderSceneContent(RenderPassScope pass)
+    private void RenderSceneContent(RenderContext renderContext, RenderContext.RenderScope pass)
     {
         if (_is3D)
         {
-            _system3D!.Render(pass);
+            _system3D!.Render(renderContext, pass, _viewport3D!.Camera);
         }
         else
         {
-            _system2D!.Render(pass);
+            _system2D!.Render(renderContext, pass, _viewport2D!.Camera);
         }
     }
 
@@ -341,7 +340,7 @@ public sealed class ParticleEffectPreview : AutoDisposable
                 break;
             case ParticleShape2DType.Circle:
                 Vector2 center = PreviewViewport.WorldToScreen(Vector3.Zero, viewProjection, imageMin, imageSize);
-                float pixelsPerUnit = imageSize.X / _viewport2D!.Camera.ViewSize.X;
+                float pixelsPerUnit = imageSize.X / _viewport2D!.Camera.Size.X;
                 float radius = Math.Max(shape.Radius * pixelsPerUnit, 0f);
                 drawList.AddCircle(center, radius, color, PreviewViewport.CircleSegments(radius), 1.5f);
                 if (shape.InnerRadius > 0.001f)

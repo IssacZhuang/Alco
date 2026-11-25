@@ -1,40 +1,44 @@
-using Alco.Engine;
 using Alco.Graphics;
 using Alco.Rendering;
 
 namespace Alco.Editor.Extensibility;
 
 /// <summary>
-/// The construction data handed to an <see cref="IPreviewPipelineFactory"/> by the <see cref="PreviewViewport"/>: the shared editor services, the resource base name, the initial render size and the viewport-owned content nodes.
-/// The scene content node is created through <see cref="CreateSceneNode"/> once the pipeline's graph and chain exist.
+/// The construction data handed to an <see cref="IPreviewPipelineFactory"/> by
+/// <see cref="PreviewViewport"/>: the shared editor services, resource base name,
+/// initial extent, and per-frame recording delegates.
 /// </summary>
 public sealed class PreviewPipelineContext
 {
-    /// <summary>Creates the context.</summary>
+    private readonly Action<RenderGraphContext> _recordFrame;
+    private readonly Action<RenderContext, RenderContext.RenderScope> _sceneContent;
+
+    /// <summary>Creates the preview pipeline construction context.</summary>
     /// <param name="editor">The shared editor services.</param>
-    /// <param name="name">The base name for the pipeline and its resources.</param>
+    /// <param name="name">The base name for the graph and its resources.</param>
     /// <param name="width">The initial render width in pixels.</param>
     /// <param name="height">The initial render height in pixels.</param>
-    /// <param name="recordNode">The node recording per-frame GPU work ahead of the scene pass.</param>
-    /// <param name="createSceneNode">Creates the scene content node once the pipeline's graph and chain exist.</param>
+    /// <param name="recordFrame">Records GPU compute/upload work ahead of the scene pass.</param>
+    /// <param name="sceneContent">Records graphics draw commands into the scene render pass.</param>
     public PreviewPipelineContext(
         EditorContext editor,
         string name,
         int width,
         int height,
-        RGNode_Callback recordNode,
-        Func<RenderGraph, RenderChain, RGNode_SceneContent> createSceneNode)
+        Action<RenderGraphContext> recordFrame,
+        Action<RenderContext, RenderContext.RenderScope> sceneContent)
     {
         ArgumentNullException.ThrowIfNull(editor);
         ArgumentNullException.ThrowIfNull(name);
-        ArgumentNullException.ThrowIfNull(recordNode);
-        ArgumentNullException.ThrowIfNull(createSceneNode);
+        ArgumentNullException.ThrowIfNull(recordFrame);
+        ArgumentNullException.ThrowIfNull(sceneContent);
+
         Editor = editor;
         Name = name;
-        Width = width;
-        Height = height;
-        RecordNode = recordNode;
-        CreateSceneNode = createSceneNode;
+        Width = Math.Max(width, 1);
+        Height = Math.Max(height, 1);
+        _recordFrame = recordFrame;
+        _sceneContent = sceneContent;
     }
 
     /// <summary>The shared editor services.</summary>
@@ -49,38 +53,47 @@ public sealed class PreviewPipelineContext
     /// <summary>The initial render height in pixels.</summary>
     public int Height { get; }
 
-    /// <summary>The viewport-owned node recording per-frame GPU work ahead of the scene pass.</summary>
-    public RGNode_Callback RecordNode { get; }
+    /// <summary>Records per-frame scene draw commands inside an active render pass.</summary>
+    /// <param name="renderContext">The active frame render context.</param>
+    /// <param name="scope">The open render pass scope.</param>
+    public void InvokeSceneContent(RenderContext renderContext, in RenderContext.RenderScope scope)
+    {
+        _sceneContent(renderContext, scope);
+    }
 
-    /// <summary>Creates the viewport-owned scene content node for the pipeline's graph and chain.</summary>
-    public Func<RenderGraph, RenderChain, RGNode_SceneContent> CreateSceneNode { get; }
+    /// <summary>Creates the viewport's pre-scene record node (e.g., GPU particle simulation).</summary>
+    public IRenderGraphNode CreateRecordNode() => new RecordCallbackNode(_recordFrame, Name + "_Record");
 
     /// <summary>
-    /// Creates the default display-transform node with every built-in operator shader
-    /// wired up (Linear through AgX). The node starts on its own default operator;
-    /// the caller sets <see cref="RGNode_Tonemap.Operator"/> before using it.
+    /// Creates the default display-transform node reading <paramref name="chain"/>'s current
+    /// HDR texture and writing directly to <see cref="RenderGraphBuilder.Output"/>.
     /// </summary>
-    /// <param name="graph">The pipeline's render graph.</param>
-    /// <param name="chain">The pipeline's content chain.</param>
-    /// <param name="postProcessLayout">The chain's color-only attachment layout.</param>
-    public RGNode_Tonemap CreateDefaultTonemap(RenderGraph graph, RenderChain chain, GPUAttachmentLayout postProcessLayout)
+    /// <param name="chain">The pipeline's HDR content chain.</param>
+    public RGNode_Tonemap CreateDefaultTonemap(RenderChain chain)
     {
+        ArgumentNullException.ThrowIfNull(chain);
         RenderingSystem rendering = Editor.RenderingSystem;
-        BuiltInAssets builtIn = Editor.Engine.BuiltInAssets;
         return new RGNode_Tonemap(
             rendering,
-            graph,
-            chain,
-            postProcessLayout,
-            new RGNode_Tonemap.Descriptor
-            {
-                BlitShader = builtIn.Shader_Blit,
-                ReinhardShader = builtIn.Shader_ReinhardLuminanceTonemap,
-                Uncharted2Shader = builtIn.Shader_Uncharted2Tonemap,
-                FilmicShader = builtIn.Shader_FilmicTonemap,
-                AcesShader = builtIn.Shader_AcesTonemap,
-                NeutralShader = builtIn.Shader_NeutralTonemap,
-                AgxShader = builtIn.Shader_AgxTonemap,
-            });
+            _ => chain.Current,
+            outputProvider: null,
+            rendering.Shaders,
+            Name + "_Tonemap")
+        {
+            Operator = TonemapType.Neutral,
+        };
+    }
+
+    private sealed class RecordCallbackNode(Action<RenderGraphContext> callback, string name) : RenderGraphNode(name)
+    {
+        protected override void SetupPass(RenderGraphBuilder builder, RenderGraphPassBuilder pass)
+        {
+            pass.ProducesOutput();
+        }
+
+        protected override void ExecutePass(in RenderGraphContext context)
+        {
+            callback(context);
+        }
     }
 }
