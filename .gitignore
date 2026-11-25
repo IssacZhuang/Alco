@@ -455,7 +455,7 @@ $RECYCLE.BIN/
 # DocFX / Spec
 Docs/Spec/
 # Large third-party test assets (Lumberyard Bistro, downloaded separately)
-Sandbox/26-PBRDeferred/Assets/Bistro/
+Sandbox/*-PBRDeferred/Assets/Bistro/
 
 # Dear ImGui window layout cache (generated at runtime)
 imgui.ini
