@@ -444,6 +444,13 @@ public partial class Canvas : AutoDisposable, INavigationContext
         }
     }
 
+    /// <summary>Clears all UI hit-test collision targets and cached hit results.</summary>
+    public void ClearCollisionTargets()
+    {
+        _collisionWorld.ClearAll();
+        _hitNodes.Clear();
+    }
+
     internal void ClearNodeReference(UINode node)
     {
         if (_hovered == node)
@@ -461,6 +468,8 @@ public partial class Canvas : AutoDisposable, INavigationContext
             _selected = null;
         if (_textInput == node)
             _textInput = null;
+        if (ReferenceEquals(_navigationFocus, node))
+            _navigationFocus = null;
     }
 
     /// <inheritdoc/>
@@ -496,6 +505,8 @@ public partial class Canvas : AutoDisposable, INavigationContext
         _holded = null;
         _selected = null;
         _textInput = null;
+        _navigationFocus = null;
+        _hitNodes.Clear();
     }
 
     private void OnConfirmDown(UINode? node, Vector2 cursorPosition, bool checkMask)
