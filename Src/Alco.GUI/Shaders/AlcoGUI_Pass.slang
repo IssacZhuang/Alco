@@ -28,7 +28,7 @@ float4 psMain<T : IUISurface>(UIVsOut input) : SV_Target0
     surf.Uv = input.Uv;
     surf.LocalUv = input.LocalUv;
     surf.Color = input.Color;
-    surf.BaseColor = uiShade(input);
+    surf.BaseColor = uiShade(input, root.Pass.SdfUnitRange);
     surf.TextureIndex = input.TextureIndex;
     surf.Kind = input.Kind;
 

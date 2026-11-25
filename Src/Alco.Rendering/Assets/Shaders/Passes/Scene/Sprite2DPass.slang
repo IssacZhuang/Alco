@@ -28,7 +28,7 @@ public float4 psMain<T : ISprite2DSurface>(Sprite2DVsOut input) : SV_Target0
     surf.LocalUv = input.LocalUv;
     surf.WorldPos = input.WorldPos;
     surf.Color = input.Color;
-    surf.BaseColor = sprite2DShade(input);
+    surf.BaseColor = sprite2DShade(input, root.Pass.SdfUnitRange);
     surf.TextureIndex = input.TextureIndex;
     surf.Flags = input.Flags;
     surf.Time = root.Pass.Time;

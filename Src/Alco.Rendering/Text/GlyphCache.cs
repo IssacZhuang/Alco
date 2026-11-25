@@ -70,6 +70,9 @@ public sealed class GlyphCache : AutoDisposable
     /// <summary>Total GPU atlas memory occupied by all allocated pages in bytes.</summary>
     public long AtlasBytes => (long)_pages.Count * _options.PageSize * _options.PageSize;
 
+    /// <summary>Normalized UV span corresponding to the full signed-distance range (<c>±SdfSpread</c>) on an atlas page.</summary>
+    public float SdfUnitRange => (2.0f * _options.SdfSpread) / _options.PageSize;
+
     /// <summary>Creates a lazy multi-font SDF glyph cache backed by <paramref name="renderingSystem"/>.</summary>
     /// <param name="renderingSystem">The rendering system used to allocate and upload atlas pages.</param>
     /// <param name="options">Optional SDF height, spread, gutter, and page sizing parameters.</param>

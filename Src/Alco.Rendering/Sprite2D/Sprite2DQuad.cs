@@ -115,8 +115,8 @@ public struct Sprite2DPassHeader
     /// <summary>Elapsed pass time in seconds.</summary>
     public float Time;
 
-    /// <summary>Padding to maintain 16-byte alignment.</summary>
-    public uint Pad0;
+    /// <summary>Normalized UV span corresponding to the full SDF spread range on an atlas page.</summary>
+    public float SdfUnitRange;
 }
 
 /// <summary>Per-frame submission telemetry produced by <see cref="SpriteBatch2D.Record"/>.</summary>

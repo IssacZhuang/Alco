@@ -662,6 +662,9 @@ public sealed unsafe class SpriteBatch2D : AutoDisposable
 
         int drawCalls = 0;
         int customMaterialDraws = 0;
+        float sdfUnitRange = _glyphCache != null
+            ? _glyphCache.SdfUnitRange
+            : (2.0f * GlyphCacheOptions.Default.SdfSpread) / GlyphCacheOptions.Default.PageSize;
         ReadOnlySpan<DrawRun> runs = CollectionsMarshal.AsSpan(_runs);
         GPUBufferView baseView = _activeQuadBuffer.View;
 
@@ -674,6 +677,7 @@ public sealed unsafe class SpriteBatch2D : AutoDisposable
                 ViewProjection = viewProjection,
                 Quads = sliceView,
                 Time = time,
+                SdfUnitRange = sdfUnitRange,
             };
 
             if (!run.IsCustomMaterial)

@@ -40,6 +40,9 @@ internal sealed unsafe class UIBatchRenderer : AutoDisposable
     {
         public GPUBufferView Quads;
         public Vector2 ClipScale;
+        public float SdfUnitRange;
+        public float Pad0;
+        public Vector2 Pad1;
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -49,6 +52,8 @@ internal sealed unsafe class UIBatchRenderer : AutoDisposable
         public Vector2 ClipScale;
         public uint TextureIndex;
         public QuadKind Kind;
+        public float SdfUnitRange;
+        public uint Pad0;
     }
 
     private enum DrawOp : byte
@@ -656,6 +661,7 @@ internal sealed unsafe class UIBatchRenderer : AutoDisposable
         render.SetViewport(new Viewport { Width = viewportExtent.X, Height = viewportExtent.Y, MaxDepth = 1f });
 
         Vector2 clipScale = new(2.0f / _canvasSize.X, 2.0f / _canvasSize.Y);
+        float sdfUnitRange = _glyphCache.SdfUnitRange;
         int contentDraws = 0;
         int maskDraws = 0;
         int meshDraws = 0;
@@ -694,6 +700,7 @@ internal sealed unsafe class UIBatchRenderer : AutoDisposable
                     ClipScale = clipScale,
                     TextureIndex = run.MeshTextureIndex,
                     Kind = run.MeshKind,
+                    SdfUnitRange = sdfUnitRange,
                 };
                 render.DrawIndexed(
                     _meshMaterial,
@@ -714,6 +721,7 @@ internal sealed unsafe class UIBatchRenderer : AutoDisposable
             {
                 Quads = _activeQuadBuffer.Slice((ulong)run.First * (ulong)sizeof(UIQuad)).View,
                 ClipScale = clipScale,
+                SdfUnitRange = sdfUnitRange,
             };
 
             if (run.Material == null || isMaskOp)
@@ -781,7 +789,7 @@ internal sealed unsafe class UIBatchRenderer : AutoDisposable
             if (material.Shader.Kind != ShaderKind.Graphics || material.Root.SizeBytes < (uint)sizeof(UIPassHeader))
             {
                 throw new ArgumentException(
-                    $"UI custom material '{material.Name}' must be graphics with root size >= 16 bytes (starting with UIPassHeader).",
+                    $"UI custom material '{material.Name}' must be graphics with root size >= {sizeof(UIPassHeader)} bytes (starting with UIPassHeader).",
                     nameof(material));
             }
             rootSize = (int)material.Root.SizeBytes;

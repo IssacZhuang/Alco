@@ -21,5 +21,6 @@ public Sprite2DVsOut vsMain(uint vertexId : SV_VertexID, uint instanceId : SV_In
 [shader("pixel")]
 public float4 psMain(Sprite2DVsOut input) : SV_Target0
 {
-    return sprite2DShade(input);
+    Sprite2DDefaultRoot root = gpu_load_root<Sprite2DDefaultRoot>();
+    return sprite2DShade(input, root.Pass.SdfUnitRange);
 }

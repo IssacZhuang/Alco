@@ -37,7 +37,7 @@ public struct Sprite2DPassHeader
     public float4x4 ViewProjection;
     public GPUBufferView Quads;
     public float Time;
-    public uint Pad0;
+    public float SdfUnitRange;
 };
 
 public struct EmptySprite2DParams
@@ -100,12 +100,8 @@ public Sprite2DVsOut sprite2DExpandQuadVertex(Sprite2DQuad quad, float4x4 viewPr
     return output;
 }
 
-public float4 sprite2DSampleTexture(uint textureIndex, uint flags, float2 uv)
+float4 sprite2DSampleTextureGrad(uint textureIndex, uint flags, float2 uv, float2 dx, float2 dy)
 {
-    // Compute derivatives outside divergent sampler branches so VulkanCompact stays compliant
-    // without shaderSamplerArrayNonUniformIndexing and preserves quad helper lane derivatives.
-    float2 dx = ddx(uv);
-    float2 dy = ddy(uv);
     Texture2D<float4> tex = gpu_texture<Texture2D<float4>>(gpu_nonuniform_index(textureIndex));
     uint samplerMode = flags & SPRITE2D_SAMPLER_MASK;
     if (samplerMode == SPRITE2D_SAMPLER_LINEAR_REPEAT)
@@ -117,18 +113,61 @@ public float4 sprite2DSampleTexture(uint textureIndex, uint flags, float2 uv)
     return tex.SampleGrad(shared_sampler_linear_clamp(), uv, dx, dy);
 }
 
-public float4 sprite2DShade(Sprite2DVsOut input)
+public float4 sprite2DSampleTexture(uint textureIndex, uint flags, float2 uv)
 {
-    float4 texel = sprite2DSampleTexture(input.TextureIndex, input.Flags, input.Uv);
-    // Compute derivatives before branching on shading kind so quad helper lanes stay valid.
-    float sdfWidth = max(0.5 * length(float2(ddx(texel.r), ddy(texel.r))), 1.0 / 255.0);
-    float sdfAlpha = smoothstep(0.5 - sdfWidth, 0.5 + sdfWidth, texel.r);
+    // Compute derivatives outside divergent sampler branches so VulkanCompact stays compliant
+    // without shaderSamplerArrayNonUniformIndexing and preserves quad helper lane derivatives.
+    float2 dx = ddx(uv);
+    float2 dy = ddy(uv);
+    return sprite2DSampleTextureGrad(textureIndex, flags, uv, dx, dy);
+}
+
+float sprite2DEvaluateSdfCoverage(
+    Texture2D<float4> tex,
+    float2 uv,
+    float2 duvDx,
+    float2 duvDy,
+    float sdfUnitRange)
+{
+    float uvPerPx = sqrt(0.5 * (dot(duvDx, duvDx) + dot(duvDy, duvDy)));
+    float unitRange = sdfUnitRange > 0.0 ? sdfUnitRange : (12.0 / 1024.0);
+    float screenPxRange = max(unitRange / max(uvPerPx, 1e-6), 1.0);
+    float tapScale = screenPxRange * 2.0;
+
+    float2 d1 = 0.125 * duvDx + 0.375 * duvDy;
+    float2 d2 = 0.375 * duvDx - 0.125 * duvDy;
+
+    float s0 = tex.SampleLevel(shared_sampler_linear_clamp(), uv - d1, 0.0).r;
+    float s1 = tex.SampleLevel(shared_sampler_linear_clamp(), uv + d2, 0.0).r;
+    float s2 = tex.SampleLevel(shared_sampler_linear_clamp(), uv + d1, 0.0).r;
+    float s3 = tex.SampleLevel(shared_sampler_linear_clamp(), uv - d2, 0.0).r;
+
+    float c0 = saturate((s0 - 0.5) * tapScale + 0.5);
+    float c1 = saturate((s1 - 0.5) * tapScale + 0.5);
+    float c2 = saturate((s2 - 0.5) * tapScale + 0.5);
+    float c3 = saturate((s3 - 0.5) * tapScale + 0.5);
+    return 0.25 * (c0 + c1 + c2 + c3);
+}
+
+public float4 sprite2DShade(Sprite2DVsOut input, float sdfUnitRange = 12.0 / 1024.0)
+{
+    // Compute UV derivatives before branching on shading kind so quad helper lanes stay valid.
+    float2 duvDx = ddx(input.Uv);
+    float2 duvDy = ddy(input.Uv);
 
     uint kind = (input.Flags >> SPRITE2D_KIND_SHIFT) & SPRITE2D_KIND_MASK;
-    if (kind == SPRITE2D_KIND_DISTANCE_GLYPH || kind == SPRITE2D_KIND_BITMAP_GLYPH)
+    if (kind == SPRITE2D_KIND_DISTANCE_GLYPH)
     {
-        float cov = kind == SPRITE2D_KIND_DISTANCE_GLYPH ? sdfAlpha : texel.r;
+        Texture2D<float4> tex = gpu_texture<Texture2D<float4>>(gpu_nonuniform_index(input.TextureIndex));
+        float cov = sprite2DEvaluateSdfCoverage(tex, input.Uv, duvDx, duvDy, sdfUnitRange);
         float a = input.Color.a * cov;
+        return float4(input.Color.rgb * a, a);
+    }
+
+    float4 texel = sprite2DSampleTextureGrad(input.TextureIndex, input.Flags, input.Uv, duvDx, duvDy);
+    if (kind == SPRITE2D_KIND_BITMAP_GLYPH)
+    {
+        float a = input.Color.a * texel.r;
         return float4(input.Color.rgb * a, a);
     }
 

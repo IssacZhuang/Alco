@@ -20,6 +20,9 @@ public struct UIMaskRoot
 {
     public GPUBufferView Quads;
     public float2 ClipScale;
+    public float SdfUnitRange;
+    public float _Pad0;
+    public float2 _Pad1;
 };
 
 struct UIMaskVsOut
