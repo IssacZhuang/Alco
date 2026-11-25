@@ -208,9 +208,9 @@ public unsafe class Game : GameEngine
 
         _propsNode = new PropsRenderNode(this);
         _renderGraph = new RenderGraph(RenderingSystem, new Extent2D(MainView.Size.X, MainView.Size.Y), "gpu_particles_3d");
-        _renderGraph.Use(new ParticleSimulateNode3D(_particles));
+        _renderGraph.Use(new RGNode_ParticleSimulate3D(_particles));
         _renderGraph.Use(_propsNode);
-        _renderGraph.Use(new ParticleRenderNode3D(
+        _renderGraph.Use(new RGNode_ParticleRender3D(
             _particles,
             _camera,
             colorLoadOp: LoadOp.Load,

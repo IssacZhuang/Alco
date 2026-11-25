@@ -4,7 +4,7 @@ using Alco.Graphics;
 namespace Alco.GUI;
 
 /// <summary>RenderGraph node that prepares, uploads, and draws a <see cref="Canvas"/> with transient <c>S8Uint</c> stencil masking.</summary>
-public sealed class CanvasRenderGraphNode : RenderGraphNode
+public sealed class RGNode_Canvas : RenderGraphNode
 {
     private readonly Canvas _canvas;
     private readonly RenderChain? _chain;
@@ -21,7 +21,7 @@ public sealed class CanvasRenderGraphNode : RenderGraphNode
     /// <param name="colorLoadOp">Color load operation (<see cref="LoadOp.Load"/> compositing onto scene vs <see cref="LoadOp.Clear"/>).</param>
     /// <param name="clearColor">Clear color used when <paramref name="colorLoadOp"/> is <see cref="LoadOp.Clear"/>.</param>
     /// <param name="name">Diagnostic render pass name.</param>
-    public CanvasRenderGraphNode(
+    public RGNode_Canvas(
         Canvas canvas,
         RenderChain? chain = null,
         LoadOp colorLoadOp = LoadOp.Load,

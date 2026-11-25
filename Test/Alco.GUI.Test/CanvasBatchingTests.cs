@@ -488,7 +488,7 @@ public class CanvasBatchingTests
         }
     }
 
-    /// <summary>Verifies DrawMesh arbitrary triangle, UIGeometryIcon 0-frame SVG rasterization, and CanvasRenderGraphNode execution.</summary>
+    /// <summary>Verifies DrawMesh arbitrary triangle, UIGeometryIcon 0-frame SVG rasterization, and RGNode_Canvas execution.</summary>
     [TestCase(GraphicsBackend.VulkanCompact)]
     [TestCase(GraphicsBackend.Dx12)]
     public void DrawMeshAndGeometryIcon_RenderThroughRenderGraph(GraphicsBackend backend)
@@ -509,7 +509,7 @@ public class CanvasBatchingTests
         };
         canvas.Root.Add(icon);
 
-        // Kick off CPU SVG parse, await task completion, then run CanvasRenderGraphNode in RenderGraph.
+        // Kick off CPU SVG parse, await task completion, then run RGNode_Canvas in RenderGraph.
         canvas.PrepareRender(0f);
         icon.PendingParseTask?.Wait();
 
@@ -517,7 +517,7 @@ public class CanvasBatchingTests
         RenderGraph graph = new(host.RenderingSystem, new Extent2D(Size, Size), "UITestGraph");
         try
         {
-            graph.Use(new CanvasRenderGraphNode(canvas, colorLoadOp: LoadOp.Clear, clearColor: Vector4.Zero));
+            graph.Use(new RGNode_Canvas(canvas, colorLoadOp: LoadOp.Clear, clearColor: Vector4.Zero));
 
             host.Context.BeginFrame();
             graph.Execute(host.Context, RenderGraphTarget.FromTexture(target));

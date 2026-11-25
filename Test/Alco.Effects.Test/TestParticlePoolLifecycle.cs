@@ -399,12 +399,12 @@ public class TestParticlePoolLifecycle
         var graph = new RenderGraph(_engine.RenderingSystem, new Extent2D(64, 64), "effects_test_rg");
         try
         {
-            graph.Use(new ParticleSimulateNode2D(particles2D));
-            graph.Use(new ParticleRenderNode2D(particles2D, cam2D, colorLoadOp: LoadOp.Clear, depthTextureProvider: () => depth));
-            graph.Use(new TrailRenderNode2D(trails2D, cam2D, colorLoadOp: LoadOp.Load, depthTextureProvider: () => depth));
-            graph.Use(new ParticleSimulateNode3D(particles3D));
-            graph.Use(new ParticleRenderNode3D(particles3D, cam3D, colorLoadOp: LoadOp.Load, depthTextureProvider: () => depth));
-            graph.Use(new TrailRenderNode3D(trails3D, cam3D, colorLoadOp: LoadOp.Load, depthTextureProvider: () => depth));
+            graph.Use(new RGNode_ParticleSimulate2D(particles2D));
+            graph.Use(new RGNode_ParticleRender2D(particles2D, cam2D, colorLoadOp: LoadOp.Clear, depthTextureProvider: () => depth));
+            graph.Use(new RGNode_TrailRender2D(trails2D, cam2D, colorLoadOp: LoadOp.Load, depthTextureProvider: () => depth));
+            graph.Use(new RGNode_ParticleSimulate3D(particles3D));
+            graph.Use(new RGNode_ParticleRender3D(particles3D, cam3D, colorLoadOp: LoadOp.Load, depthTextureProvider: () => depth));
+            graph.Use(new RGNode_TrailRender3D(trails3D, cam3D, colorLoadOp: LoadOp.Load, depthTextureProvider: () => depth));
 
             // Headless (default output) must not throw.
             context.BeginFrame();

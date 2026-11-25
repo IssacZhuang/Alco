@@ -132,7 +132,7 @@ public class Game : GameEngine
         _canvas.DebugDrawColor = new Vector4(0, 1, 0, 1);
 
         _renderGraph = new RenderGraph(RenderingSystem, new Extent2D(MainView.Size.X, MainView.Size.Y), "CanvasUISandbox");
-        _renderGraph.Use(new CanvasRenderGraphNode(_canvas, colorLoadOp: LoadOp.Clear, clearColor: new Vector4(0.08f, 0.1f, 0.14f, 1.0f)));
+        _renderGraph.Use(new RGNode_Canvas(_canvas, colorLoadOp: LoadOp.Clear, clearColor: new Vector4(0.08f, 0.1f, 0.14f, 1.0f)));
         _renderContext = new RenderContext(RenderingSystem, frameDataByteCount: 512 * 1024);
 
         const string PulseSurfaceSource = """

@@ -65,8 +65,8 @@ public class Game : GameEngine
         _particles = new GpuParticleSystem2D(RenderingSystem, particleCapacity: 1 << 18, emitterSlots: 512);
 
         _renderGraph = new RenderGraph(RenderingSystem, new Extent2D(MainView.Size.X, MainView.Size.Y), "gpu_particles_2d");
-        _renderGraph.Use(new ParticleSimulateNode2D(_particles));
-        _renderGraph.Use(new ParticleRenderNode2D(
+        _renderGraph.Use(new RGNode_ParticleSimulate2D(_particles));
+        _renderGraph.Use(new RGNode_ParticleRender2D(
             _particles,
             _camera,
             colorLoadOp: LoadOp.Clear,

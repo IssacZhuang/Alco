@@ -346,7 +346,7 @@ public unsafe class Game : GameEngine
         _arenaNode = new ArenaSceneNode(this);
         _renderGraph = new RenderGraph(RenderingSystem, new Extent2D(MainView.Size.X, MainView.Size.Y), "smoke_trail_arena");
         _renderGraph.Use(_arenaNode);
-        _renderGraph.Use(new TrailRenderNode3D(
+        _renderGraph.Use(new RGNode_TrailRender3D(
             _trails,
             _camera,
             colorLoadOp: LoadOp.Load,

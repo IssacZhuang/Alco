@@ -6,12 +6,12 @@ using Alco.Rendering;
 namespace Alco.Effects;
 
 /// <summary>RenderGraph compute pass driving <see cref="GpuParticleSystem2D.RecordSimulation"/>.</summary>
-public sealed class ParticleSimulateNode2D : RenderGraphNode
+public sealed class RGNode_ParticleSimulate2D : RenderGraphNode
 {
     private readonly GpuParticleSystem2D _particles;
 
     /// <summary>Creates a simulation graph node for <paramref name="particles"/>.</summary>
-    public ParticleSimulateNode2D(GpuParticleSystem2D particles, string name = "ParticleSimulate2D")
+    public RGNode_ParticleSimulate2D(GpuParticleSystem2D particles, string name = "ParticleSimulate2D")
         : base(name)
     {
         _particles = particles ?? throw new ArgumentNullException(nameof(particles));
@@ -31,12 +31,12 @@ public sealed class ParticleSimulateNode2D : RenderGraphNode
 }
 
 /// <summary>RenderGraph compute pass driving <see cref="GpuParticleSystem3D.RecordSimulation"/>.</summary>
-public sealed class ParticleSimulateNode3D : RenderGraphNode
+public sealed class RGNode_ParticleSimulate3D : RenderGraphNode
 {
     private readonly GpuParticleSystem3D _particles;
 
     /// <summary>Creates a simulation graph node for <paramref name="particles"/>.</summary>
-    public ParticleSimulateNode3D(GpuParticleSystem3D particles, string name = "ParticleSimulate3D")
+    public RGNode_ParticleSimulate3D(GpuParticleSystem3D particles, string name = "ParticleSimulate3D")
         : base(name)
     {
         _particles = particles ?? throw new ArgumentNullException(nameof(particles));
@@ -56,7 +56,7 @@ public sealed class ParticleSimulateNode3D : RenderGraphNode
 }
 
 /// <summary>RenderGraph graphics pass drawing <see cref="GpuParticleSystem2D"/> batches onto a target.</summary>
-public sealed class ParticleRenderNode2D : RenderGraphNode
+public sealed class RGNode_ParticleRender2D : RenderGraphNode
 {
     private readonly GpuParticleSystem2D _particles;
     private readonly ICamera? _camera;
@@ -72,7 +72,7 @@ public sealed class ParticleRenderNode2D : RenderGraphNode
     private RGTexture _depthTarget;
 
     /// <summary>Creates a 2D particle render node bound to a fixed camera instance.</summary>
-    public ParticleRenderNode2D(
+    public RGNode_ParticleRender2D(
         GpuParticleSystem2D particles,
         ICamera camera,
         RenderChain? chain = null,
@@ -95,7 +95,7 @@ public sealed class ParticleRenderNode2D : RenderGraphNode
     }
 
     /// <summary>Creates a 2D particle render node with a per-frame camera delegate.</summary>
-    public ParticleRenderNode2D(
+    public RGNode_ParticleRender2D(
         GpuParticleSystem2D particles,
         Func<ICamera> cameraProvider,
         RenderChain? chain = null,
@@ -145,7 +145,7 @@ public sealed class ParticleRenderNode2D : RenderGraphNode
 }
 
 /// <summary>RenderGraph graphics pass drawing <see cref="GpuParticleSystem3D"/> batches onto a target.</summary>
-public sealed class ParticleRenderNode3D : RenderGraphNode
+public sealed class RGNode_ParticleRender3D : RenderGraphNode
 {
     private readonly GpuParticleSystem3D _particles;
     private readonly ICamera? _camera;
@@ -161,7 +161,7 @@ public sealed class ParticleRenderNode3D : RenderGraphNode
     private RGTexture _depthTarget;
 
     /// <summary>Creates a 3D particle render node bound to a fixed camera instance.</summary>
-    public ParticleRenderNode3D(
+    public RGNode_ParticleRender3D(
         GpuParticleSystem3D particles,
         ICamera camera,
         RenderChain? chain = null,
@@ -184,7 +184,7 @@ public sealed class ParticleRenderNode3D : RenderGraphNode
     }
 
     /// <summary>Creates a 3D particle render node with a per-frame camera delegate.</summary>
-    public ParticleRenderNode3D(
+    public RGNode_ParticleRender3D(
         GpuParticleSystem3D particles,
         Func<ICamera> cameraProvider,
         RenderChain? chain = null,
@@ -234,7 +234,7 @@ public sealed class ParticleRenderNode3D : RenderGraphNode
 }
 
 /// <summary>RenderGraph graphics pass preparing and drawing <see cref="GpuTrailSystem2D"/> ribbons.</summary>
-public sealed class TrailRenderNode2D : RenderGraphNode
+public sealed class RGNode_TrailRender2D : RenderGraphNode
 {
     private readonly GpuTrailSystem2D _trails;
     private readonly ICamera? _camera;
@@ -250,7 +250,7 @@ public sealed class TrailRenderNode2D : RenderGraphNode
     private RGTexture _depthTarget;
 
     /// <summary>Creates a 2D trail render node bound to a fixed camera instance.</summary>
-    public TrailRenderNode2D(
+    public RGNode_TrailRender2D(
         GpuTrailSystem2D trails,
         ICamera camera,
         RenderChain? chain = null,
@@ -273,7 +273,7 @@ public sealed class TrailRenderNode2D : RenderGraphNode
     }
 
     /// <summary>Creates a 2D trail render node with a per-frame camera delegate.</summary>
-    public TrailRenderNode2D(
+    public RGNode_TrailRender2D(
         GpuTrailSystem2D trails,
         Func<ICamera> cameraProvider,
         RenderChain? chain = null,
@@ -324,7 +324,7 @@ public sealed class TrailRenderNode2D : RenderGraphNode
 }
 
 /// <summary>RenderGraph graphics pass preparing and drawing <see cref="GpuTrailSystem3D"/> ribbons.</summary>
-public sealed class TrailRenderNode3D : RenderGraphNode
+public sealed class RGNode_TrailRender3D : RenderGraphNode
 {
     private readonly GpuTrailSystem3D _trails;
     private readonly ICamera? _camera;
@@ -340,7 +340,7 @@ public sealed class TrailRenderNode3D : RenderGraphNode
     private RGTexture _depthTarget;
 
     /// <summary>Creates a 3D trail render node bound to a fixed camera instance.</summary>
-    public TrailRenderNode3D(
+    public RGNode_TrailRender3D(
         GpuTrailSystem3D trails,
         ICamera camera,
         RenderChain? chain = null,
@@ -363,7 +363,7 @@ public sealed class TrailRenderNode3D : RenderGraphNode
     }
 
     /// <summary>Creates a 3D trail render node with a per-frame camera delegate.</summary>
-    public TrailRenderNode3D(
+    public RGNode_TrailRender3D(
         GpuTrailSystem3D trails,
         Func<ICamera> cameraProvider,
         RenderChain? chain = null,
