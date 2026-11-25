@@ -10,6 +10,7 @@ public sealed class CanvasRenderGraphNode : RenderGraphNode
     private readonly RenderChain? _chain;
     private readonly LoadOp _colorLoadOp;
     private readonly Vector4 _clearColor;
+    private readonly string _stencilTargetName;
 
     private RGTexture _colorTarget;
     private RGTexture _stencilTarget;
@@ -32,6 +33,7 @@ public sealed class CanvasRenderGraphNode : RenderGraphNode
         _chain = chain;
         _colorLoadOp = colorLoadOp;
         _clearColor = clearColor;
+        _stencilTargetName = $"{Name}_Stencil";
     }
 
     /// <summary>The canvas driven by this node.</summary>
@@ -54,7 +56,7 @@ public sealed class CanvasRenderGraphNode : RenderGraphNode
 
         _stencilTarget = builder.CreateTexture(new RGTextureDesc
         {
-            Name = $"{Name}_Stencil",
+            Name = _stencilTargetName,
             Format = Format.S8Uint,
             Usage = TextureUsage.DepthStencilAttachment,
         });

@@ -4,6 +4,7 @@ using System.Collections.Frozen;
 using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
@@ -23,6 +24,8 @@ public class ConfigDatabase
     private readonly ConcurrentLruCache<Type, AccessTypeInfo> _accessTypeInfos = new(64);
 
     private readonly ConcurrentDictionary<Type, FrozenDictionary<string, Configable>> _configs = new();
+    private readonly ConcurrentDictionary<Type, Array> _typedConfigArrays = new();
+    private readonly Func<Type, FrozenDictionary<string, Configable>> _buildTypedConfigsDictionary;
     private readonly List<Configable> _configsList = new();
     private readonly List<Configable> _runtimeConfigs = new();
     private readonly ArrayBuffer<Configable?> _tempConfigs = new();
@@ -80,17 +83,39 @@ public class ConfigDatabase
     /// </summary>
     /// <typeparam name="T">The type of the configs to get.</typeparam>
     /// <returns>All configs of the specified type.</returns>
-    public IEnumerable<T> GetConfigs<T>() where T : Configable
+    public ImmutableArray<T> GetConfigs<T>() where T : Configable
     {
         TryUpdateConfigs();
-        var values = GetTypedConfigsDictionary(typeof(T)).Values;
-        foreach (var value in values)
+        Type type = typeof(T);
+        if (_typedConfigArrays.TryGetValue(type, out Array? cached))
         {
-            if (value is T t)
+            return ImmutableCollectionsMarshal.AsImmutableArray((T[])cached);
+        }
+
+        ImmutableArray<Configable> values = GetTypedConfigsDictionary(type).Values;
+        if (values.Length == 0)
+        {
+            T[] empty = Array.Empty<T>();
+            _typedConfigArrays.TryAdd(type, empty);
+            return ImmutableCollectionsMarshal.AsImmutableArray(empty);
+        }
+
+        T[] typed = new T[values.Length];
+        int count = 0;
+        for (int i = 0; i < values.Length; i++)
+        {
+            if (values[i] is T t)
             {
-                yield return t;
+                typed[count++] = t;
             }
         }
+        if (count != typed.Length)
+        {
+            Array.Resize(ref typed, count);
+        }
+
+        T[] stored = (T[])_typedConfigArrays.GetOrAdd(type, typed);
+        return ImmutableCollectionsMarshal.AsImmutableArray(stored);
     }
 
     /// <summary>
@@ -111,6 +136,7 @@ public class ConfigDatabase
     {
         ArgumentNullException.ThrowIfNull(onError);
         _onError = onError;
+        _buildTypedConfigsDictionary = BuildTypedConfigsDictionary;
 
         HashSet<Type> rootTypes = new HashSet<Type>();
 
@@ -224,6 +250,7 @@ public class ConfigDatabase
     private ConfigDatabase(ConfigDatabase source, Action<string> onError)
     {
         _onError = onError;
+        _buildTypedConfigsDictionary = BuildTypedConfigsDictionary;
         _accessTypeInfos = source._accessTypeInfos;
 
         _jsonSerializerOptions = new JsonSerializerOptions
@@ -395,6 +422,7 @@ public class ConfigDatabase
             _configsList.Add(config);
 
             _configs.Clear();
+            _typedConfigArrays.Clear();
             IncreaseVersion();
         }
     }
@@ -418,6 +446,7 @@ public class ConfigDatabase
 
             _configsList.RemoveAll(c => c.Id == id);
             _configs.Clear();
+            _typedConfigArrays.Clear();
             IncreaseVersion();
             return true;
         }
@@ -445,6 +474,7 @@ public class ConfigDatabase
             }
 
             _configs.Clear();
+            _typedConfigArrays.Clear();
             _jsonPreprocessor.Preprocess();
 
             var documents = _jsonPreprocessor.AllDocuments.ToArray();
@@ -500,10 +530,12 @@ public class ConfigDatabase
 
     private FrozenDictionary<string, Configable> GetTypedConfigsDictionary(Type type)
     {
-        return _configs.GetOrAdd(
-            type,
-            BuildTypedConfigsDictionary
-        );
+        if (_configs.TryGetValue(type, out FrozenDictionary<string, Configable>? cached))
+        {
+            return cached;
+        }
+
+        return _configs.GetOrAdd(type, _buildTypedConfigsDictionary);
     }
 
     private FrozenDictionary<string, Configable> BuildTypedConfigsDictionary(Type type)
