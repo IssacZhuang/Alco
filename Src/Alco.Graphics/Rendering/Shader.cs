@@ -5,6 +5,7 @@ using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.ExceptionServices;
 using Alco.Graphics.LowLevel;
+using Alco.Graphics.Slang;
 
 namespace Alco.Graphics;
 
@@ -936,17 +937,17 @@ public sealed class Shader : RenderingResource
             ArgumentNullException.ThrowIfNull(compiler);
             ArgumentException.ThrowIfNullOrEmpty(module);
 
-            ShaderModule parsed = compiler.LoadModule(module);
-            ShaderKind resolvedKind = kind ?? FromPipelineKind(parsed.InferPipelineKind());
+            CachedModuleMetadata meta = compiler.GetOrInspectModuleMetadata(module);
+            ShaderKind resolvedKind = kind ?? FromPipelineKind(ShaderModule.InferPipelineKind(module, compiler.Target, meta.EntryPoints));
             ShaderPipelineKind pipelineKind = ToPipelineKind(resolvedKind);
 
             Name = name.Length != 0 ? name : module;
             Kind = resolvedKind;
-            ValueSpecializationParameters = CollectValueSpecializationParameters(parsed, resolvedKind);
+            ValueSpecializationParameters = CollectValueSpecializationParameters(meta.EntryPoints, resolvedKind);
             _compileVariant = specs => compiler.Compile(module, pipelineKind,
                 specs.Length > 0 ? new ShaderCompileOptions { SpecializationArgs = specs } : null);
 
-            if (!HasGenericStages(parsed, resolvedKind))
+            if (!HasGenericStages(meta.EntryPoints, resolvedKind))
                 _defaultVariant = GetOrCompileVariant([]);
         }
         catch
@@ -971,11 +972,11 @@ public sealed class Shader : RenderingResource
 
             Name = name.Length != 0 ? name : module.Name;
             Kind = resolvedKind;
-            ValueSpecializationParameters = CollectValueSpecializationParameters(module, resolvedKind);
+            ValueSpecializationParameters = CollectValueSpecializationParameters(module.EntryPoints, resolvedKind);
             _compileVariant = specs => module.Compile(pipelineKind,
                 specs.Length > 0 ? new ShaderCompileOptions { SpecializationArgs = specs } : null);
 
-            if (!HasGenericStages(module, resolvedKind))
+            if (!HasGenericStages(module.EntryPoints, resolvedKind))
                 _defaultVariant = GetOrCompileVariant([]);
         }
         catch
@@ -996,6 +997,46 @@ public sealed class Shader : RenderingResource
         Kind = kind;
         ValueSpecializationParameters = valueSpecializationParameters;
         _compileVariant = compileVariant;
+    }
+
+    internal static Shader FromSource(
+        RenderingSystem system,
+        ShaderCompiler compiler,
+        string moduleName,
+        string virtualPath,
+        string source,
+        ShaderKind? kind = null,
+        string name = "")
+    {
+        ArgumentNullException.ThrowIfNull(system);
+        ArgumentNullException.ThrowIfNull(compiler);
+        ArgumentException.ThrowIfNullOrEmpty(moduleName);
+        ArgumentException.ThrowIfNullOrEmpty(virtualPath);
+        ArgumentNullException.ThrowIfNull(source);
+
+        CachedModuleMetadata meta = compiler.GetOrInspectSourceMetadata(moduleName, virtualPath, source);
+        ShaderKind resolvedKind = kind ?? FromPipelineKind(ShaderModule.InferPipelineKind(moduleName, compiler.Target, meta.EntryPoints));
+        ShaderPipelineKind pipelineKind = ToPipelineKind(resolvedKind);
+        string resolvedName = name.Length != 0 ? name : moduleName;
+        Shader shader = new(
+            system,
+            resolvedName,
+            resolvedKind,
+            CollectValueSpecializationParameters(meta.EntryPoints, resolvedKind),
+            specs => compiler.CompileSource(moduleName, virtualPath, source, pipelineKind,
+                specs.Length > 0 ? new ShaderCompileOptions { SpecializationArgs = specs } : null));
+
+        try
+        {
+            if (!HasGenericStages(meta.EntryPoints, resolvedKind))
+                shader._defaultVariant = shader.GetOrCompileVariant([]);
+            return shader;
+        }
+        catch
+        {
+            shader.DestroyImmediate();
+            throw;
+        }
     }
 
     /// <summary>Creates a composed multi-variant shader pairing a template module with a surface module implementing its contract.</summary>
@@ -1019,15 +1060,15 @@ public sealed class Shader : RenderingResource
         ArgumentException.ThrowIfNullOrEmpty(templateModule);
         ArgumentException.ThrowIfNullOrEmpty(surfaceModule);
 
-        ShaderModule parsedTemplate = compiler.LoadModule(templateModule);
-        ShaderKind resolvedKind = kind ?? FromPipelineKind(parsedTemplate.InferPipelineKind());
+        CachedModuleMetadata templateMeta = compiler.GetOrInspectModuleMetadata(templateModule);
+        ShaderKind resolvedKind = kind ?? FromPipelineKind(ShaderModule.InferPipelineKind(templateModule, compiler.Target, templateMeta.EntryPoints));
         ShaderPipelineKind pipelineKind = ToPipelineKind(resolvedKind);
         string resolvedName = name.Length != 0 ? name : $"{templateModule}+{surfaceModule}";
         return new Shader(
             system,
             resolvedName,
             resolvedKind,
-            CollectValueSpecializationParameters(parsedTemplate, resolvedKind),
+            CollectValueSpecializationParameters(templateMeta.EntryPoints, resolvedKind),
             specs => compiler.CompileComposed(templateModule, surfaceModule, pipelineKind,
                 specs.Length > 0 ? new ShaderCompileOptions { SpecializationArgs = specs } : null));
     }
@@ -1250,27 +1291,30 @@ public sealed class Shader : RenderingResource
         return null;
     }
 
-    private static bool HasGenericStages(ShaderModule module, ShaderKind kind)
+    private static bool HasGenericStages(IReadOnlyList<ShaderModuleEntryPoint> entryPoints, ShaderKind kind)
     {
         ShaderStageKind stages = StagesForKind(kind);
-        foreach (ShaderModuleEntryPoint entryPoint in module.EntryPoints)
+        for (int i = 0; i < entryPoints.Count; i++)
         {
+            ShaderModuleEntryPoint entryPoint = entryPoints[i];
             if ((entryPoint.Stage & stages) != 0 && entryPoint.HasGenericParameters)
                 return true;
         }
         return false;
     }
 
-    private static string[] CollectValueSpecializationParameters(ShaderModule module, ShaderKind kind)
+    private static string[] CollectValueSpecializationParameters(IReadOnlyList<ShaderModuleEntryPoint> entryPoints, ShaderKind kind)
     {
         ShaderStageKind stages = StagesForKind(kind);
         List<string>? names = null;
-        foreach (ShaderModuleEntryPoint entryPoint in module.EntryPoints)
+        for (int i = 0; i < entryPoints.Count; i++)
         {
+            ShaderModuleEntryPoint entryPoint = entryPoints[i];
             if ((entryPoint.Stage & stages) == 0)
                 continue;
-            foreach (ShaderGenericParam gp in entryPoint.GenericParameters)
+            for (int g = 0; g < entryPoint.GenericParameters.Count; g++)
             {
+                ShaderGenericParam gp = entryPoint.GenericParameters[g];
                 if (gp.IsTypeParameter)
                     continue;
                 names ??= [];

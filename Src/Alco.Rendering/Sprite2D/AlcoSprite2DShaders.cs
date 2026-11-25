@@ -140,7 +140,7 @@ public static class AlcoSprite2DShaders
                     continue;
                 }
 
-                compiler.LoadModuleFromSource(moduleName, moduleName + ".slang",
+                compiler.RegisterVirtualModule(moduleName, moduleName + ".slang",
                     LoadEmbeddedSource(moduleName + ".slang"));
                 loaded.Add(moduleName);
             }
@@ -180,7 +180,7 @@ public static class AlcoSprite2DShaders
         ArgumentNullException.ThrowIfNull(source);
 
         EnsureBuiltInModulesLoaded(shaders);
-        shaders.Compiler.LoadModuleFromSource(surfaceModule, virtualPath, source);
+        shaders.Compiler.RegisterVirtualModule(surfaceModule, virtualPath, source);
         return shaders.Compose(Sprite2DPassTemplateModule, surfaceModule, ShaderKind.Graphics, name);
     }
 
@@ -217,7 +217,7 @@ public static class AlcoSprite2DShaders
         ArgumentNullException.ThrowIfNull(source);
 
         EnsureBuiltInModulesLoaded(shaders);
-        shaders.Compiler.LoadModuleFromSource(surfaceModule, virtualPath, source);
+        shaders.Compiler.RegisterVirtualModule(surfaceModule, virtualPath, source);
         return shaders.Compose(SpriteScenePassTemplateModule, surfaceModule, ShaderKind.Graphics, name);
     }
 }

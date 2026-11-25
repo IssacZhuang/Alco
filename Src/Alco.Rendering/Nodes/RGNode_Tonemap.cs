@@ -136,7 +136,7 @@ public sealed unsafe class RGNode_Tonemap : IRenderGraphNode
         _outputTextureName = $"{name}_Output";
 
         ShaderSystem shaderSystem = shaders ?? rendering.Shaders;
-        shaderSystem.Compiler.LoadModuleFromSource(
+        shaderSystem.Compiler.RegisterVirtualModule(
             "AlcoRendering_Tonemap",
             "AlcoRendering_Tonemap.slang",
             LoadEmbeddedShaderSource("AlcoRendering_Tonemap.slang"));

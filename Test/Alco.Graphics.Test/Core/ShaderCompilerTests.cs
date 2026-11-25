@@ -133,6 +133,10 @@ internal static class ShaderCompilerTests
         TestSpecializedRoots(check);
         TestSelectedEntryComposition(check);
         TestSerializationAndDiskCache(check);
+        TestL1IrCacheRoundTripAndParity(check);
+        TestComposedIrAndZeroSessionWarmStart(check);
+        TestMultiTargetCacheIsolation(check);
+        TestCacheStalenessAndCorruptionSafety(check);
     }
 
     private static void TestEmbeddedIncludeReflectionAndLifetime(Action<bool, string> check)
@@ -459,8 +463,12 @@ internal static class ShaderCompilerTests
                     ShaderPipelineKind.Compute, new ShaderCompileOptions { SpecializationArgs = ["MatteModel"] });
             }
 
-            string[] cacheFiles = Directory.Exists(tempDir) ? Directory.GetFiles(tempDir, "*.agshader") : [];
-            check(cacheFiles.Length == 1, "CacheDirectory persists compiled .agshader artifact to disk");
+            string programsDir = Path.Combine(tempDir, "programs");
+            string modulesDir = Path.Combine(tempDir, "modules");
+            string[] cacheFiles = Directory.Exists(programsDir) ? Directory.GetFiles(programsDir, "*.agshader") : [];
+            string[] moduleFiles = Directory.Exists(modulesDir) ? Directory.GetFiles(modulesDir, "*.agmod") : [];
+            check(cacheFiles.Length == 1 && moduleFiles.Length >= 1,
+                "CacheDirectory persists compiled .agshader and L1 .agmod artifacts to disk");
 
             byte[] blob = first.Serialize();
             CompiledShader deserialized = CompiledShader.Deserialize(blob);
@@ -497,13 +505,13 @@ internal static class ShaderCompilerTests
             bool loggedHit = false;
             for (int i = 0; i < logs.Count; i++)
             {
-                if (logs[i].Contains("cache hit", StringComparison.OrdinalIgnoreCase))
+                if (logs[i].Contains("Shader cache hit:", StringComparison.Ordinal))
                     loggedHit = true;
             }
             check(loggedHit && second.Stages[0].Code.Span.SequenceEqual(first.Stages[0].Code.Span),
                 "Second CompileSource hits persistent disk cache without recompiling");
 
-            // Modifying specialization arguments or defines must invalidate the cache key cleanly.
+            // Modifying specialization arguments or defines must invalidate the L2 cache key while reusing L1 IR.
             CompiledShader third;
             int logCountBeforeInvalidation = logs.Count;
             using (ShaderCompiler compiler3 = new(ShaderTarget.Spirv, cacheOptions))
@@ -511,13 +519,16 @@ internal static class ShaderCompilerTests
                 third = compiler3.CompileSource("cached_test", "cached_test.slang", EmbeddedIncludeSource,
                     ShaderPipelineKind.Compute, new ShaderCompileOptions { SpecializationArgs = ["GlossModel"] });
             }
-            bool hitOnChangedSpec = false;
+            bool hitL2OnChangedSpec = false;
+            bool hitL1OnChangedSpec = false;
             for (int i = logCountBeforeInvalidation; i < logs.Count; i++)
             {
-                if (logs[i].Contains("cache hit", StringComparison.OrdinalIgnoreCase))
-                    hitOnChangedSpec = true;
+                if (logs[i].Contains("Shader cache hit:", StringComparison.Ordinal))
+                    hitL2OnChangedSpec = true;
+                if (logs[i].Contains("Shader IR cache hit:", StringComparison.Ordinal))
+                    hitL1OnChangedSpec = true;
             }
-            check(!hitOnChangedSpec && !third.Stages[0].Code.Span.SequenceEqual(first.Stages[0].Code.Span),
+            check(!hitL2OnChangedSpec && hitL1OnChangedSpec && !third.Stages[0].Code.Span.SequenceEqual(first.Stages[0].Code.Span),
                 "Changing SpecializationArgs misses disk cache and emits distinct specialized bytecode");
         }
         finally
@@ -779,5 +790,535 @@ internal static class ShaderCompilerTests
             if (Directory.Exists(compCacheDir))
                 Directory.Delete(compCacheDir, recursive: true);
         }
+    }
+
+    private static void TestL1IrCacheRoundTripAndParity(Action<bool, string> check)
+    {
+        string tempRoot = Path.Combine(Path.GetTempPath(), "ngs_l1_ir_test_" + Guid.NewGuid().ToString("N"));
+        string shaderDir = Path.Combine(tempRoot, "shaders");
+        string cacheDir = Path.Combine(tempRoot, "cache");
+        Directory.CreateDirectory(shaderDir);
+
+        string libBPath = Path.Combine(shaderDir, "ir_lib_b.slang");
+        string libAPath = Path.Combine(shaderDir, "ir_lib_a.slang");
+        string incPath = Path.Combine(shaderDir, "ir_values.slangh");
+        string mainPath = Path.Combine(shaderDir, "ir_main.slang");
+
+        File.WriteAllText(libBPath, """
+            module ir_lib_b;
+            public float GetBias() { return 0.25; }
+            """);
+        File.WriteAllText(libAPath, """
+            module ir_lib_a;
+            import ir_lib_b;
+            #include "ir_values.slangh"
+            public float ComputeScale(float x) { return x * IR_SCALE + GetBias(); }
+            """);
+        File.WriteAllText(incPath, "#define IR_SCALE 2.0\n");
+        File.WriteAllText(mainPath, """
+            module ir_main;
+            import Core;
+            import ir_lib_a;
+
+            interface ITestOp { float Eval(float v); };
+            struct OpAdd : ITestOp { float Eval(float v) { return ComputeScale(v) + 1.0; } };
+            struct OpMul : ITestOp { float Eval(float v) { return ComputeScale(v) * 2.0; } };
+
+            [GPURoot]
+            struct MainRoot<T : ITestOp>
+            {
+                GPUBufferView Output;
+                float Input;
+            };
+
+            [shader("compute")]
+            [numthreads(2, 1, 1)]
+            void computeMain<T : ITestOp>(uint3 tid : SV_DispatchThreadID)
+            {
+                MainRoot<T> root = gpu_load_root<MainRoot<T>>();
+                T op;
+                gpu_store<float>(root.Output, tid.x, op.Eval(root.Input));
+            }
+            """);
+
+        try
+        {
+            ShaderCompilerOptions opts = new()
+            {
+                SearchPaths = [shaderDir],
+                CacheDirectory = cacheDir,
+            };
+
+            CompiledShader coldCompiled;
+            IReadOnlyList<string> coldDeps;
+            using (ShaderCompiler compiler1 = new(ShaderTarget.SpirvCompact, opts))
+            {
+                ShaderModule mod1 = compiler1.LoadModule("ir_main");
+                coldDeps = mod1.DependencyPaths;
+                check(!mod1.LoadedFromIrCache, "Cold LoadModule does not report L1 IR cache hit");
+                coldCompiled = compiler1.Compile("ir_main", ShaderPipelineKind.Compute,
+                    new ShaderCompileOptions { SpecializationArgs = ["OpAdd"] });
+            }
+
+            string modulesDir = Path.Combine(cacheDir, "modules");
+            string programsDir = Path.Combine(cacheDir, "programs");
+            check(Directory.GetFiles(modulesDir, "*.agmod").Length >= 3,
+                "L1 cache captures target module and transitive imported modules (.agmod)");
+            check(Directory.GetFiles(programsDir, "*.agshader").Length == 1,
+                "L2 cache writes compiled program artifact (.agshader)");
+
+            // Delete L2 programs directory to force L1 IR restore + re-link/codegen.
+            Directory.Delete(programsDir, recursive: true);
+
+            List<string> irLogs = [];
+            ShaderCompilerOptions warmIrOpts = new()
+            {
+                SearchPaths = [shaderDir],
+                CacheDirectory = cacheDir,
+                Log = irLogs.Add,
+            };
+
+            CompiledShader warmCompiled;
+            using (ShaderCompiler compiler2 = new(ShaderTarget.SpirvCompact, warmIrOpts))
+            {
+                ShaderModule restored = compiler2.LoadModule("ir_main");
+                IReadOnlyList<string> impls = restored.FindImplementations("ITestOp");
+                check(restored.LoadedFromIrCache, "Warm LoadModule restores module from L1 IR blob");
+                check(irLogs.Any(l => l.Contains("Shader IR cache hit", StringComparison.Ordinal)),
+                    "L1 IR restore emits diagnostic hit log");
+                check(impls.Count == 2 && impls.Contains("OpAdd") && impls.Contains("OpMul"),
+                    "IR-restored module preserves FindImplementations reflection");
+                check(restored.EntryPoints.Count == 1 && restored.EntryPoints[0].HasGenericParameters,
+                    "IR-restored module preserves entry-point generic metadata");
+                check(restored.DependencyPaths.Count == coldDeps.Count &&
+                    restored.DependencyPaths.Any(p => p.EndsWith("ir_lib_b.slang", StringComparison.OrdinalIgnoreCase)) &&
+                    restored.DependencyPaths.Any(p => p.EndsWith("ir_values.slangh", StringComparison.OrdinalIgnoreCase)),
+                    "IR-restored module preserves full transitive dependency paths");
+
+                warmCompiled = compiler2.Compile("ir_main", ShaderPipelineKind.Compute,
+                    new ShaderCompileOptions { SpecializationArgs = ["OpAdd"] });
+            }
+
+            check(warmCompiled.Stages[0].Code.Span.SequenceEqual(coldCompiled.Stages[0].Code.Span),
+                "L1 IR-restored module produces byte-for-byte identical SPIR-V Compact code");
+            check(warmCompiled.Reflection.Root != null &&
+                warmCompiled.Reflection.Root.SizeBytes == coldCompiled.Reflection.Root!.SizeBytes &&
+                warmCompiled.Reflection.Root.Find("Input")?.OffsetBytes == coldCompiled.Reflection.Root.Find("Input")?.OffsetBytes,
+                "L1 IR-restored module produces identical generic [GPURoot] reflection");
+        }
+        finally
+        {
+            if (Directory.Exists(tempRoot))
+                Directory.Delete(tempRoot, recursive: true);
+        }
+    }
+
+    private static void TestComposedIrAndZeroSessionWarmStart(Action<bool, string> check)
+    {
+        const string contractSrc = """
+            module z_contract;
+            import Core;
+            public interface IZSurface
+            {
+                associatedtype Params;
+                float4 Eval(Params p);
+            };
+            """;
+        const string templateSrc = """
+            module z_template;
+            import Core;
+            import z_contract;
+
+            [GPURoot]
+            public struct PassRoot<T : IZSurface>
+            {
+                public GPUBufferView Output;
+                public T.Params Material;
+            };
+
+            [shader("compute")]
+            [numthreads(1, 1, 1)]
+            void csMain<T : IZSurface, let Gain : int>(uint3 tid : SV_DispatchThreadID)
+            {
+                PassRoot<T> root = gpu_load_root<PassRoot<T>>();
+                T s;
+                gpu_store<float4>(root.Output, tid.x, s.Eval(root.Material) * float(Gain));
+            }
+            """;
+        const string surfaceV1 = """
+            module z_surface;
+            import z_contract;
+            public struct ZParams { public float4 Tint; };
+            public struct ZSurf : IZSurface
+            {
+                public typedef ZParams Params;
+                public float4 Eval(ZParams p) { return p.Tint; }
+            };
+            """;
+        const string surfaceV2 = """
+            module z_surface;
+            import z_contract;
+            public struct ZParams { public float4 Tint; public float Boost; };
+            public struct ZSurf : IZSurface
+            {
+                public typedef ZParams Params;
+                public float4 Eval(ZParams p) { return p.Tint * p.Boost; }
+            };
+            """;
+        const string standaloneSrc = """
+            module z_standalone;
+            import Core;
+            [GPURoot] struct SRoot { float4 Color; };
+            [shader("compute")] [numthreads(1, 1, 1)]
+            void csMain() { SRoot r = gpu_load_root<SRoot>(); }
+            """;
+        const string inlineSrc = """
+            module z_inline;
+            import Core;
+            [GPURoot] struct IRoot { float4 Tint; };
+            [shader("compute")] [numthreads(1, 1, 1)]
+            void csMain() { IRoot r = gpu_load_root<IRoot>(); }
+            """;
+
+        string tempRoot = Path.Combine(Path.GetTempPath(), "ngs_zero_session_test_" + Guid.NewGuid().ToString("N"));
+        string shaderDir = Path.Combine(tempRoot, "shaders");
+        string cacheDir = Path.Combine(tempRoot, "cache");
+        Directory.CreateDirectory(shaderDir);
+        File.WriteAllText(Path.Combine(shaderDir, "z_contract.slang"), contractSrc);
+        File.WriteAllText(Path.Combine(shaderDir, "z_template.slang"), templateSrc);
+        File.WriteAllText(Path.Combine(shaderDir, "z_surface.slang"), surfaceV1);
+        File.WriteAllText(Path.Combine(shaderDir, "z_standalone.slang"), standaloneSrc);
+
+        try
+        {
+            byte[] coldComposedCode;
+            byte[] coldInlineCode;
+
+            GPUDevice device = Gpu.CreateDevice(new DeviceDesc { Backend = GraphicsBackend.NoGPU });
+            try
+            {
+                using RenderingSystem system = new(device, 1024 * 1024, 1024 * 1024);
+                using ShaderSystem shaders = system.CreateShaderSystem(new ShaderCompilerOptions
+                {
+                    SearchPaths = [shaderDir],
+                    CacheDirectory = cacheDir,
+                });
+                shaders.Compiler.RegisterVirtualModule("z_contract", "z_contract.slang", contractSrc);
+                shaders.Compiler.RegisterVirtualModule("z_template", "z_template.slang", templateSrc);
+                check(shaders.Compiler.ActiveSessionCount == 0,
+                    "RegisterVirtualModule does not eagerly initialize a Slang session");
+
+                Shader standalone = shaders.GetShader("z_standalone", ShaderKind.Compute);
+                Shader inlineShader = shaders.GetShaderFromSource("z_inline", "z_inline.slang", inlineSrc, ShaderKind.Compute);
+                Shader composed = shaders.Compose("z_template", "z_surface", ShaderKind.Compute);
+                Material mat = composed.CreateMaterial("mat", 2);
+
+                coldComposedCode = mat.Variant.Compiled.Stages[0].Code.ToArray();
+                coldInlineCode = inlineShader.DefaultVariant.Compiled.Stages[0].Code.ToArray();
+                check(standalone.Root.SizeBytes > 0 && mat.Root.Find("Material.Tint") != null,
+                    "Cold ShaderSystem compilation produces valid standalone, inline, and composed shaders");
+            }
+            finally
+            {
+                device.Destroy();
+            }
+
+            // 1. Warm start across ShaderSystem (standalone, GetShaderFromSource, Compose) must create 0 Slang sessions.
+            List<string> warmLogs = [];
+            GPUDevice device2 = Gpu.CreateDevice(new DeviceDesc { Backend = GraphicsBackend.NoGPU });
+            try
+            {
+                using RenderingSystem system2 = new(device2, 1024 * 1024, 1024 * 1024);
+                using ShaderSystem shaders2 = system2.CreateShaderSystem(new ShaderCompilerOptions
+                {
+                    SearchPaths = [shaderDir],
+                    CacheDirectory = cacheDir,
+                    Log = warmLogs.Add,
+                });
+                shaders2.Compiler.RegisterVirtualModule("z_contract", "z_contract.slang", contractSrc);
+                shaders2.Compiler.RegisterVirtualModule("z_template", "z_template.slang", templateSrc);
+
+                Shader standalone2 = shaders2.GetShader("z_standalone", ShaderKind.Compute);
+                Shader inline2 = shaders2.GetShaderFromSource("z_inline", "z_inline.slang", inlineSrc, ShaderKind.Compute);
+                Shader composed2 = shaders2.Compose("z_template", "z_surface", ShaderKind.Compute);
+                Material mat2 = composed2.CreateMaterial("mat2", 2);
+
+                check(shaders2.Compiler.ActiveSessionCount == 0,
+                    "Warm startup with GetShader, GetShaderFromSource, and Compose creates zero Slang sessions");
+                check(inline2.DefaultVariant.Compiled.Stages[0].Code.Span.SequenceEqual(coldInlineCode),
+                    "GetShaderFromSource hits L2 disk cache with identical bytecode");
+                check(mat2.Variant.Compiled.Stages[0].Code.Span.SequenceEqual(coldComposedCode) &&
+                    standalone2.Root.SizeBytes > 0,
+                    "Warm composed and standalone shaders match cold compilation");
+            }
+            finally
+            {
+                device2.Destroy();
+            }
+
+            // 2. Delete L2 programs/ to verify composed L1 IR restore (template + surface both from IR).
+            Directory.Delete(Path.Combine(cacheDir, "programs"), recursive: true);
+            List<string> irLogs = [];
+            using (ShaderCompiler irCompiler = new(ShaderTarget.SpirvCompact, new ShaderCompilerOptions
+            {
+                SearchPaths = [shaderDir],
+                CacheDirectory = cacheDir,
+                Log = irLogs.Add,
+            }))
+            {
+                irCompiler.RegisterVirtualModule("z_contract", "z_contract.slang", contractSrc);
+                irCompiler.RegisterVirtualModule("z_template", "z_template.slang", templateSrc);
+                CompiledShader recomposed = irCompiler.CompileComposed("z_template", "z_surface", ShaderPipelineKind.Compute,
+                    new ShaderCompileOptions { SpecializationArgs = ["2"] });
+                check(irLogs.Any(l => l.Contains("Shader IR cache hit: 'z_template'", StringComparison.Ordinal)),
+                    "Composed recompile after L2 miss restores template from L1 IR cache");
+                check(recomposed.Stages[0].Code.Span.SequenceEqual(coldComposedCode),
+                    "IR-restored composed shader emits identical bytecode");
+            }
+
+            // 3. Edit surface only -> unchanged template still hits L1 IR while surface recompiles with new Boost field.
+            File.WriteAllText(Path.Combine(shaderDir, "z_surface.slang"), surfaceV2);
+            List<string> partialLogs = [];
+            using (ShaderCompiler partialCompiler = new(ShaderTarget.SpirvCompact, new ShaderCompilerOptions
+            {
+                SearchPaths = [shaderDir],
+                CacheDirectory = cacheDir,
+                Log = partialLogs.Add,
+            }))
+            {
+                partialCompiler.RegisterVirtualModule("z_contract", "z_contract.slang", contractSrc);
+                partialCompiler.RegisterVirtualModule("z_template", "z_template.slang", templateSrc);
+                CompiledShader updated = partialCompiler.CompileComposed("z_template", "z_surface", ShaderPipelineKind.Compute,
+                    new ShaderCompileOptions { SpecializationArgs = ["2"] });
+
+                check(partialLogs.Any(l => l.Contains("Shader IR cache hit: 'z_template'", StringComparison.Ordinal)),
+                    "Editing surface keeps template on L1 IR hit");
+                check(!partialLogs.Any(l => l.Contains("Shader IR cache hit: 'z_surface'", StringComparison.Ordinal)),
+                    "Editing surface invalidates surface L1 IR and recompiles");
+                check(updated.Reflection.Root?.Find("Material.Boost") != null &&
+                    !updated.Stages[0].Code.Span.SequenceEqual(coldComposedCode),
+                    "Partial recompile reflects edited surface root layout and updated bytecode");
+            }
+        }
+        finally
+        {
+            if (Directory.Exists(tempRoot))
+                Directory.Delete(tempRoot, recursive: true);
+        }
+    }
+
+    private static void TestMultiTargetCacheIsolation(Action<bool, string> check)
+    {
+        const string src = """
+            module mt_test;
+            import Core;
+            [GPURoot] struct MtRoot { GPUBufferView Out; float4 Val; };
+            [shader("compute")] [numthreads(1, 1, 1)]
+            void csMain(uint3 tid : SV_DispatchThreadID)
+            {
+                MtRoot r = gpu_load_root<MtRoot>();
+                gpu_store<float4>(r.Out, tid.x, r.Val);
+            }
+            """;
+
+        string cacheDir = Path.Combine(Path.GetTempPath(), "ngs_multitarget_cache_" + Guid.NewGuid().ToString("N"));
+        List<ShaderTarget> targets = [ShaderTarget.Spirv, ShaderTarget.SpirvCompact, ShaderTarget.MetalSource];
+        if (ShaderCompiler.IsTargetSupported(ShaderTarget.Dxil))
+            targets.Add(ShaderTarget.Dxil);
+
+        try
+        {
+            Dictionary<ShaderTarget, byte[]> coldCodes = new();
+            foreach (ShaderTarget target in targets)
+            {
+                using ShaderCompiler compiler = new(target, new ShaderCompilerOptions
+                {
+                    SearchPaths = [],
+                    CacheDirectory = cacheDir,
+                });
+                CompiledShader compiled = compiler.CompileSource("mt_test", "mt_test.slang", src, ShaderPipelineKind.Compute);
+                byte[] code = compiled.Stages[0].Code.ToArray();
+                coldCodes[target] = code;
+
+                bool validFormat = target switch
+                {
+                    ShaderTarget.Spirv or ShaderTarget.SpirvCompact =>
+                        code.Length >= 4 && code[0] == 0x03 && code[1] == 0x02 && code[2] == 0x23 && code[3] == 0x07,
+                    ShaderTarget.Dxil =>
+                        code.Length >= 4 && code[0] == (byte)'D' && code[1] == (byte)'X' && code[2] == (byte)'B' && code[3] == (byte)'C',
+                    ShaderTarget.MetalSource =>
+                        System.Text.Encoding.UTF8.GetString(code).Contains("kernel", StringComparison.Ordinal),
+                    _ => false,
+                };
+                check(validFormat, $"Multi-target compile emits valid format for {target}");
+            }
+
+            check(Directory.GetFiles(Path.Combine(cacheDir, "programs"), "*.agshader").Length == targets.Count,
+                "Multi-target L2 cache keeps one .agshader per target without overwriting");
+            check(Directory.GetFiles(Path.Combine(cacheDir, "modules"), "*.agmod").Length >= targets.Count,
+                "Multi-target L1 cache keeps isolated .agmod files per target");
+
+            // Delete L2 programs and verify L1 IR restores per target without cross-contamination.
+            Directory.Delete(Path.Combine(cacheDir, "programs"), recursive: true);
+            Dictionary<ShaderTarget, byte[]> recompiledCodes = new();
+            foreach (ShaderTarget target in targets)
+            {
+                List<string> logs = [];
+                using ShaderCompiler compiler = new(target, new ShaderCompilerOptions
+                {
+                    SearchPaths = [],
+                    CacheDirectory = cacheDir,
+                    Log = logs.Add,
+                });
+                ShaderModule mod = compiler.LoadModuleFromSource("mt_test", "mt_test.slang", src);
+                check(mod.LoadedFromIrCache, $"L1 IR cache restores cleanly for {target}");
+                CompiledShader recompiled = compiler.CompileSource("mt_test", "mt_test.slang", src, ShaderPipelineKind.Compute);
+                byte[] recompiledCode = recompiled.Stages[0].Code.ToArray();
+                recompiledCodes[target] = recompiledCode;
+                bool irMatches = target == ShaderTarget.MetalSource
+                    ? NormalizeMslForIrParity(recompiledCode) == NormalizeMslForIrParity(coldCodes[target])
+                    : recompiledCode.AsSpan().SequenceEqual(coldCodes[target]);
+                check(irMatches, $"L1 IR compile reproduces exact bytecode for {target}");
+            }
+
+            // Now verify L2 hit with 0 Slang sessions across all targets sharing cacheDir.
+            foreach (ShaderTarget target in targets)
+            {
+                using ShaderCompiler compiler = new(target, new ShaderCompilerOptions
+                {
+                    SearchPaths = [],
+                    CacheDirectory = cacheDir,
+                });
+                CompiledShader hit = compiler.CompileSource("mt_test", "mt_test.slang", src, ShaderPipelineKind.Compute);
+                check(compiler.ActiveSessionCount == 0 && hit.Stages[0].Code.Span.SequenceEqual(recompiledCodes[target]),
+                    $"Shared cache hits L2 with zero Slang sessions for {target}");
+            }
+        }
+        finally
+        {
+            if (Directory.Exists(cacheDir))
+                Directory.Delete(cacheDir, recursive: true);
+        }
+    }
+
+    private static void TestCacheStalenessAndCorruptionSafety(Action<bool, string> check)
+    {
+        string tempRoot = Path.Combine(Path.GetTempPath(), "ngs_corrupt_stale_test_" + Guid.NewGuid().ToString("N"));
+        string shaderDir = Path.Combine(tempRoot, "shaders");
+        string cacheDir = Path.Combine(tempRoot, "cache");
+        Directory.CreateDirectory(shaderDir);
+
+        string incPath = Path.Combine(shaderDir, "sc_vals.slangh");
+        string libPath = Path.Combine(shaderDir, "sc_lib.slang");
+        string mainPath = Path.Combine(shaderDir, "sc_main.slang");
+
+        File.WriteAllText(incPath, "#define SC_ADD 1.0\n");
+        File.WriteAllText(libPath, """
+            module sc_lib;
+            #include "sc_vals.slangh"
+            public float GetVal() { return 2.0 + SC_ADD; }
+            """);
+        File.WriteAllText(mainPath, """
+            module sc_main;
+            import Core;
+            import sc_lib;
+            [GPURoot] struct ScRoot { GPUBufferView Out; };
+            [shader("compute")] [numthreads(1, 1, 1)]
+            void csMain() { ScRoot r = gpu_load_root<ScRoot>(); gpu_store<float>(r.Out, 0, GetVal()); }
+            """);
+
+        try
+        {
+            ShaderCompilerOptions opts = new() { SearchPaths = [shaderDir], CacheDirectory = cacheDir };
+            byte[] baselineCode;
+            using (ShaderCompiler c1 = new(ShaderTarget.SpirvCompact, opts))
+                baselineCode = c1.Compile("sc_main", ShaderPipelineKind.Compute).Stages[0].Code.ToArray();
+
+            // 1. Corrupt L1 .agmod IR payload and L2 .agshader payload; must not crash Slang and must self-heal.
+            foreach (string modFile in Directory.GetFiles(Path.Combine(cacheDir, "modules"), "*.agmod"))
+            {
+                byte[] bytes = File.ReadAllBytes(modFile);
+                if (bytes.Length > 64)
+                {
+                    bytes[^5] ^= 0xFF;
+                    File.WriteAllBytes(modFile, bytes);
+                }
+            }
+            foreach (string progFile in Directory.GetFiles(Path.Combine(cacheDir, "programs"), "*.agshader"))
+            {
+                byte[] bytes = File.ReadAllBytes(progFile);
+                if (bytes.Length > 48)
+                {
+                    bytes[^3] ^= 0xFF;
+                    File.WriteAllBytes(progFile, bytes);
+                }
+            }
+
+            List<string> repairLogs = [];
+            using (ShaderCompiler c2 = new(ShaderTarget.SpirvCompact, new ShaderCompilerOptions
+            {
+                SearchPaths = [shaderDir],
+                CacheDirectory = cacheDir,
+                Log = repairLogs.Add,
+            }))
+            {
+                ShaderModule mod = c2.LoadModule("sc_main");
+                check(!mod.LoadedFromIrCache, "Corrupt .agmod IR checksum rejects blob safely without crashing Slang");
+                CompiledShader repaired = c2.Compile("sc_main", ShaderPipelineKind.Compute);
+                check(repaired.Stages[0].Code.Span.SequenceEqual(baselineCode),
+                    "Corrupt L1/L2 cache falls back to clean recompilation and matches baseline");
+            }
+
+            // Verify self-healed L2 now hits cleanly.
+            using (ShaderCompiler c3 = new(ShaderTarget.SpirvCompact, opts))
+            {
+                CompiledShader healed = c3.Compile("sc_main", ShaderPipelineKind.Compute);
+                check(c3.ActiveSessionCount == 0 && healed.Stages[0].Code.Span.SequenceEqual(baselineCode),
+                    "Repaired L2 cache hits cleanly on subsequent run");
+            }
+
+            // 2. Edit transitive #include header -> both L1 and L2 must miss and produce updated code.
+            File.WriteAllText(incPath, "#define SC_ADD 9.0\n");
+            using (ShaderCompiler c4 = new(ShaderTarget.SpirvCompact, opts))
+            {
+                CompiledShader updatedFromInclude = c4.Compile("sc_main", ShaderPipelineKind.Compute);
+                check(c4.ActiveSessionCount == 1 && !updatedFromInclude.Stages[0].Code.Span.SequenceEqual(baselineCode),
+                    "Modifying transitive #include invalidates L1 and L2 caches");
+            }
+
+            // 3. Edit imported module -> both L1 and L2 must miss and produce updated code.
+            File.WriteAllText(libPath, """
+                module sc_lib;
+                #include "sc_vals.slangh"
+                public float GetVal() { return 5.0 + SC_ADD; }
+                """);
+            using (ShaderCompiler c5 = new(ShaderTarget.SpirvCompact, opts))
+            {
+                CompiledShader updatedFromLib = c5.Compile("sc_main", ShaderPipelineKind.Compute);
+                check(c5.ActiveSessionCount == 1 && !updatedFromLib.Stages[0].Code.Span.SequenceEqual(baselineCode),
+                    "Modifying imported library invalidates L1 and L2 caches");
+            }
+        }
+        finally
+        {
+            if (Directory.Exists(tempRoot))
+                Directory.Delete(tempRoot, recursive: true);
+        }
+    }
+
+    private static string NormalizeMslForIrParity(byte[] mslBytes)
+    {
+        string text = System.Text.Encoding.UTF8.GetString(mslBytes);
+        string[] rawLines = text.Split('\n');
+        List<string> normalized = new(rawLines.Length);
+        for (int i = 0; i < rawLines.Length; i++)
+        {
+            string line = rawLines[i].TrimEnd('\r');
+            string trimmed = line.TrimStart();
+            if (trimmed.Length == 0 || trimmed.StartsWith("#line", StringComparison.Ordinal))
+                continue;
+            normalized.Add(line);
+        }
+        return string.Join('\n', normalized);
     }
 }

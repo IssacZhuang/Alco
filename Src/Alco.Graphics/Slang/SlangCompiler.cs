@@ -1,6 +1,8 @@
 ﻿// Internal Slang compiler facade, session options, module loading, and per-stage native codegen.
 
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
+using System.Text;
 using Alco.Graphics;
 
 namespace Alco.Graphics.Slang;
@@ -23,14 +25,16 @@ internal sealed class SlangCompilerOptions
     internal bool ForceCLayout { get; init; }
     internal Action<string>? Log { get; init; }
 
+    internal static string GetDefaultTargetProfile(SlangCodeTarget target) => target switch
+    {
+        SlangCodeTarget.Spirv or SlangCodeTarget.SpirvCompact => "spirv_1_5",
+        SlangCodeTarget.Dxil => "sm_6_6",
+        SlangCodeTarget.MetalLib => "metallib_2_3",
+        _ => "",
+    };
+
     internal string EffectiveTargetProfile =>
-        TargetProfile ?? Target switch
-        {
-            SlangCodeTarget.Spirv or SlangCodeTarget.SpirvCompact => "spirv_1_5",
-            SlangCodeTarget.Dxil => "sm_6_6",
-            SlangCodeTarget.MetalLib => "metallib_2_3",
-            _ => "",
-        };
+        TargetProfile ?? GetDefaultTargetProfile(Target);
 }
 
 internal readonly record struct SlangEntryPointRequest(string Name, SlangShaderStage Stage);
@@ -133,6 +137,15 @@ internal sealed class SlangCompileSession : IDisposable
             return defaultGetDescriptorFromHandle(nonuniform(handleValue), BindlessDescriptorOptions.None);
         }
         """;
+
+    internal static readonly byte[] DxilDescriptorAdapterHash =
+        SHA256.HashData(Encoding.UTF8.GetBytes(DxilDescriptorAdapterSource));
+
+    internal static readonly byte[] VulkanCompactDescriptorAdapterHash =
+        SHA256.HashData(Encoding.UTF8.GetBytes(VulkanCompactDescriptorAdapterSource));
+
+    internal static bool IsInternalAdapterModule(string? moduleName) =>
+        moduleName is "alco_dxil_descriptors" or "alco_vkcompact_descriptors";
 
     private readonly SlangGlobalSession _globalSession;
     private readonly SlangSession _session;
@@ -367,6 +380,58 @@ internal sealed class SlangCompileSession : IDisposable
             SlangModuleHandle handle = new(this, module);
             _sourceModules[moduleName] = (source, handle);
             return handle;
+        }
+    }
+
+    internal SlangModuleHandle? TryLoadModuleFromIRBlob(string moduleName, string path, byte[] ir)
+    {
+        lock (SlangCompiler.NativeLock)
+        {
+            ThrowIfDisposed();
+            SlangModule? module = _session.LoadModuleFromIRBlob(moduleName, path, ir, out string? diagnostics);
+            if (module == null || HasErrors(diagnostics))
+            {
+                LogDiagnostics(diagnostics);
+                return null;
+            }
+            LogDiagnostics(diagnostics);
+            return new SlangModuleHandle(this, module, loadedFromIrCache: true);
+        }
+    }
+
+    internal SlangModuleHandle? FindLoadedModule(string moduleName)
+    {
+        lock (SlangCompiler.NativeLock)
+        {
+            ThrowIfDisposed();
+            int count = _session.LoadedModuleCount;
+            for (int i = 0; i < count; i++)
+            {
+                SlangModule? module = _session.GetLoadedModule(i);
+                if (module != null && string.Equals(module.Name, moduleName, StringComparison.Ordinal))
+                    return new SlangModuleHandle(this, module);
+            }
+            return null;
+        }
+    }
+
+    internal List<SlangModuleHandle> GetLoadedModulesSnapshot()
+    {
+        lock (SlangCompiler.NativeLock)
+        {
+            ThrowIfDisposed();
+            int count = _session.LoadedModuleCount;
+            List<SlangModuleHandle> loaded = new(count);
+            for (int i = 0; i < count; i++)
+            {
+                SlangModule? module = _session.GetLoadedModule(i);
+                if (module == null)
+                    continue;
+                string? name = module.Name;
+                if (!string.IsNullOrEmpty(name) && !IsInternalAdapterModule(name))
+                    loaded.Add(new SlangModuleHandle(this, module));
+            }
+            return loaded;
         }
     }
 
@@ -908,6 +973,16 @@ internal sealed class SlangModuleHandle
 {
     internal SlangModule Native { get; }
     internal SlangCompileSession Owner { get; }
+    internal bool LoadedFromIrCache { get; }
+
+    internal byte[]? Serialize()
+    {
+        lock (SlangCompiler.NativeLock)
+        {
+            Owner.ThrowIfDisposed();
+            return Native.Serialize();
+        }
+    }
 
     internal string Name
     {
@@ -1046,9 +1121,10 @@ internal sealed class SlangModuleHandle
         }
     }
 
-    internal SlangModuleHandle(SlangCompileSession owner, SlangModule module)
+    internal SlangModuleHandle(SlangCompileSession owner, SlangModule module, bool loadedFromIrCache = false)
     {
         Owner = owner;
         Native = module;
+        LoadedFromIrCache = loadedFromIrCache;
     }
 }

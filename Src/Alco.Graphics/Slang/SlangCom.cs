@@ -409,10 +409,22 @@ internal sealed class SlangSession
         }
     }
 
+    /// <summary>Gets the number of modules currently loaded in this session.</summary>
+    public unsafe int LoadedModuleCount =>
+        (int)((delegate* unmanaged[Stdcall]<IntPtr, nint>)Com.Vcall(NativePointer, 17))(NativePointer);
+
+    /// <summary>Gets a loaded module by index without incrementing its COM reference count (<see cref="SlangSession"/> owns it).</summary>
+    public unsafe SlangModule? GetLoadedModule(int index)
+    {
+        IntPtr module = ((delegate* unmanaged[Stdcall]<IntPtr, nint, IntPtr>)Com.Vcall(NativePointer, 18))(
+            NativePointer, index);
+        return module == IntPtr.Zero ? null : new SlangModule(module);
+    }
+
     /// <summary>
     /// Whether a serialized module blob is up-to-date for <paramref name="modulePath"/> under the
     /// session's options. Note: when the primary source cannot be found on the search paths the
-    /// blob is reported up-to-date without validation 鈥?callers distributing source-less builds
+    /// blob is reported up-to-date without validation — callers distributing source-less builds
     /// must stamp their own source-hash key.
     /// </summary>
     public unsafe bool IsBinaryModuleUpToDate(string modulePath, byte[] serializedModule)

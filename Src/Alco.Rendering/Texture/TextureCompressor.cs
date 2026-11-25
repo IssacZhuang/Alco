@@ -468,7 +468,7 @@ public sealed unsafe class TextureCompressor
     private void RegisterLibraryModule(string moduleName)
     {
         string fileName = moduleName + ".slang";
-        _shaderSystem.Compiler.LoadModuleFromSource(moduleName, fileName, LoadEmbeddedShaderSource(fileName));
+        _shaderSystem.Compiler.RegisterVirtualModule(moduleName, fileName, LoadEmbeddedShaderSource(fileName));
     }
 
     private static string LoadEmbeddedShaderSource(string logicalName)

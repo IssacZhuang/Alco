@@ -217,7 +217,7 @@ public sealed unsafe class RGNode_Bloom : IRenderGraphNode
         Name = name;
 
         ShaderSystem shaderSystem = shaders ?? rendering.Shaders;
-        shaderSystem.Compiler.LoadModuleFromSource(
+        shaderSystem.Compiler.RegisterVirtualModule(
             "AlcoRendering_Bloom",
             "AlcoRendering_Bloom.slang",
             LoadEmbeddedShaderSource("AlcoRendering_Bloom.slang"));

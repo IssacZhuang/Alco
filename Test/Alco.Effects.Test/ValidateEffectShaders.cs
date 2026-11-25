@@ -232,9 +232,10 @@ public sealed unsafe class ValidateEffectShaders
                 Assert.That(first.Stages, Has.Count.EqualTo(2));
             }
 
-            Assert.That(Directory.GetFiles(cacheDir, "*.agshader"), Is.Not.Empty,
+            Assert.That(Directory.GetFiles(Path.Combine(cacheDir, "programs"), "*.agshader"), Is.Not.Empty,
                 "Disk cache must persist compiled shaders whose dependencies were registered via LoadModuleFromSource.");
-            Assert.That(Directory.GetFiles(cacheDir, "*.deps"), Is.Not.Empty);
+            Assert.That(Directory.GetFiles(Path.Combine(cacheDir, "modules"), "*.agmod"), Is.Not.Empty,
+                "Disk cache must persist L1 Slang module IR artifacts.");
 
             int cacheHits = 0;
             var opts2 = new ShaderCompilerOptions

@@ -56,7 +56,8 @@ public class TestEngineShaderSystem
                 shader = engine.RenderingSystem.Shaders.GetShader("EngineResolvedCompute");
                 Assert.That(shader.Kind, Is.EqualTo(ShaderKind.Compute));
                 Assert.That(shader.IsDisposed, Is.False);
-                Assert.That(Directory.GetFiles(cacheDir, "*.agshader"), Is.Not.Empty);
+                Assert.That(Directory.GetFiles(Path.Combine(cacheDir, "programs"), "*.agshader"), Is.Not.Empty);
+                Assert.That(Directory.GetFiles(Path.Combine(cacheDir, "modules"), "*.agmod"), Is.Not.Empty);
             }
 
             Assert.That(shader.IsDisposed, Is.True);

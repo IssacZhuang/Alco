@@ -31,9 +31,9 @@ public static class AlcoGUIShaders
     public static void EnsureTemplateModulesLoaded(ShaderSystem shaders)
     {
         ArgumentNullException.ThrowIfNull(shaders);
-        shaders.Compiler.LoadModuleFromSource(SurfaceContractModule, SurfaceContractModule + ".slang",
+        shaders.Compiler.RegisterVirtualModule(SurfaceContractModule, SurfaceContractModule + ".slang",
             LoadEmbeddedSource("AlcoGUI_Surface.slang"));
-        shaders.Compiler.LoadModuleFromSource(PassTemplateModule, PassTemplateModule + ".slang",
+        shaders.Compiler.RegisterVirtualModule(PassTemplateModule, PassTemplateModule + ".slang",
             LoadEmbeddedSource("AlcoGUI_Pass.slang"));
     }
 
@@ -70,7 +70,7 @@ public static class AlcoGUIShaders
         ArgumentNullException.ThrowIfNull(source);
 
         EnsureTemplateModulesLoaded(shaders);
-        shaders.Compiler.LoadModuleFromSource(surfaceModule, virtualPath, source);
+        shaders.Compiler.RegisterVirtualModule(surfaceModule, virtualPath, source);
         return shaders.Compose(PassTemplateModule, surfaceModule, ShaderKind.Graphics, name);
     }
 }

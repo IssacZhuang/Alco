@@ -174,6 +174,75 @@ public class TestShaderModuleResolver
         }
     }
 
+    /// <summary>Verifies indexed resolver parity, O(1) existence probing without reading streams, and lazy version refresh.</summary>
+    [Test]
+    public void CreateIndexed_MatchesCreateAndRefreshesLazilyOnVersionChange()
+    {
+        int version = 0;
+        List<string> assets = [];
+        int openCalls = 0;
+        Dictionary<string, string> contents = new(StringComparer.OrdinalIgnoreCase);
+
+        (ShaderFileResolver resolver, ShaderPathExists pathExists) = ShaderModuleResolver.CreateIndexed(
+            path =>
+            {
+                openCalls++;
+                return contents.TryGetValue(path, out string? src)
+                    ? new MemoryStream(Encoding.UTF8.GetBytes(src))
+                    : null;
+            },
+            () => assets,
+            () => version);
+
+        // Must NOT enumerate assets eagerly before sources are registered.
+        Assert.That(openCalls, Is.EqualTo(0));
+        Assert.That(pathExists("AlcoRendering_Core.slang"), Is.False);
+        Assert.That(openCalls, Is.EqualTo(0));
+
+        // Populate assets and bump version (mirroring GameEngine adding file sources after CreateShaderCompilerOptions).
+        const string expectedCore = "module AlcoRendering_Core;";
+        const string expectedShadow = "module ShadowGpuCull;";
+        const string expectedHeader = "#define HEADER 1";
+        assets.AddRange([
+            "Core.slang",
+            "Shaders/Libs/AlcoRendering_Core.slang",
+            "Shaders/Passes/Compute/AmbientShadowGpuCull.slang",
+            "Shaders/Passes/Compute/Ambient_ShadowGpuCull.slang",
+            "Shaders/Passes/Compute/ShadowGpuCull.slang",
+            "Shaders/Libs/CommonHeader.slangh",
+        ]);
+        contents["Core.slang"] = "module Core;";
+        contents["Shaders/Libs/AlcoRendering_Core.slang"] = expectedCore;
+        contents["Shaders/Passes/Compute/AmbientShadowGpuCull.slang"] = "module AmbientShadowGpuCull;";
+        contents["Shaders/Passes/Compute/Ambient_ShadowGpuCull.slang"] = "module Ambient_ShadowGpuCull;";
+        contents["Shaders/Passes/Compute/ShadowGpuCull.slang"] = expectedShadow;
+        contents["Shaders/Libs/CommonHeader.slangh"] = expectedHeader;
+        version++;
+
+        // PathExists checks must never open asset streams.
+        Assert.Multiple(() =>
+        {
+            Assert.That(pathExists("AlcoRendering_Core.slang"), Is.True);
+            Assert.That(pathExists("AlcoRendering-Core.slang"), Is.True);
+            Assert.That(pathExists("AlcoRendering/Core.slang"), Is.True);
+            Assert.That(pathExists("Assets/Shaders/Passes/AlcoRendering_Core.slang"), Is.True);
+            Assert.That(pathExists("Shaders/Libs/CommonHeader.slangh"), Is.True);
+            Assert.That(pathExists("MissingShader.slang"), Is.False);
+            Assert.That(openCalls, Is.EqualTo(0), "PathExists must use the index without opening asset streams");
+        });
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(resolver("AlcoRendering_Core.slang"), Is.EqualTo(expectedCore));
+            Assert.That(resolver("AlcoRendering-Core.slang"), Is.EqualTo(expectedCore));
+            Assert.That(resolver("AlcoRendering/Core.slang"), Is.EqualTo(expectedCore));
+            Assert.That(resolver("Assets/Shaders/Passes/AlcoRendering_Core.slang"), Is.EqualTo(expectedCore));
+            Assert.That(resolver("ShadowGpuCull.slang"), Is.EqualTo(expectedShadow));
+            Assert.That(resolver("Shaders/Libs/CommonHeader.slangh"), Is.EqualTo(expectedHeader));
+            Assert.That(resolver("MissingShader.slang"), Is.Null);
+        });
+    }
+
     private static ShaderFileResolver CreateResolverWithSource(string moduleFileName, string source)
         => ShaderModuleResolver.Create(
             path => string.Equals(path, moduleFileName, StringComparison.OrdinalIgnoreCase)

@@ -41,11 +41,15 @@ public partial class GameEngine
     /// <returns>The compiler options passed to the rendering system.</returns>
     protected virtual ShaderCompilerOptions CreateShaderCompilerOptions()
     {
+        (ShaderFileResolver fileResolver, ShaderPathExists pathExists) = ShaderModuleResolver.CreateIndexed(
+            path => _assetSystem.TryGetStream(path, out Stream? stream) ? stream : null,
+            () => _assetSystem.AllAssetNames,
+            () => _assetSystem.Version);
+
         return new ShaderCompilerOptions
         {
-            FileResolver = ShaderModuleResolver.Create(
-                path => _assetSystem.TryGetStream(path, out Stream? stream) ? stream : null,
-                () => _assetSystem.AllAssetNames),
+            FileResolver = fileResolver,
+            PathExists = pathExists,
             CacheDirectory = CreateShaderCacheDirectory(_setting.Graphics),
         };
     }

@@ -67,8 +67,7 @@ public sealed class ShaderSystem : IDisposable
             ObjectDisposedException.ThrowIf(_disposed, this);
             if (_shaders.TryGetValue(key, out Shader? existing))
                 return existing;
-            ShaderModule parsed = _compiler.LoadModuleFromSource(moduleName, virtualPath, source);
-            Shader created = new(_system, parsed, kind, name);
+            Shader created = Shader.FromSource(_system, _compiler, moduleName, virtualPath, source, kind, name);
             _shaders.Add(key, created);
             return created;
         }

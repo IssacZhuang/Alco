@@ -7,6 +7,8 @@ namespace Alco.Graphics.Slang;
 
 internal sealed class SpirvCompactBindings
 {
+    internal const int LoweringVersion = 1;
+
     private const int HeaderWords = 5;
     private const uint Int64 = 11, PhysicalStorageBufferAddresses = 5347, PhysicalStorageBuffer64 = 5348;
     private const uint UniformConstant = 0, PushConstant = 9, StorageBuffer = 12, PhysicalStorageBuffer = 5349;

@@ -1,17 +1,16 @@
-﻿// Official Alco.Graphics Slang shader compiler wrapper, built-in virtual file system, ABI validator, and optional disk cache.
+﻿// Official Alco.Graphics Slang shader compiler wrapper, built-in virtual file system, ABI validator, and L1/L2 disk caches.
 
 using System.Collections.Concurrent;
 using System.Globalization;
 using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
-using Alco.Graphics.Slang;
-
 using Alco.Graphics.LowLevel;
+using Alco.Graphics.Slang;
 
 namespace Alco.Graphics;
 
-/// <summary>Thread-safe Alco.Graphics shader compiler wrapping Slang with automatic backend targeting and ABI enforcement.</summary>
+/// <summary>Thread-safe Alco.Graphics shader compiler wrapping Slang with automatic backend targeting, ABI enforcement, and L1/L2 caching.</summary>
 public sealed class ShaderCompiler : IDisposable
 {
     private const string BuiltinRoot = "/__alco_graphics_builtin__";
@@ -20,16 +19,27 @@ public sealed class ShaderCompiler : IDisposable
     private const string BuiltinModuleVirtualPath = "/__alco_graphics_builtin__/Core.slang";
     private const string BuiltinSharedSamplerRelativePath = "SharedSampler.slang";
     private const string BuiltinSharedSamplerVirtualPath = "/__alco_graphics_builtin__/SharedSampler.slang";
+    private const string VirtualRoot = "/__alco_graphics_virtual__";
+    private const string VirtualPrefix = "/__alco_graphics_virtual__/";
 
     private static readonly byte[] BuiltinModuleBytes = LoadEmbeddedShader("Core.slang");
+    private static readonly byte[] BuiltinModuleSha256 = SHA256.HashData(BuiltinModuleBytes);
     private static readonly byte[] BuiltinSharedSamplerBytes = LoadEmbeddedShader("SharedSampler.slang");
+    private static readonly byte[] BuiltinSharedSamplerSha256 = SHA256.HashData(BuiltinSharedSamplerBytes);
 
     private readonly SlangCompiler _nativeCompiler = new();
     private readonly ShaderCompilerOptions _options;
     private readonly SlangCodeTarget _nativeTarget;
     private readonly string[] _effectiveSearchPaths;
-    private readonly List<SessionEntry> _sessions = [];
+    private readonly string _builtinFingerprint;
+    private readonly ShaderDiskCache? _diskCache;
+    private readonly List<SessionSlot> _sessions = [];
+    private readonly ConcurrentDictionary<string, VirtualModuleEntry> _virtualModules = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, byte[]> _inMemorySources = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, string> _virtualFileAliases = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, CachedSourceHash> _sourceHashCache = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, CachedModuleMetadata> _moduleMetadataCache = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, CompiledShader> _compiledMemoryCache = new(StringComparer.Ordinal);
     private readonly Lock _sessionLock = new();
     private bool _disposed;
 
@@ -50,6 +60,9 @@ public sealed class ShaderCompiler : IDisposable
         _nativeTarget = ToInternalTarget(target);
         _options = options ?? ShaderCompilerOptions.Default;
         _effectiveSearchPaths = BuildSearchPaths(_options.SearchPaths);
+        _builtinFingerprint = BuildBuiltinFingerprint(target, _nativeTarget);
+        if (!string.IsNullOrEmpty(_options.CacheDirectory))
+            _diskCache = new ShaderDiskCache(_options.CacheDirectory, target, _nativeCompiler.BuildTag, _options.Log);
     }
 
     /// <summary>The target format emitted by this compiler.</summary>
@@ -57,6 +70,15 @@ public sealed class ShaderCompiler : IDisposable
 
     /// <summary>The underlying compiler version tag suitable for external cache keys.</summary>
     public string CompilerVersionTag => _nativeCompiler.BuildTag;
+
+    internal int ActiveSessionCount
+    {
+        get
+        {
+            lock (_sessionLock)
+                return _sessions.Count;
+        }
+    }
 
     /// <summary>Maps an Alco.Graphics <see cref="GraphicsBackend"/> to its official <see cref="ShaderTarget"/>.</summary>
     /// <param name="backend">The active graphics backend.</param>
@@ -123,33 +145,71 @@ public sealed class ShaderCompiler : IDisposable
         return normalized;
     }
 
-    /// <summary>Loads and parses a shader module by name through search paths and virtual file resolvers.</summary>
+    /// <summary>Registers an in-memory shader module source lazily without initializing a Slang compiler session.</summary>
+    /// <param name="moduleName">The unique logical module name.</param>
+    /// <param name="virtualPath">The virtual path used for diagnostics, relative includes, and dependency hashing.</param>
+    /// <param name="source">The Slang source text.</param>
+    public void RegisterVirtualModule(string moduleName, string virtualPath, string source)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(moduleName);
+        ArgumentException.ThrowIfNullOrEmpty(virtualPath);
+        ArgumentNullException.ThrowIfNull(source);
+        ThrowIfDisposed();
+
+        string normPath = SlangPathUtility.NormalizePath(virtualPath);
+        if (_virtualModules.TryGetValue(moduleName, out VirtualModuleEntry? existing) &&
+            string.Equals(existing.VirtualPath, normPath, StringComparison.Ordinal) &&
+            string.Equals(existing.Source, source, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        byte[] utf8 = Encoding.UTF8.GetBytes(source);
+        byte[] sha = SHA256.HashData(utf8);
+        VirtualModuleEntry entry = new(moduleName, normPath, source, utf8, sha);
+
+        _virtualModules[moduleName] = entry;
+        _inMemorySources[normPath] = utf8;
+        RegisterVirtualAliases(moduleName, normPath);
+        _sourceHashCache[normPath] = CachedSourceHash.ForMemory(sha);
+
+        if (existing != null)
+        {
+            if (!string.Equals(existing.VirtualPath, normPath, StringComparison.Ordinal))
+                _sourceHashCache.TryRemove(existing.VirtualPath, out _);
+            InvalidateModuleCaches(moduleName);
+        }
+    }
+
+    /// <summary>Loads and parses a shader module by name through search paths, virtual modules, and L1 IR cache.</summary>
     /// <param name="moduleName">The module name without extension or relative module path.</param>
     /// <param name="options">Optional per-request preprocessor defines.</param>
-    /// <returns>A parsed module handle valid until this compiler is disposed.</returns>
+    /// <returns>A parsed or IR-restored module handle valid until this compiler is disposed.</returns>
     public ShaderModule LoadModule(string moduleName, ShaderCompileOptions? options = null)
     {
         ArgumentException.ThrowIfNullOrEmpty(moduleName);
-        SlangCompileSession session = GetOrCreateSession(options?.Defines);
-        SlangModuleHandle handle = session.LoadModule(moduleName);
-        return new ShaderModule(this, session, handle, options);
+        ThrowIfDisposed();
+        if (_virtualModules.TryGetValue(moduleName, out VirtualModuleEntry? vm))
+            return LoadModuleCore(moduleName, vm.VirtualPath, vm.Source, vm.Sha256, options);
+        return LoadModuleCore(moduleName, explicitVirtualPath: null, explicitSource: null, explicitSha: null, options);
     }
 
-    /// <summary>Loads and parses a shader module from in-memory source text.</summary>
+    /// <summary>Loads and parses a shader module from in-memory source text, using L1 IR cache when available.</summary>
     /// <param name="moduleName">The unique logical module name.</param>
     /// <param name="virtualPath">The virtual source path used for diagnostics and relative includes.</param>
     /// <param name="source">The Slang source code.</param>
     /// <param name="options">Optional per-request preprocessor defines.</param>
-    /// <returns>A parsed module handle valid until this compiler is disposed.</returns>
+    /// <returns>A parsed or IR-restored module handle valid until this compiler is disposed.</returns>
     public ShaderModule LoadModuleFromSource(string moduleName, string virtualPath, string source, ShaderCompileOptions? options = null)
     {
         ArgumentException.ThrowIfNullOrEmpty(moduleName);
         ArgumentException.ThrowIfNullOrEmpty(virtualPath);
         ArgumentNullException.ThrowIfNull(source);
-        _inMemorySources[SlangPathUtility.NormalizePath(virtualPath)] = Encoding.UTF8.GetBytes(source);
-        SlangCompileSession session = GetOrCreateSession(options?.Defines);
-        SlangModuleHandle handle = session.LoadModuleFromSource(moduleName, virtualPath, source);
-        return new ShaderModule(this, session, handle, options);
+        ThrowIfDisposed();
+
+        RegisterVirtualModule(moduleName, virtualPath, source);
+        VirtualModuleEntry vm = _virtualModules[moduleName];
+        return LoadModuleCore(moduleName, vm.VirtualPath, vm.Source, vm.Sha256, options);
     }
 
     /// <summary>Compiles a module's entry points selected automatically by <paramref name="pipeline"/>.</summary>
@@ -160,11 +220,11 @@ public sealed class ShaderCompiler : IDisposable
     public CompiledShader Compile(string moduleName, ShaderPipelineKind pipeline = ShaderPipelineKind.All, ShaderCompileOptions? options = null)
     {
         ArgumentException.ThrowIfNullOrEmpty(moduleName);
-        if (TryLoadFromCache(moduleName, sourceHash: null, pipeline.ToString(), options, out CompiledShader? cached))
+        if (TryLoadFromCache(moduleName, primaryPath: null, primarySha: null, pipeline.ToString(), options, out CompiledShader? cached))
             return cached!;
         ShaderModule module = LoadModule(moduleName, options);
         CompiledShader compiled = module.Compile(pipeline, options);
-        TrySaveToCache(moduleName, sourceHash: null, primaryVirtualPath: null, pipeline.ToString(), options, compiled);
+        TrySaveToCache(moduleName, primaryPath: null, primarySha: null, pipeline.ToString(), options, compiled);
         return compiled;
     }
 
@@ -177,11 +237,11 @@ public sealed class ShaderCompiler : IDisposable
     {
         ArgumentException.ThrowIfNullOrEmpty(moduleName);
         string selectorKey = BuildEntryNameKey(entryPointNames);
-        if (TryLoadFromCache(moduleName, sourceHash: null, selectorKey, options, out CompiledShader? cached))
+        if (TryLoadFromCache(moduleName, primaryPath: null, primarySha: null, selectorKey, options, out CompiledShader? cached))
             return cached!;
         ShaderModule module = LoadModule(moduleName, options);
         CompiledShader compiled = module.Compile(entryPointNames, options);
-        TrySaveToCache(moduleName, sourceHash: null, primaryVirtualPath: null, selectorKey, options, compiled);
+        TrySaveToCache(moduleName, primaryPath: null, primarySha: null, selectorKey, options, compiled);
         return compiled;
     }
 
@@ -194,11 +254,11 @@ public sealed class ShaderCompiler : IDisposable
     {
         ArgumentException.ThrowIfNullOrEmpty(moduleName);
         string selectorKey = BuildEntryRequestKey(entryPoints);
-        if (TryLoadFromCache(moduleName, sourceHash: null, selectorKey, options, out CompiledShader? cached))
+        if (TryLoadFromCache(moduleName, primaryPath: null, primarySha: null, selectorKey, options, out CompiledShader? cached))
             return cached!;
         ShaderModule module = LoadModule(moduleName, options);
         CompiledShader compiled = module.Compile(entryPoints, options);
-        TrySaveToCache(moduleName, sourceHash: null, primaryVirtualPath: null, selectorKey, options, compiled);
+        TrySaveToCache(moduleName, primaryPath: null, primarySha: null, selectorKey, options, compiled);
         return compiled;
     }
 
@@ -219,12 +279,13 @@ public sealed class ShaderCompiler : IDisposable
         ArgumentException.ThrowIfNullOrEmpty(moduleName);
         ArgumentException.ThrowIfNullOrEmpty(virtualPath);
         ArgumentNullException.ThrowIfNull(source);
-        string sourceHash = ComputeTextHash(source);
-        if (TryLoadFromCache(moduleName, sourceHash, pipeline.ToString(), options, out CompiledShader? cached))
+        string normPath = SlangPathUtility.NormalizePath(virtualPath);
+        byte[] primarySha = SHA256.HashData(Encoding.UTF8.GetBytes(source));
+        if (TryLoadFromCache(moduleName, normPath, primarySha, pipeline.ToString(), options, out CompiledShader? cached))
             return cached!;
         ShaderModule module = LoadModuleFromSource(moduleName, virtualPath, source, options);
         CompiledShader compiled = module.Compile(pipeline, options);
-        TrySaveToCache(moduleName, sourceHash, virtualPath, pipeline.ToString(), options, compiled);
+        TrySaveToCache(moduleName, normPath, primarySha, pipeline.ToString(), options, compiled);
         return compiled;
     }
 
@@ -245,13 +306,14 @@ public sealed class ShaderCompiler : IDisposable
         ArgumentException.ThrowIfNullOrEmpty(moduleName);
         ArgumentException.ThrowIfNullOrEmpty(virtualPath);
         ArgumentNullException.ThrowIfNull(source);
-        string sourceHash = ComputeTextHash(source);
+        string normPath = SlangPathUtility.NormalizePath(virtualPath);
+        byte[] primarySha = SHA256.HashData(Encoding.UTF8.GetBytes(source));
         string selectorKey = BuildEntryNameKey(entryPointNames);
-        if (TryLoadFromCache(moduleName, sourceHash, selectorKey, options, out CompiledShader? cached))
+        if (TryLoadFromCache(moduleName, normPath, primarySha, selectorKey, options, out CompiledShader? cached))
             return cached!;
         ShaderModule module = LoadModuleFromSource(moduleName, virtualPath, source, options);
         CompiledShader compiled = module.Compile(entryPointNames, options);
-        TrySaveToCache(moduleName, sourceHash, virtualPath, selectorKey, options, compiled);
+        TrySaveToCache(moduleName, normPath, primarySha, selectorKey, options, compiled);
         return compiled;
     }
 
@@ -272,13 +334,14 @@ public sealed class ShaderCompiler : IDisposable
         ArgumentException.ThrowIfNullOrEmpty(moduleName);
         ArgumentException.ThrowIfNullOrEmpty(virtualPath);
         ArgumentNullException.ThrowIfNull(source);
-        string sourceHash = ComputeTextHash(source);
+        string normPath = SlangPathUtility.NormalizePath(virtualPath);
+        byte[] primarySha = SHA256.HashData(Encoding.UTF8.GetBytes(source));
         string selectorKey = BuildEntryRequestKey(entryPoints);
-        if (TryLoadFromCache(moduleName, sourceHash, selectorKey, options, out CompiledShader? cached))
+        if (TryLoadFromCache(moduleName, normPath, primarySha, selectorKey, options, out CompiledShader? cached))
             return cached!;
         ShaderModule module = LoadModuleFromSource(moduleName, virtualPath, source, options);
         CompiledShader compiled = module.Compile(entryPoints, options);
-        TrySaveToCache(moduleName, sourceHash, virtualPath, selectorKey, options, compiled);
+        TrySaveToCache(moduleName, normPath, primarySha, selectorKey, options, compiled);
         return compiled;
     }
 
@@ -297,13 +360,64 @@ public sealed class ShaderCompiler : IDisposable
         ArgumentException.ThrowIfNullOrEmpty(templateModuleName);
         ArgumentException.ThrowIfNullOrEmpty(surfaceModuleName);
         string composedKey = $"{templateModuleName}+{surfaceModuleName}";
-        if (TryLoadFromCache(composedKey, sourceHash: null, pipeline.ToString(), options, out CompiledShader? cached))
+        if (TryLoadFromCache(composedKey, primaryPath: null, primarySha: null, pipeline.ToString(), options, out CompiledShader? cached))
             return cached!;
         ShaderModule template = LoadModule(templateModuleName, options);
         ShaderModule surface = LoadModule(surfaceModuleName, options);
         CompiledShader compiled = template.CompileComposed(surface, pipeline, options);
-        TrySaveToCache(composedKey, sourceHash: null, primaryVirtualPath: null, pipeline.ToString(), options, compiled);
+        TrySaveToCache(composedKey, primaryPath: null, primarySha: null, pipeline.ToString(), options, compiled);
         return compiled;
+    }
+
+    internal CachedModuleMetadata GetOrInspectModuleMetadata(string moduleName, ShaderCompileOptions? options = null)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(moduleName);
+        ThrowIfDisposed();
+
+        List<(string Name, string Value)> sessionDefines = BuildSessionDefines(options?.Defines);
+        string moduleKey = BuildModuleCacheKey(moduleName, sessionDefines);
+        if (_moduleMetadataCache.TryGetValue(moduleKey, out CachedModuleMetadata? cached))
+            return cached;
+
+        if (_virtualModules.TryGetValue(moduleName, out VirtualModuleEntry? vm))
+        {
+            if (_diskCache != null &&
+                _diskCache.TryReadModuleMetadata(moduleKey, dep => ResolveSourceHash(dep, vm.VirtualPath, vm.Sha256), out CachedModuleMetadata? vmMeta))
+            {
+                _moduleMetadataCache[moduleKey] = vmMeta;
+                return vmMeta;
+            }
+            return CreateMetadataFromModule(LoadModuleCore(moduleName, vm.VirtualPath, vm.Source, vm.Sha256, options));
+        }
+
+        if (_diskCache != null &&
+            _diskCache.TryReadModuleMetadata(moduleKey, dep => ResolveSourceHash(dep, primaryPath: null, primarySha: null), out CachedModuleMetadata? diskMeta))
+        {
+            _moduleMetadataCache[moduleKey] = diskMeta;
+            return diskMeta;
+        }
+
+        return CreateMetadataFromModule(LoadModule(moduleName, options));
+    }
+
+    internal CachedModuleMetadata GetOrInspectSourceMetadata(string moduleName, string virtualPath, string source, ShaderCompileOptions? options = null)
+    {
+        RegisterVirtualModule(moduleName, virtualPath, source);
+        VirtualModuleEntry vm = _virtualModules[moduleName];
+
+        List<(string Name, string Value)> sessionDefines = BuildSessionDefines(options?.Defines);
+        string moduleKey = BuildModuleCacheKey(moduleName, sessionDefines);
+        if (_moduleMetadataCache.TryGetValue(moduleKey, out CachedModuleMetadata? cached))
+            return cached;
+
+        if (_diskCache != null &&
+            _diskCache.TryReadModuleMetadata(moduleKey, dep => ResolveSourceHash(dep, vm.VirtualPath, vm.Sha256), out CachedModuleMetadata? diskMeta))
+        {
+            _moduleMetadataCache[moduleKey] = diskMeta;
+            return diskMeta;
+        }
+
+        return CreateMetadataFromModule(LoadModuleCore(moduleName, vm.VirtualPath, vm.Source, vm.Sha256, options));
     }
 
     internal void ThrowIfDisposed() => ObjectDisposedException.ThrowIf(_disposed, this);
@@ -336,6 +450,328 @@ public sealed class ShaderCompiler : IDisposable
         using SlangProgram program = templateModule.Session.CompileComposed(templateModule.Handle, surfaceModule.Handle, requests, specArgs);
         string[] deps = MergeDependencyPaths(templateModule.DependencyPaths, surfaceModule.DependencyPaths);
         return BuildCompiledShader(program, deps, options);
+    }
+
+    private ShaderModule LoadModuleCore(
+        string moduleName,
+        string? explicitVirtualPath,
+        string? explicitSource,
+        byte[]? explicitSha,
+        ShaderCompileOptions? options)
+    {
+        SessionEntry sessionEntry = GetOrCreateSession(options?.Defines);
+        string? explicitShaHex = explicitSha != null ? Convert.ToHexString(explicitSha) : null;
+        string moduleKey = BuildModuleCacheKey(moduleName, sessionEntry.NormalizedDefines);
+
+        lock (sessionEntry.LoadLock)
+        {
+            ThrowIfDisposed();
+
+            if (sessionEntry.LoadedModules.TryGetValue(moduleName, out ShaderModule? existing) &&
+                (explicitShaHex == null || string.Equals(existing.SourceHash, explicitShaHex, StringComparison.Ordinal)))
+            {
+                return existing;
+            }
+
+            if (explicitSource == null)
+            {
+                SlangModuleHandle? alreadyLoaded = sessionEntry.Session.FindLoadedModule(moduleName);
+                if (alreadyLoaded != null)
+                {
+                    ShaderModule wrapped = new(this, sessionEntry.Session, alreadyLoaded, options, sourceHash: null);
+                    sessionEntry.LoadedModules[moduleName] = wrapped;
+                    return wrapped;
+                }
+            }
+
+            if (existing == null && _diskCache != null)
+            {
+                HashSet<string> activeModules = new(StringComparer.Ordinal);
+                ShaderModule? restored = TryRestoreModuleFromIrLocked(
+                    sessionEntry, moduleName, moduleKey, explicitVirtualPath, explicitSha, options, activeModules);
+                if (restored != null)
+                    return restored;
+            }
+
+            return LoadModuleFromSourceOrResolverLocked(
+                sessionEntry, moduleName, moduleKey, explicitVirtualPath, explicitSource, explicitSha, options);
+        }
+    }
+
+    private ShaderModule? TryRestoreModuleFromIrLocked(
+        SessionEntry sessionEntry,
+        string moduleName,
+        string moduleKey,
+        string? explicitVirtualPath,
+        byte[]? explicitSha,
+        ShaderCompileOptions? options,
+        HashSet<string> activeModules)
+    {
+        if (_diskCache == null)
+            return null;
+
+        if (!_diskCache.TryReadModuleIr(
+            moduleKey,
+            dep => ResolveSourceHash(dep, explicitVirtualPath, explicitSha),
+            out CachedModuleMetadata? meta,
+            out byte[]? irBytes))
+        {
+            return null;
+        }
+
+        if (!activeModules.Add(moduleName))
+            return null;
+
+        try
+        {
+            for (int i = 0; i < meta.ImportedModules.Length; i++)
+            {
+                string impName = meta.ImportedModules[i];
+                if (sessionEntry.LoadedModules.ContainsKey(impName) || sessionEntry.Session.FindLoadedModule(impName) != null)
+                    continue;
+                if (activeModules.Contains(impName))
+                    return null;
+
+                _virtualModules.TryGetValue(impName, out VirtualModuleEntry? impVm);
+                string impKey = BuildModuleCacheKey(impName, sessionEntry.NormalizedDefines);
+                ShaderModule? restoredImp = TryRestoreModuleFromIrLocked(
+                    sessionEntry, impName, impKey, impVm?.VirtualPath, impVm?.Sha256, options, activeModules);
+                if (restoredImp == null)
+                {
+                    try
+                    {
+                        LoadModuleFromSourceOrResolverLocked(
+                            sessionEntry, impName, impKey, impVm?.VirtualPath, impVm?.Source, impVm?.Sha256, options);
+                    }
+                    catch (ShaderCompilationException)
+                    {
+                        return null;
+                    }
+                }
+            }
+
+            string restorePath = explicitVirtualPath ?? meta.FilePath ?? (moduleName + ".slang");
+            SlangModuleHandle? handle = sessionEntry.Session.TryLoadModuleFromIRBlob(moduleName, restorePath, irBytes);
+            if (handle == null)
+                return null;
+
+            string? sourceHash = explicitSha != null ? Convert.ToHexString(explicitSha) : null;
+            ShaderModule restored = new(
+                this,
+                sessionEntry.Session,
+                handle,
+                options,
+                sourceHash,
+                meta.DependencyPaths,
+                meta.ImportedModules);
+
+            sessionEntry.LoadedModules[moduleName] = restored;
+            sessionEntry.PersistedModules.Add(moduleName);
+            _moduleMetadataCache[moduleKey] = meta;
+            _options.Log?.Invoke($"Shader IR cache hit: '{moduleName}' ({Target}, {moduleKey[..12]}).");
+            return restored;
+        }
+        finally
+        {
+            activeModules.Remove(moduleName);
+        }
+    }
+
+    private ShaderModule LoadModuleFromSourceOrResolverLocked(
+        SessionEntry sessionEntry,
+        string moduleName,
+        string moduleKey,
+        string? explicitVirtualPath,
+        string? explicitSource,
+        byte[]? explicitSha,
+        ShaderCompileOptions? options)
+    {
+        SlangModuleHandle handle = explicitSource != null
+            ? sessionEntry.Session.LoadModuleFromSource(moduleName, explicitVirtualPath!, explicitSource)
+            : sessionEntry.Session.LoadModule(moduleName);
+
+        string? sourceHash = explicitSha != null ? Convert.ToHexString(explicitSha) : null;
+        string[]? extraDeps = explicitVirtualPath != null ? [explicitVirtualPath] : null;
+        ShaderModule loaded = new(this, sessionEntry.Session, handle, options, sourceHash, extraDeps);
+        sessionEntry.LoadedModules[moduleName] = loaded;
+
+        if (_diskCache != null)
+        {
+            PersistSessionModulesLocked(sessionEntry, moduleName, loaded, explicitVirtualPath, explicitSha);
+        }
+        else
+        {
+            _moduleMetadataCache[moduleKey] = CreateMetadataFromModule(loaded);
+        }
+
+        return loaded;
+    }
+
+    private void PersistSessionModulesLocked(
+        SessionEntry sessionEntry,
+        string targetLogicalName,
+        ShaderModule targetModule,
+        string? primaryVirtualPath,
+        byte[]? primarySha)
+    {
+        List<SlangModuleHandle> snapshot = sessionEntry.Session.GetLoadedModulesSnapshot();
+        Dictionary<string, string> pathToModule = new(StringComparer.Ordinal)
+        {
+            [BuiltinModuleVirtualPath] = "Core",
+            [BuiltinSharedSamplerVirtualPath] = "SharedSampler",
+        };
+        if (primaryVirtualPath != null)
+            pathToModule[primaryVirtualPath] = targetLogicalName;
+
+        Dictionary<string, SlangModuleHandle> handlesByName = new(StringComparer.Ordinal);
+        for (int i = 0; i < snapshot.Count; i++)
+        {
+            SlangModuleHandle handle = snapshot[i];
+            string name = handle.Name;
+            if (string.IsNullOrEmpty(name))
+                continue;
+            handlesByName.TryAdd(name, handle);
+            string? filePath = handle.FilePath;
+            if (!string.IsNullOrEmpty(filePath))
+                pathToModule.TryAdd(CanonicalizeVirtualOrDiskPath(filePath), name);
+        }
+
+        Dictionary<string, List<string>> moduleDepsGraph = new(StringComparer.Ordinal);
+        Dictionary<string, string[]> filteredDepsByModule = new(StringComparer.Ordinal);
+        for (int i = 0; i < snapshot.Count; i++)
+        {
+            SlangModuleHandle handle = snapshot[i];
+            string name = handle.Name;
+            if (string.IsNullOrEmpty(name))
+                continue;
+
+            List<string> rawPaths = handle.GetDependencyFilePaths();
+            List<string> directModuleDeps = [];
+            for (int r = 0; r < rawPaths.Count; r++)
+            {
+                string canonical = CanonicalizeVirtualOrDiskPath(rawPaths[r]);
+                if (pathToModule.TryGetValue(canonical, out string? depModName) &&
+                    !string.Equals(depModName, name, StringComparison.Ordinal) &&
+                    !directModuleDeps.Contains(depModName, StringComparer.Ordinal))
+                {
+                    directModuleDeps.Add(depModName);
+                }
+            }
+            if (sessionEntry.LoadedModules.TryGetValue(name, out ShaderModule? cachedMod))
+            {
+                for (int m = 0; m < cachedMod.ImportedModules.Count; m++)
+                {
+                    string imp = cachedMod.ImportedModules[m];
+                    if (!string.Equals(imp, name, StringComparison.Ordinal) &&
+                        !directModuleDeps.Contains(imp, StringComparer.Ordinal))
+                    {
+                        directModuleDeps.Add(imp);
+                    }
+                }
+            }
+            moduleDepsGraph[name] = directModuleDeps;
+
+            string[] filtered = FilterDependencyPaths(rawPaths);
+            if (sessionEntry.LoadedModules.TryGetValue(name, out cachedMod) && cachedMod.DependencyPaths.Count > 0)
+                filtered = MergeDependencyPaths(filtered, cachedMod.DependencyPaths);
+            string? ownPath = handle.FilePath;
+            if (!string.IsNullOrEmpty(ownPath))
+            {
+                string canonicalOwn = CanonicalizeVirtualOrDiskPath(ownPath);
+                if (!canonicalOwn.StartsWith(BuiltinPrefix, StringComparison.Ordinal) &&
+                    !filtered.Contains(canonicalOwn, StringComparer.Ordinal))
+                {
+                    filtered = [.. filtered, canonicalOwn];
+                }
+            }
+            filteredDepsByModule[name] = filtered;
+        }
+
+        for (int i = 0; i < snapshot.Count; i++)
+        {
+            SlangModuleHandle handle = snapshot[i];
+            string name = handle.Name;
+            if (string.IsNullOrEmpty(name) || handle.LoadedFromIrCache || sessionEntry.PersistedModules.Contains(name))
+                continue;
+
+            string[] orderedImports = CollectOrderedImports(name, moduleDepsGraph);
+            string[] deps = filteredDepsByModule.TryGetValue(name, out string[]? d) ? d : [];
+            for (int impIdx = 0; impIdx < orderedImports.Length; impIdx++)
+            {
+                if (sessionEntry.LoadedModules.TryGetValue(orderedImports[impIdx], out ShaderModule? impLoaded) &&
+                    impLoaded.DependencyPaths.Count > 0)
+                {
+                    deps = MergeDependencyPaths(deps, impLoaded.DependencyPaths);
+                }
+                else if (filteredDepsByModule.TryGetValue(orderedImports[impIdx], out string[]? impFiltered) &&
+                    impFiltered.Length > 0)
+                {
+                    deps = MergeDependencyPaths(deps, impFiltered);
+                }
+            }
+
+            List<(string Path, byte[] Sha256)>? depHashes = TryCollectDependencyHashes(deps, primaryVirtualPath, primarySha);
+            if (depHashes == null)
+                continue;
+
+            byte[]? ir = handle.Serialize();
+            if (ir == null || ir.Length == 0)
+                continue;
+
+            ShaderModuleEntryPoint[] entryPoints = string.Equals(name, targetLogicalName, StringComparison.Ordinal)
+                ? [.. targetModule.EntryPoints]
+                : handle.GetDefinedEntryPoints();
+
+            string? rawFilePath = handle.FilePath;
+            string? canonicalFilePath = !string.IsNullOrEmpty(rawFilePath)
+                ? CanonicalizeVirtualOrDiskPath(rawFilePath)
+                : (string.Equals(name, targetLogicalName, StringComparison.Ordinal) ? primaryVirtualPath : null);
+
+            CachedModuleMetadata meta = new()
+            {
+                ModuleName = name,
+                FilePath = canonicalFilePath,
+                EntryPoints = entryPoints,
+                DependencyPaths = deps,
+                ImportedModules = orderedImports,
+            };
+
+            string key = BuildModuleCacheKey(name, sessionEntry.NormalizedDefines);
+            _diskCache!.WriteModule(key, meta, depHashes, ir);
+            _moduleMetadataCache[key] = meta;
+            sessionEntry.PersistedModules.Add(name);
+
+            if (string.Equals(name, targetLogicalName, StringComparison.Ordinal))
+            {
+                targetModule.UpdateDependencies(deps, orderedImports);
+            }
+            else if (!sessionEntry.LoadedModules.ContainsKey(name))
+            {
+                sessionEntry.LoadedModules[name] = new ShaderModule(
+                    this, sessionEntry.Session, handle, loadOptions: null, sourceHash: null, deps, orderedImports);
+            }
+        }
+    }
+
+    private static string[] CollectOrderedImports(string rootModule, Dictionary<string, List<string>> graph)
+    {
+        List<string> ordered = [];
+        HashSet<string> visited = new(StringComparer.Ordinal);
+        Visit(rootModule);
+        return ordered.ToArray();
+
+        void Visit(string current)
+        {
+            if (!visited.Add(current))
+                return;
+            if (graph.TryGetValue(current, out List<string>? children))
+            {
+                for (int i = 0; i < children.Count; i++)
+                    Visit(children[i]);
+            }
+            if (!string.Equals(current, rootModule, StringComparison.Ordinal))
+                ordered.Add(current);
+        }
     }
 
     private CompiledShader BuildCompiledShader(
@@ -395,17 +831,17 @@ public sealed class ShaderCompiler : IDisposable
             string normalized = SlangPathUtility.NormalizePath(rawPaths[i]);
             if (normalized.StartsWith(BuiltinPrefix, StringComparison.Ordinal))
                 continue;
+            if (normalized.StartsWith(VirtualPrefix, StringComparison.Ordinal))
+                normalized = normalized[VirtualPrefix.Length..];
             if (!filtered.Contains(normalized, StringComparer.Ordinal))
                 filtered.Add(normalized);
         }
         return filtered.ToArray();
     }
 
-    private SlangCompileSession GetOrCreateSession(IReadOnlyList<(string Name, string Value)>? requestDefines)
+    private SessionEntry GetOrCreateSession(IReadOnlyList<(string Name, string Value)>? requestDefines)
     {
-        List<(string Name, string Value)> merged = MergeDefines(_options.Defines, requestDefines);
-        if (Target is ShaderTarget.MetalSource or ShaderTarget.MetalLibrary)
-            AddDefineIfAbsent(merged, "ALCO_GRAPHICS_METAL", "1");
+        List<(string Name, string Value)> merged = BuildSessionDefines(requestDefines);
         string key = BuildDefinesKey(merged);
 
         lock (_sessionLock)
@@ -414,7 +850,7 @@ public sealed class ShaderCompiler : IDisposable
             for (int i = 0; i < _sessions.Count; i++)
             {
                 if (_sessions[i].Key == key)
-                    return _sessions[i].Session;
+                    return _sessions[i].SessionEntry;
             }
             SlangCompileSession created = _nativeCompiler.CreateSession(new SlangCompilerOptions
             {
@@ -429,9 +865,65 @@ public sealed class ShaderCompiler : IDisposable
                 ForceCLayout = true,
                 Log = _options.Log,
             });
-            _sessions.Add(new SessionEntry(key, created));
-            return created;
+            SessionEntry entry = new(created, merged);
+            _sessions.Add(new SessionSlot(key, entry));
+            return entry;
         }
+    }
+
+    private void RegisterVirtualAliases(string moduleName, string normPath)
+    {
+        string fileName = Path.GetFileName(normPath);
+        if (!string.IsNullOrEmpty(fileName))
+        {
+            _virtualFileAliases[fileName] = normPath;
+            _virtualFileAliases[fileName.Replace('_', '-')] = normPath;
+        }
+        _virtualFileAliases[moduleName + ".slang"] = normPath;
+        _virtualFileAliases[moduleName.Replace('_', '-') + ".slang"] = normPath;
+    }
+
+    private bool TryResolveVirtualPath(string normalizedPath, out string canonicalPath)
+    {
+        if (normalizedPath.StartsWith(VirtualPrefix, StringComparison.Ordinal))
+        {
+            string sub = normalizedPath[VirtualPrefix.Length..];
+            if (_inMemorySources.ContainsKey(sub))
+            {
+                canonicalPath = sub;
+                return true;
+            }
+            if (_virtualFileAliases.TryGetValue(sub, out string? mapped) && _inMemorySources.ContainsKey(mapped))
+            {
+                canonicalPath = mapped;
+                return true;
+            }
+            string dashedSub = sub.Replace('/', '-').Replace('_', '-');
+            if (_virtualFileAliases.TryGetValue(dashedSub, out mapped) && _inMemorySources.ContainsKey(mapped))
+            {
+                canonicalPath = mapped;
+                return true;
+            }
+            string dashedFile = Path.GetFileName(sub).Replace('_', '-');
+            if (!string.IsNullOrEmpty(dashedFile) &&
+                _virtualFileAliases.TryGetValue(dashedFile, out mapped) &&
+                _inMemorySources.ContainsKey(mapped))
+            {
+                canonicalPath = mapped;
+                return true;
+            }
+            canonicalPath = string.Empty;
+            return false;
+        }
+
+        if (_inMemorySources.ContainsKey(normalizedPath))
+        {
+            canonicalPath = normalizedPath;
+            return true;
+        }
+
+        canonicalPath = string.Empty;
+        return false;
     }
 
     private byte[]? LoadVirtualOrDiskBytes(string path)
@@ -444,6 +936,14 @@ public sealed class ShaderCompiler : IDisposable
         if (norm.StartsWith(BuiltinPrefix, StringComparison.Ordinal))
             return null;
 
+        if (TryResolveVirtualPath(norm, out string canonicalVirtual) &&
+            _inMemorySources.TryGetValue(canonicalVirtual, out byte[]? inMemory))
+        {
+            return inMemory;
+        }
+        if (norm.StartsWith(VirtualPrefix, StringComparison.Ordinal))
+            return null;
+
         if (_options.FileResolver != null)
         {
             string? resolved = _options.FileResolver(norm);
@@ -453,9 +953,6 @@ public sealed class ShaderCompiler : IDisposable
 
         if (File.Exists(norm))
             return File.ReadAllBytes(norm);
-
-        if (_inMemorySources.TryGetValue(norm, out byte[]? inMemory))
-            return inMemory;
 
         if (norm.Equals(BuiltinModuleRelativePath, StringComparison.OrdinalIgnoreCase))
             return BuiltinModuleBytes;
@@ -468,11 +965,16 @@ public sealed class ShaderCompiler : IDisposable
     private SlangPathKind ProbeVirtualOrDiskPath(string path)
     {
         string norm = SlangPathUtility.NormalizePath(path);
-        if (norm == BuiltinRoot)
+        if (norm == BuiltinRoot || norm == VirtualRoot)
             return SlangPathKind.Directory;
         if (norm == BuiltinModuleVirtualPath || norm == BuiltinSharedSamplerVirtualPath)
             return SlangPathKind.File;
         if (norm.StartsWith(BuiltinPrefix, StringComparison.Ordinal))
+            return SlangPathKind.None;
+
+        if (TryResolveVirtualPath(norm, out _))
+            return SlangPathKind.File;
+        if (norm.StartsWith(VirtualPrefix, StringComparison.Ordinal))
             return SlangPathKind.None;
 
         if (_options.PathExists != null && _options.PathExists(norm))
@@ -483,8 +985,6 @@ public sealed class ShaderCompiler : IDisposable
             return SlangPathKind.File;
         if (Directory.Exists(norm))
             return SlangPathKind.Directory;
-        if (_inMemorySources.ContainsKey(norm))
-            return SlangPathKind.File;
         if (norm.Equals(BuiltinModuleRelativePath, StringComparison.OrdinalIgnoreCase) ||
             norm.Equals(BuiltinSharedSamplerRelativePath, StringComparison.OrdinalIgnoreCase))
             return SlangPathKind.File;
@@ -497,12 +997,14 @@ public sealed class ShaderCompiler : IDisposable
         string norm = SlangPathUtility.NormalizePath(path);
         if (norm == BuiltinModuleVirtualPath || norm == BuiltinSharedSamplerVirtualPath)
             return norm;
+        if (TryResolveVirtualPath(norm, out string canonicalVirtual))
+            return canonicalVirtual;
+        if (_options.PathExists != null && _options.PathExists(norm))
+            return norm;
         if (_options.FileResolver != null && _options.FileResolver(norm) != null)
             return norm;
         if (File.Exists(norm))
             return SlangPathUtility.NormalizePath(Path.GetFullPath(norm));
-        if (_inMemorySources.ContainsKey(norm))
-            return norm;
         if (norm.Equals(BuiltinModuleRelativePath, StringComparison.OrdinalIgnoreCase))
             return BuiltinModuleVirtualPath;
         if (norm.Equals(BuiltinSharedSamplerRelativePath, StringComparison.OrdinalIgnoreCase))
@@ -535,109 +1037,205 @@ public sealed class ShaderCompiler : IDisposable
         }
     }
 
-    private bool TryLoadFromCache(string moduleName, string? sourceHash, string selectorKey, ShaderCompileOptions? options, out CompiledShader? shader)
+    private bool TryLoadFromCache(
+        string moduleName,
+        string? primaryPath,
+        byte[]? primarySha,
+        string selectorKey,
+        ShaderCompileOptions? options,
+        out CompiledShader? shader)
     {
         shader = null;
-        string? cacheDir = _options.CacheDirectory;
-        if (string.IsNullOrEmpty(cacheDir))
-            return false;
-
-        string key = BuildCacheKey(moduleName, sourceHash, selectorKey, options);
-        string artifactPath = Path.Combine(cacheDir, key + ".agshader");
-        string depsPath = Path.Combine(cacheDir, key + ".deps");
-        if (!File.Exists(artifactPath) || !File.Exists(depsPath))
-            return false;
-
-        try
+        string key = BuildProgramCacheKey(moduleName, selectorKey, options);
+        string memoryKey = primarySha != null ? key + "|" + Convert.ToHexString(primarySha) : key;
+        if (_compiledMemoryCache.TryGetValue(memoryKey, out CompiledShader? inMemory))
         {
-            string[] lines = File.ReadAllLines(depsPath);
-            for (int i = 0; i < lines.Length; i++)
-            {
-                int sep = lines[i].IndexOf('\t');
-                if (sep <= 0)
-                    return false;
-                string depPath = lines[i][..sep];
-                string expectedHash = lines[i][(sep + 1)..];
-                byte[]? currentBytes = LoadVirtualOrDiskBytes(depPath);
-                if (currentBytes == null || !string.Equals(ComputeBytesHash(currentBytes), expectedHash, StringComparison.Ordinal))
-                    return false;
-            }
-            shader = CompiledShader.Deserialize(File.ReadAllBytes(artifactPath));
-            _options.Log?.Invoke($"Shader cache hit: '{moduleName}' ({Target}, {key[..12]}).");
+            shader = inMemory;
             return true;
         }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException)
-        {
-            _options.Log?.Invoke($"Shader cache miss/invalid for '{moduleName}': {exception.Message}");
-            shader = null;
+
+        if (_diskCache == null)
             return false;
-        }
+
+        if (!_diskCache.TryReadProgram(key, dep => ResolveSourceHash(dep, primaryPath, primarySha), out CompiledShader? diskShader))
+            return false;
+
+        _compiledMemoryCache[memoryKey] = diskShader;
+        _options.Log?.Invoke($"Shader cache hit: '{moduleName}' ({Target}, {key[..12]}).");
+        shader = diskShader;
+        return true;
     }
 
     private void TrySaveToCache(
-        string moduleName, string? sourceHash, string? primaryVirtualPath, string selectorKey, ShaderCompileOptions? options, CompiledShader shader)
+        string moduleName,
+        string? primaryPath,
+        byte[]? primarySha,
+        string selectorKey,
+        ShaderCompileOptions? options,
+        CompiledShader shader)
     {
-        string? cacheDir = _options.CacheDirectory;
-        if (string.IsNullOrEmpty(cacheDir))
+        string key = BuildProgramCacheKey(moduleName, selectorKey, options);
+        string memoryKey = primarySha != null ? key + "|" + Convert.ToHexString(primarySha) : key;
+        _compiledMemoryCache[memoryKey] = shader;
+
+        if (_diskCache == null)
             return;
 
-        try
+        List<(string Path, byte[] Sha256)>? depHashes = TryCollectDependencyHashes(shader.DependencyPaths, primaryPath, primarySha);
+        if (depHashes == null)
+            return;
+
+        _diskCache.WriteProgram(key, depHashes, shader);
+    }
+
+    private List<(string Path, byte[] Sha256)>? TryCollectDependencyHashes(
+        IReadOnlyList<string> dependencyPaths,
+        string? primaryPath,
+        byte[]? primarySha)
+    {
+        List<(string Path, byte[] Sha256)> result = new(dependencyPaths.Count + 1);
+        bool includedPrimary = primaryPath == null || primarySha == null;
+
+        for (int i = 0; i < dependencyPaths.Count; i++)
         {
-            Directory.CreateDirectory(cacheDir);
-            string key = BuildCacheKey(moduleName, sourceHash, selectorKey, options);
-            string artifactPath = Path.Combine(cacheDir, key + ".agshader");
-            string depsPath = Path.Combine(cacheDir, key + ".deps");
+            string dep = SlangPathUtility.NormalizePath(dependencyPaths[i]);
+            if (dep.StartsWith(BuiltinPrefix, StringComparison.Ordinal))
+                continue;
 
-            string? normalizedPrimary = sourceHash != null && primaryVirtualPath != null
-                ? SlangPathUtility.NormalizePath(primaryVirtualPath)
-                : null;
-            List<string> depLines = new(shader.DependencyPaths.Count);
-            for (int i = 0; i < shader.DependencyPaths.Count; i++)
+            byte[]? sha;
+            if (!includedPrimary && string.Equals(dep, primaryPath, StringComparison.Ordinal))
             {
-                string dep = shader.DependencyPaths[i];
-                if (normalizedPrimary != null && string.Equals(dep, normalizedPrimary, StringComparison.Ordinal))
-                    continue; // Primary in-memory source is already content-hashed in the cache key.
-                byte[]? bytes = LoadVirtualOrDiskBytes(dep);
-                if (bytes == null)
-                    return; // Skip disk caching if a dependency isn't re-readable for validation.
-                depLines.Add($"{dep}\t{ComputeBytesHash(bytes)}");
+                sha = primarySha;
+                includedPrimary = true;
+            }
+            else
+            {
+                sha = ResolveSourceHash(dep, primaryPath, primarySha);
             }
 
-            string tmpArtifact = artifactPath + "." + Guid.NewGuid().ToString("N") + ".tmp";
-            string tmpDeps = depsPath + "." + Guid.NewGuid().ToString("N") + ".tmp";
-            try
+            if (sha == null)
+                return null;
+            result.Add((dep, sha));
+        }
+
+        if (!includedPrimary)
+            result.Add((primaryPath!, primarySha!));
+
+        return result;
+    }
+
+    private byte[]? ResolveSourceHash(string path, string? primaryPath, byte[]? primarySha)
+    {
+        string norm = SlangPathUtility.NormalizePath(path);
+        if (primaryPath != null && primarySha != null && string.Equals(norm, primaryPath, StringComparison.Ordinal))
+            return primarySha;
+
+        if (norm == BuiltinModuleVirtualPath || norm.Equals(BuiltinModuleRelativePath, StringComparison.OrdinalIgnoreCase))
+            return BuiltinModuleSha256;
+        if (norm == BuiltinSharedSamplerVirtualPath || norm.Equals(BuiltinSharedSamplerRelativePath, StringComparison.OrdinalIgnoreCase))
+            return BuiltinSharedSamplerSha256;
+
+        if (_sourceHashCache.TryGetValue(norm, out CachedSourceHash cached))
+        {
+            if (cached.IsMemory || cached.IsResolver)
+                return cached.Sha256;
+
+            FileInfo info = new(norm);
+            if (!info.Exists)
             {
-                File.WriteAllBytes(tmpArtifact, shader.Serialize());
-                File.WriteAllLines(tmpDeps, depLines, Encoding.UTF8);
-                File.Move(tmpArtifact, artifactPath, overwrite: true);
-                File.Move(tmpDeps, depsPath, overwrite: true);
+                _sourceHashCache.TryRemove(norm, out _);
+                return null;
             }
-            finally
+            if (info.Length == cached.FileLength && info.LastWriteTimeUtc.Ticks == cached.LastWriteUtcTicks)
+                return cached.Sha256;
+        }
+
+        if (TryResolveVirtualPath(norm, out string canonicalVirtual) &&
+            _inMemorySources.TryGetValue(canonicalVirtual, out byte[]? memBytes))
+        {
+            byte[] sha = SHA256.HashData(memBytes);
+            _sourceHashCache[norm] = CachedSourceHash.ForMemory(sha);
+            return sha;
+        }
+
+        if (_options.FileResolver != null)
+        {
+            string? resolved = _options.FileResolver(norm);
+            if (resolved != null)
             {
-                if (File.Exists(tmpArtifact)) File.Delete(tmpArtifact);
-                if (File.Exists(tmpDeps)) File.Delete(tmpDeps);
+                byte[] sha = SHA256.HashData(Encoding.UTF8.GetBytes(resolved));
+                _sourceHashCache[norm] = CachedSourceHash.ForResolver(sha);
+                return sha;
             }
         }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+
+        FileInfo diskInfo = new(norm);
+        if (diskInfo.Exists)
         {
-            _options.Log?.Invoke($"Shader cache write skipped for '{moduleName}': {exception.Message}");
+            byte[] diskBytes = File.ReadAllBytes(norm);
+            byte[] sha = SHA256.HashData(diskBytes);
+            _sourceHashCache[norm] = CachedSourceHash.ForFile(sha, diskInfo.Length, diskInfo.LastWriteTimeUtc.Ticks);
+            return sha;
+        }
+
+        return null;
+    }
+
+    private void InvalidateModuleCaches(string moduleName)
+    {
+        foreach (KeyValuePair<string, CachedModuleMetadata> pair in _moduleMetadataCache)
+        {
+            if (string.Equals(pair.Value.ModuleName, moduleName, StringComparison.Ordinal))
+                _moduleMetadataCache.TryRemove(pair.Key, out _);
+        }
+        foreach (KeyValuePair<string, CompiledShader> pair in _compiledMemoryCache)
+        {
+            if (string.Equals(pair.Value.ModuleName, moduleName, StringComparison.Ordinal))
+                _compiledMemoryCache.TryRemove(pair.Key, out _);
         }
     }
 
-    private string BuildCacheKey(string moduleName, string? sourceHash, string selectorKey, ShaderCompileOptions? options)
+    private static CachedModuleMetadata CreateMetadataFromModule(ShaderModule module) => new()
+    {
+        ModuleName = module.Name,
+        FilePath = module.FilePath,
+        EntryPoints = module.EntryPoints as ShaderModuleEntryPoint[] ?? [.. module.EntryPoints],
+        DependencyPaths = module.DependencyPaths as string[] ?? [.. module.DependencyPaths],
+        ImportedModules = module.ImportedModules as string[] ?? [.. module.ImportedModules],
+    };
+
+    private string BuildModuleCacheKey(string moduleName, IReadOnlyList<(string Name, string Value)> sessionDefines)
     {
         StringBuilder sb = new(256);
-        sb.Append("alco-graphics-root-layout-3|").Append(CompilerVersionTag).Append('|')
+        sb.Append("alco-graphics-mod-1|")
+            .Append(CompilerVersionTag).Append('|')
             .Append((int)Target).Append('|')
+            .Append(SlangCompilerOptions.GetDefaultTargetProfile(_nativeTarget)).Append('|')
             .Append((int)_options.Optimization).Append('|')
+            .Append(SlangMatrixLayoutMode.RowMajor).Append("|1|")
+            .Append(_builtinFingerprint).Append('|')
+            .Append(moduleName).Append('|');
+
+        AppendSortedDefines(sb, sessionDefines, includeDxilImplicitDefine: Target == ShaderTarget.Dxil);
+        return ComputeTextHash(sb.ToString());
+    }
+
+    private string BuildProgramCacheKey(string moduleName, string selectorKey, ShaderCompileOptions? options)
+    {
+        StringBuilder sb = new(256);
+        sb.Append("alco-graphics-prog-4|")
+            .Append(CompilerVersionTag).Append('|')
+            .Append((int)Target).Append('|')
+            .Append(SlangCompilerOptions.GetDefaultTargetProfile(_nativeTarget)).Append('|')
+            .Append((int)_options.Optimization).Append('|')
+            .Append(SlangMatrixLayoutMode.RowMajor).Append("|1|")
             .Append(options?.ValidateAbi ?? _options.ValidateAbi).Append('|')
+            .Append(_builtinFingerprint).Append('|')
             .Append(moduleName).Append('|')
-            .Append(sourceHash ?? "<file>").Append('|')
             .Append(selectorKey).Append('|');
 
-        List<(string Name, string Value)> defines = MergeDefines(_options.Defines, options?.Defines);
-        for (int i = 0; i < defines.Count; i++)
-            sb.Append(defines[i].Name).Append('=').Append(defines[i].Value).Append(';');
+        List<(string Name, string Value)> defines = BuildSessionDefines(options?.Defines);
+        AppendSortedDefines(sb, defines, includeDxilImplicitDefine: Target == ShaderTarget.Dxil);
         sb.Append('|');
 
         if (options != null)
@@ -647,6 +1245,66 @@ public sealed class ShaderCompiler : IDisposable
         }
 
         return ComputeTextHash(sb.ToString());
+    }
+
+    private static void AppendSortedDefines(
+        StringBuilder sb,
+        IReadOnlyList<(string Name, string Value)> defines,
+        bool includeDxilImplicitDefine)
+    {
+        if (defines.Count == 0 && !includeDxilImplicitDefine)
+            return;
+
+        List<(string Name, string Value)> sorted = new(defines.Count + (includeDxilImplicitDefine ? 1 : 0));
+        bool hasSvPointSize = false;
+        for (int i = 0; i < defines.Count; i++)
+        {
+            sorted.Add(defines[i]);
+            if (defines[i].Name == "SV_PointSize")
+                hasSvPointSize = true;
+        }
+        if (includeDxilImplicitDefine && !hasSvPointSize)
+            sorted.Add(("SV_PointSize", "PSIZE"));
+
+        sorted.Sort(static (a, b) =>
+        {
+            int c = StringComparer.Ordinal.Compare(a.Name, b.Name);
+            return c != 0 ? c : StringComparer.Ordinal.Compare(a.Value, b.Value);
+        });
+
+        for (int i = 0; i < sorted.Count; i++)
+            sb.Append(sorted[i].Name).Append('=').Append(sorted[i].Value).Append(';');
+    }
+
+    private List<(string Name, string Value)> BuildSessionDefines(IReadOnlyList<(string Name, string Value)>? requestDefines)
+    {
+        List<(string Name, string Value)> merged = MergeDefines(_options.Defines, requestDefines);
+        if (Target is ShaderTarget.MetalSource or ShaderTarget.MetalLibrary)
+            AddDefineIfAbsent(merged, "ALCO_GRAPHICS_METAL", "1");
+        merged.Sort(static (a, b) => StringComparer.Ordinal.Compare(a.Name, b.Name));
+        return merged;
+    }
+
+    private static string BuildBuiltinFingerprint(ShaderTarget target, SlangCodeTarget nativeTarget)
+    {
+        using MemoryStream stream = new();
+        using (BinaryWriter writer = new(stream, Encoding.UTF8, leaveOpen: true))
+        {
+            writer.Write("alco-builtin-fp-1");
+            writer.Write((int)target);
+            writer.Write(SlangCompilerOptions.GetDefaultTargetProfile(nativeTarget));
+            writer.Write(BuiltinModuleSha256);
+            writer.Write(BuiltinSharedSamplerSha256);
+            if (target == ShaderTarget.Dxil)
+                writer.Write(SlangCompileSession.DxilDescriptorAdapterHash);
+            else if (target == ShaderTarget.SpirvCompact)
+            {
+                writer.Write(SlangCompileSession.VulkanCompactDescriptorAdapterHash);
+                writer.Write(SpirvCompactBindings.LoweringVersion);
+            }
+            writer.Flush();
+        }
+        return ComputeBytesHash(stream.ToArray());
     }
 
     private static string BuildEntryNameKey(ReadOnlySpan<string> names)
@@ -731,9 +1389,10 @@ public sealed class ShaderCompiler : IDisposable
 
     private static string[] BuildSearchPaths(IReadOnlyList<string> userPaths)
     {
-        string[] paths = new string[userPaths.Count + 1];
+        string[] paths = new string[userPaths.Count + 2];
         for (int i = 0; i < userPaths.Count; i++)
             paths[i] = SlangPathUtility.NormalizePath(userPaths[i]);
+        paths[^2] = VirtualRoot;
         paths[^1] = BuiltinRoot;
         return paths;
     }
@@ -767,13 +1426,53 @@ public sealed class ShaderCompiler : IDisposable
                 return;
             _disposed = true;
             for (int i = 0; i < _sessions.Count; i++)
-                _sessions[i].Session.Dispose();
+                _sessions[i].SessionEntry.Session.Dispose();
             _sessions.Clear();
         }
         _nativeCompiler.Dispose();
     }
 
-    private readonly record struct SessionEntry(string Key, SlangCompileSession Session);
+    private sealed class VirtualModuleEntry(string moduleName, string virtualPath, string source, byte[] utf8Bytes, byte[] sha256)
+    {
+        public string ModuleName { get; } = moduleName;
+        public string VirtualPath { get; } = virtualPath;
+        public string Source { get; } = source;
+        public byte[] Utf8Bytes { get; } = utf8Bytes;
+        public byte[] Sha256 { get; } = sha256;
+    }
+
+    private readonly struct CachedSourceHash
+    {
+        public readonly byte[] Sha256;
+        public readonly long FileLength;
+        public readonly long LastWriteUtcTicks;
+        public readonly bool IsMemory;
+        public readonly bool IsResolver;
+
+        private CachedSourceHash(byte[] sha256, long fileLength, long lastWriteUtcTicks, bool isMemory, bool isResolver)
+        {
+            Sha256 = sha256;
+            FileLength = fileLength;
+            LastWriteUtcTicks = lastWriteUtcTicks;
+            IsMemory = isMemory;
+            IsResolver = isResolver;
+        }
+
+        public static CachedSourceHash ForMemory(byte[] sha) => new(sha, 0, 0, isMemory: true, isResolver: false);
+        public static CachedSourceHash ForResolver(byte[] sha) => new(sha, 0, 0, isMemory: false, isResolver: true);
+        public static CachedSourceHash ForFile(byte[] sha, long length, long ticks) => new(sha, length, ticks, isMemory: false, isResolver: false);
+    }
+
+    private sealed class SessionEntry(SlangCompileSession session, List<(string Name, string Value)> normalizedDefines)
+    {
+        public readonly Lock LoadLock = new();
+        public readonly SlangCompileSession Session = session;
+        public readonly List<(string Name, string Value)> NormalizedDefines = normalizedDefines;
+        public readonly Dictionary<string, ShaderModule> LoadedModules = new(StringComparer.Ordinal);
+        public readonly HashSet<string> PersistedModules = new(StringComparer.Ordinal);
+    }
+
+    private readonly record struct SessionSlot(string Key, SessionEntry SessionEntry);
 }
 
 /// <summary>A parsed shader module handle owned by a live <see cref="ShaderCompiler"/>.</summary>
@@ -781,20 +1480,52 @@ public sealed class ShaderModule
 {
     private readonly ShaderCompiler _compiler;
     private readonly ShaderCompileOptions? _loadOptions;
+    private string[] _dependencyPaths;
+    private string[] _importedModules;
 
     internal SlangCompileSession Session { get; }
     internal SlangModuleHandle Handle { get; }
+    internal bool LoadedFromIrCache => Handle.LoadedFromIrCache;
+    internal string? SourceHash { get; }
 
-    internal ShaderModule(ShaderCompiler compiler, SlangCompileSession session, SlangModuleHandle handle, ShaderCompileOptions? loadOptions)
+    internal ShaderModule(
+        ShaderCompiler compiler,
+        SlangCompileSession session,
+        SlangModuleHandle handle,
+        ShaderCompileOptions? loadOptions,
+        string? sourceHash = null,
+        IReadOnlyList<string>? extraDependencyPaths = null,
+        IReadOnlyList<string>? importedModules = null)
     {
         _compiler = compiler;
         Session = session;
         Handle = handle;
         _loadOptions = loadOptions;
+        SourceHash = sourceHash;
         Name = handle.Name;
         FilePath = handle.FilePath;
         EntryPoints = handle.GetDefinedEntryPoints();
-        DependencyPaths = ShaderCompiler.FilterDependencyPaths(handle.GetDependencyFilePaths());
+
+        string[] filtered = ShaderCompiler.FilterDependencyPaths(handle.GetDependencyFilePaths());
+        if (extraDependencyPaths != null && extraDependencyPaths.Count > 0)
+        {
+            List<string> merged = new(filtered.Length + extraDependencyPaths.Count);
+            for (int i = 0; i < filtered.Length; i++)
+                merged.Add(filtered[i]);
+            for (int i = 0; i < extraDependencyPaths.Count; i++)
+            {
+                string extra = SlangPathUtility.NormalizePath(extraDependencyPaths[i]);
+                if (!merged.Contains(extra, StringComparer.Ordinal))
+                    merged.Add(extra);
+            }
+            _dependencyPaths = merged.ToArray();
+        }
+        else
+        {
+            _dependencyPaths = filtered;
+        }
+
+        _importedModules = importedModules != null && importedModules.Count > 0 ? [.. importedModules] : [];
     }
 
     /// <summary>The module name within the compiler session.</summary>
@@ -807,7 +1538,15 @@ public sealed class ShaderModule
     public IReadOnlyList<ShaderModuleEntryPoint> EntryPoints { get; }
 
     /// <summary>Source and transitive include paths referenced by this module, excluding built-in virtual headers.</summary>
-    public IReadOnlyList<string> DependencyPaths { get; }
+    public IReadOnlyList<string> DependencyPaths => _dependencyPaths;
+
+    internal IReadOnlyList<string> ImportedModules => _importedModules;
+
+    internal void UpdateDependencies(string[] dependencyPaths, string[] importedModules)
+    {
+        _dependencyPaths = dependencyPaths;
+        _importedModules = importedModules;
+    }
 
     /// <summary>True when at least one entry point in this module declares generic specialization parameters.</summary>
     public bool HasGenericEntryPoints
@@ -826,18 +1565,24 @@ public sealed class ShaderModule
     /// <summary>Infers the unique pipeline family (Graphics, Compute, or Mesh) from this module's declared entry points.</summary>
     /// <returns>The inferred <see cref="ShaderPipelineKind"/>.</returns>
     /// <exception cref="ShaderCompilationException">The module has no entry points or an ambiguous/unsupported stage mix.</exception>
-    public ShaderPipelineKind InferPipelineKind()
+    public ShaderPipelineKind InferPipelineKind() =>
+        InferPipelineKind(Name, _compiler.Target, EntryPoints);
+
+    internal static ShaderPipelineKind InferPipelineKind(
+        string moduleName,
+        ShaderTarget target,
+        IReadOnlyList<ShaderModuleEntryPoint> entryPoints)
     {
-        if (EntryPoints.Count == 0)
+        if (entryPoints.Count == 0)
         {
             throw new ShaderCompilationException(
-                $"Shader module '{Name}' defines no [shader(...)] entry points.",
-                _compiler.Target, Name);
+                $"Shader module '{moduleName}' defines no [shader(...)] entry points.",
+                target, moduleName);
         }
 
         ShaderStageKind stages = ShaderStageKind.None;
-        for (int i = 0; i < EntryPoints.Count; i++)
-            stages |= EntryPoints[i].Stage;
+        for (int i = 0; i < entryPoints.Count; i++)
+            stages |= entryPoints[i].Stage;
 
         bool hasCompute = (stages & ShaderStageKind.Compute) != 0;
         bool hasVertex = (stages & ShaderStageKind.Vertex) != 0;
@@ -856,8 +1601,8 @@ public sealed class ShaderModule
         }
 
         throw new ShaderCompilationException(
-            $"Cannot infer a unique pipeline kind for module '{Name}' from stages [{stages}]; specify ShaderPipelineKind explicitly.",
-            _compiler.Target, Name);
+            $"Cannot infer a unique pipeline kind for module '{moduleName}' from stages [{stages}]; specify ShaderPipelineKind explicitly.",
+            target, moduleName);
     }
 
     /// <summary>Finds all concrete struct types in this module implementing <paramref name="interfaceTypeName"/>.</summary>

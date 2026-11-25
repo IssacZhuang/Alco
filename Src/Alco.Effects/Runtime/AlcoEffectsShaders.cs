@@ -117,7 +117,7 @@ public static class AlcoEffectsShaders
                 string moduleName = BuiltInModuleOrder[i];
                 if (loaded.Contains(moduleName))
                     continue;
-                compiler.LoadModuleFromSource(moduleName, moduleName + ".slang",
+                compiler.RegisterVirtualModule(moduleName, moduleName + ".slang",
                     LoadEmbeddedSource(moduleName + ".slang"));
                 loaded.Add(moduleName);
             }

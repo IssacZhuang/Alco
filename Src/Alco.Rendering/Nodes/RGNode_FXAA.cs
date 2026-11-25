@@ -179,7 +179,7 @@ public sealed unsafe class RGNode_FXAA : IRenderGraphNode
         _outputTextureName = $"{name}_Output";
 
         ShaderSystem shaderSystem = shaders ?? rendering.Shaders;
-        shaderSystem.Compiler.LoadModuleFromSource(
+        shaderSystem.Compiler.RegisterVirtualModule(
             "AlcoRendering_FXAA",
             "AlcoRendering_FXAA.slang",
             LoadEmbeddedShaderSource("AlcoRendering_FXAA.slang"));
