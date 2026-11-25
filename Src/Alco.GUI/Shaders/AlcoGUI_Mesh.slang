@@ -66,7 +66,7 @@ float4 sampleMeshTexture(uint textureIndex, uint kind, float2 uv)
 float4 psMain(UIMeshVsOut input) : SV_Target0
 {
     float4 texel = sampleMeshTexture(input.TextureIndex, input.Kind, input.Uv);
-    float width = max(fwidth(texel.r), 1.0 / 255.0);
+    float width = max(0.5 * length(float2(ddx(texel.r), ddy(texel.r))), 1.0 / 255.0);
     float sdfAlpha = smoothstep(0.5 - width, 0.5 + width, texel.r);
 
     if (input.Kind == UIQuadDistanceGlyph || input.Kind == UIQuadBitmapGlyph)

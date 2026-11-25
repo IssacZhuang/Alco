@@ -95,7 +95,7 @@ public float4 uiShade(UIVsOut input)
 {
     float4 texel = uiSampleTexture(input.TextureIndex, input.Kind, input.Uv);
     // Compute derivatives before any control flow on Kind so quad helper lanes stay valid.
-    float width = max(fwidth(texel.r), 1.0 / 255.0);
+    float width = max(0.5 * length(float2(ddx(texel.r), ddy(texel.r))), 1.0 / 255.0);
     float sdfAlpha = smoothstep(0.5 - width, 0.5 + width, texel.r);
 
     if (input.Kind == UIQuadDistanceGlyph || input.Kind == UIQuadBitmapGlyph)

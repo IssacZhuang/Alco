@@ -121,7 +121,7 @@ public float4 sprite2DShade(Sprite2DVsOut input)
 {
     float4 texel = sprite2DSampleTexture(input.TextureIndex, input.Flags, input.Uv);
     // Compute derivatives before branching on shading kind so quad helper lanes stay valid.
-    float sdfWidth = max(fwidth(texel.r), 1.0 / 255.0);
+    float sdfWidth = max(0.5 * length(float2(ddx(texel.r), ddy(texel.r))), 1.0 / 255.0);
     float sdfAlpha = smoothstep(0.5 - sdfWidth, 0.5 + sdfWidth, texel.r);
 
     uint kind = (input.Flags >> SPRITE2D_KIND_SHIFT) & SPRITE2D_KIND_MASK;
