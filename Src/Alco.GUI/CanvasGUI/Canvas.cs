@@ -499,6 +499,7 @@ public partial class Canvas : AutoDisposable, INavigationContext
                     _lastUploadContext.Wait();
                 _glyphCache.Dispose();
             }
+            _hitNodes?.Clear();
         }
 
         _hovered = null;
@@ -506,7 +507,6 @@ public partial class Canvas : AutoDisposable, INavigationContext
         _selected = null;
         _textInput = null;
         _navigationFocus = null;
-        _hitNodes.Clear();
     }
 
     private void OnConfirmDown(UINode? node, Vector2 cursorPosition, bool checkMask)
