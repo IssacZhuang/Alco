@@ -14,7 +14,7 @@ namespace Alco;
 /// dynamic batch chunking, and main-thread work-helping.
 /// Use a single producer thread; jobs and callbacks must not call back into this scheduler.
 /// </summary>
-public sealed class JobScheduler : IDisposable
+public sealed partial class JobScheduler : IDisposable
 {
     private const int DefaultCapacity = 1024;
     private const int DefaultWorkerSpinCount = 512;
@@ -64,6 +64,7 @@ public sealed class JobScheduler : IDisposable
         public int CompletedEdgeHead;
         public JobLane Lane;
         public JobKind Kind;
+        public ushort ProfileTypeId;
         public List<Exception>? Errors;
         public List<JobHandle>? FailedAncestors;
     }
@@ -100,6 +101,8 @@ public sealed class JobScheduler : IDisposable
         private PaddedPositions _pos;
 
         public int Capacity => _cells.Length;
+
+        public int ApproximateCount => (int)Math.Max(0L, Volatile.Read(ref _pos.EnqueuePos) - Volatile.Read(ref _pos.DequeuePos));
 
         public bool IsEmpty => Volatile.Read(ref _pos.EnqueuePos) <= Volatile.Read(ref _pos.DequeuePos);
 
@@ -190,6 +193,8 @@ public sealed class JobScheduler : IDisposable
 
         public int WorkerCount => _threads.Length;
         public int QueueCapacity => _queue.Capacity;
+        public int ApproximateQueueDepth => _queue.ApproximateCount;
+        public int SleepingWorkerCount => BitOperations.PopCount((ulong)Volatile.Read(ref _sleepingMask));
         public bool IsQueueEmpty => _queue.IsEmpty;
 
         public WorkerLane(JobScheduler scheduler, bool isFrameLane, int workerCount, int queueCapacity)
@@ -222,21 +227,21 @@ public sealed class JobScheduler : IDisposable
         public bool TryDequeue(out ulong ticket) => _queue.TryDequeue(out ticket);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void EnqueueNoWake(ulong ticket, int count)
+        public void EnqueueNoWake(ulong ticket, int count, int callerTrackIndex)
         {
             for (int i = 0; i < count; i++)
             {
                 while (!_queue.TryEnqueue(ticket))
                 {
-                    _scheduler.EvictOrHelpOneQueuedTicket(this, _queue);
+                    _scheduler.EvictOrHelpOneQueuedTicket(this, _queue, callerTrackIndex);
                 }
             }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void EnqueueAndWake(ulong ticket, int count)
+        public void EnqueueAndWake(ulong ticket, int count, int callerTrackIndex)
         {
-            EnqueueNoWake(ticket, count);
+            EnqueueNoWake(ticket, count, callerTrackIndex);
             Wake(count);
         }
 
@@ -264,6 +269,10 @@ public sealed class JobScheduler : IDisposable
                 if (prev == mask)
                 {
                     _wakeEvents[workerIndex].Set();
+                    if (_scheduler._profilingEnabled)
+                    {
+                        _scheduler._profiler?.OnWorkerWoken(_isFrameLane, workerIndex);
+                    }
                     woken++;
                     mask &= ~bit;
                 }
@@ -299,6 +308,7 @@ public sealed class JobScheduler : IDisposable
         {
             long bit = 1L << workerIndex;
             JobLane lane = _isFrameLane ? JobLane.Frame : JobLane.Background;
+            int trackIndex = _isFrameLane ? (1 + workerIndex) : (1 + _scheduler._frameLane.WorkerCount + workerIndex);
             BoundedTicketQueue queue = _queue;
             AutoResetEvent wakeEvent = _wakeEvents[workerIndex];
 
@@ -308,7 +318,7 @@ public sealed class JobScheduler : IDisposable
                 {
                     while (ticket != 0)
                     {
-                        ticket = _scheduler.ExecuteTicketWithContinuation(ticket, lane);
+                        ticket = _scheduler.ExecuteTicketWithContinuation(ticket, lane, trackIndex);
                     }
                     continue;
                 }
@@ -317,6 +327,7 @@ public sealed class JobScheduler : IDisposable
                     ? Volatile.Read(ref _scheduler._workerSpinCount)
                     : BackgroundSpinCount;
 
+                long spinStart = _scheduler._profilingEnabled ? Stopwatch.GetTimestamp() : 0;
                 bool executed = false;
                 for (int i = 0; i < spinBudget; i++)
                 {
@@ -327,15 +338,34 @@ public sealed class JobScheduler : IDisposable
 
                     if (queue.TryDequeue(out ticket))
                     {
+                        if (spinStart != 0)
+                        {
+                            long spinElapsed = Stopwatch.GetTimestamp() - spinStart;
+                            if (spinElapsed > 0)
+                            {
+                                _scheduler._profiler?.AddTrackSpinTicks(trackIndex, spinElapsed);
+                            }
+                            spinStart = 0;
+                        }
+
                         while (ticket != 0)
                         {
-                            ticket = _scheduler.ExecuteTicketWithContinuation(ticket, lane);
+                            ticket = _scheduler.ExecuteTicketWithContinuation(ticket, lane, trackIndex);
                         }
                         executed = true;
                         break;
                     }
 
                     Thread.SpinWait(1);
+                }
+
+                if (spinStart != 0)
+                {
+                    long spinElapsed = Stopwatch.GetTimestamp() - spinStart;
+                    if (spinElapsed > 0)
+                    {
+                        _scheduler._profiler?.AddTrackSpinTicks(trackIndex, spinElapsed);
+                    }
                 }
 
                 if (executed)
@@ -430,6 +460,9 @@ public sealed class JobScheduler : IDisposable
     /// <summary>Gets the number of dedicated worker threads serving <see cref="JobLane.Background"/>.</summary>
     public int BackgroundWorkerCount => _backgroundLane.WorkerCount;
 
+    /// <summary>Gets whether this scheduler has been disposed.</summary>
+    public bool IsDisposed => _disposed;
+
     /// <summary>Gets or sets the spin iterations performed by idle Frame workers before parking.</summary>
     public int WorkerSpinCount
     {
@@ -466,10 +499,12 @@ public sealed class JobScheduler : IDisposable
 
         int slot = AllocateSlot();
         int gen = _slotGenerations[slot];
+        ushort profileTypeId = _profilingEnabled ? _profiler!.RegisterJobType(job.GetType()) : (ushort)0;
 
         ref NodeData data = ref _data[slot];
         data.Kind = JobKind.Single;
         data.Lane = lane;
+        data.ProfileTypeId = profileTypeId;
         data.SingleJob = job;
         data.BatchJob = null;
         data.BatchRangeJob = null;
@@ -493,6 +528,10 @@ public sealed class JobScheduler : IDisposable
         Volatile.Write(ref hot.ClaimState, (long)(uint)gen << 32);
 
         IncrementActiveLaneJobs(lane);
+        if (_profilingEnabled)
+        {
+            _profiler!.OnJobScheduled(lane, _activeSlotCount);
+        }
 
         if (!hasDep)
         {
@@ -619,10 +658,15 @@ public sealed class JobScheduler : IDisposable
 
         int slot = AllocateSlot(reservedAdditionalEdges: relevantCount);
         int gen = _slotGenerations[slot];
+        if (_profilingEnabled)
+        {
+            _profiler!.OnFenceCreated(_activeSlotCount);
+        }
 
         ref NodeData data = ref _data[slot];
         data.Kind = JobKind.Fence;
         data.Lane = JobLane.Frame;
+        data.ProfileTypeId = 0;
         data.SingleJob = null;
         data.BatchJob = null;
         data.BatchRangeJob = null;
@@ -702,7 +746,7 @@ public sealed class JobScheduler : IDisposable
                 _data[slot].Kind != JobKind.Fence &&
                 Volatile.Read(ref _hot[slot].UnresolvedDeps) == 0)
             {
-                TryExecuteSlot(slot, gen, JobLane.Frame, allowContinuation: false);
+                TryExecuteSlot(slot, gen, JobLane.Frame, allowContinuation: false, trackIndex: 0);
             }
 
             if (Volatile.Read(ref _hot[slot].Done) == 0)
@@ -803,9 +847,11 @@ public sealed class JobScheduler : IDisposable
 
             int cbSlot = AllocateSlot();
             int cbGen = _slotGenerations[cbSlot];
+            ushort cbTypeId = _profilingEnabled ? _profiler!.RegisterCallback(onJobComplete) : (ushort)0;
             ref NodeData cbData = ref _data[cbSlot];
             cbData.Kind = JobKind.CallbackOnly;
             cbData.Lane = lane;
+            cbData.ProfileTypeId = cbTypeId;
             cbData.SingleJob = null;
             cbData.BatchJob = null;
             cbData.BatchRangeJob = null;
@@ -828,6 +874,10 @@ public sealed class JobScheduler : IDisposable
             cbHot.UnresolvedDeps = cbHasDep ? 2 : 0;
             Volatile.Write(ref cbHot.ClaimState, (long)(uint)cbGen << 32);
             IncrementActiveLaneJobs(lane);
+            if (_profilingEnabled)
+            {
+                _profiler!.OnJobScheduled(lane, _activeSlotCount);
+            }
 
             if (!cbHasDep)
             {
@@ -861,10 +911,14 @@ public sealed class JobScheduler : IDisposable
 
         int slot = AllocateSlot();
         int gen = _slotGenerations[slot];
+        ushort profileTypeId = _profilingEnabled
+            ? _profiler!.RegisterJobType((batchJob ?? (object)batchRangeJob!).GetType())
+            : (ushort)0;
 
         ref NodeData data = ref _data[slot];
         data.Kind = kind;
         data.Lane = lane;
+        data.ProfileTypeId = profileTypeId;
         data.SingleJob = null;
         data.BatchJob = batchJob;
         data.BatchRangeJob = batchRangeJob;
@@ -889,6 +943,10 @@ public sealed class JobScheduler : IDisposable
         Volatile.Write(ref hot.ClaimState, (long)(uint)gen << 32);
 
         IncrementActiveLaneJobs(lane);
+        if (_profilingEnabled)
+        {
+            _profiler!.OnJobScheduled(lane, _activeSlotCount);
+        }
 
         if (!hasDep)
         {
@@ -1149,16 +1207,16 @@ public sealed class JobScheduler : IDisposable
     {
         ulong ticket = PackTicket(slot, generation);
         WorkerLane targetLane = lane == JobLane.Frame ? _frameLane : _backgroundLane;
-        targetLane.EnqueueAndWake(ticket, ticketCount);
+        targetLane.EnqueueAndWake(ticket, ticketCount, callerTrackIndex: 0);
     }
 
-    private void EvictOrHelpOneQueuedTicket(WorkerLane lane, BoundedTicketQueue queue)
+    private void EvictOrHelpOneQueuedTicket(WorkerLane lane, BoundedTicketQueue queue, int callerTrackIndex)
     {
         if (lane == _frameLane)
         {
             if (queue.TryDequeue(out ulong frameTicket))
             {
-                ExecuteTicket(frameTicket);
+                ExecuteTicket(frameTicket, callerTrackIndex);
             }
             return;
         }
@@ -1204,22 +1262,22 @@ public sealed class JobScheduler : IDisposable
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void ExecuteTicket(ulong ticket)
+    private void ExecuteTicket(ulong ticket, int callerTrackIndex)
     {
         int slot = (int)(uint)ticket;
         int gen = (int)(uint)(ticket >> 32);
-        TryExecuteSlot(slot, gen, JobLane.Frame, allowContinuation: false);
+        TryExecuteSlot(slot, gen, JobLane.Frame, allowContinuation: false, callerTrackIndex);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private ulong ExecuteTicketWithContinuation(ulong ticket, JobLane callerLane)
+    private ulong ExecuteTicketWithContinuation(ulong ticket, JobLane callerLane, int trackIndex)
     {
         int slot = (int)(uint)ticket;
         int gen = (int)(uint)(ticket >> 32);
-        return TryExecuteSlot(slot, gen, callerLane, allowContinuation: true);
+        return TryExecuteSlot(slot, gen, callerLane, allowContinuation: true, trackIndex);
     }
 
-    private ulong TryExecuteSlot(int slot, int expectedGen, JobLane callerLane, bool allowContinuation)
+    private ulong TryExecuteSlot(int slot, int expectedGen, JobLane callerLane, bool allowContinuation, int trackIndex)
     {
         ref NodeHot hot = ref _hot[slot];
         if (Volatile.Read(ref hot.UnresolvedDeps) != 0)
@@ -1247,6 +1305,22 @@ public sealed class JobScheduler : IDisposable
         ref NodeData data = ref _data[slot];
         JobLane lane = data.Lane;
         JobKind kind = data.Kind;
+        bool profile = _profilingEnabled;
+        JobProfiler? profiler = profile ? _profiler : null;
+        ushort typeId = profiler != null ? data.ProfileTypeId : (ushort)0;
+        JobProfileEventKind eventKind = trackIndex == 0 ? JobProfileEventKind.MainHelp : JobProfileEventKind.JobExecute;
+        JobProfileWorkKind workKind = kind switch
+        {
+            JobKind.Single => JobProfileWorkKind.Single,
+            JobKind.CallbackOnly => JobProfileWorkKind.CallbackOnly,
+            JobKind.Batch => JobProfileWorkKind.Batch,
+            JobKind.BatchRange => JobProfileWorkKind.BatchRange,
+            _ => JobProfileWorkKind.None,
+        };
+        long execStart = 0;
+        int localChunks = 0;
+        int localItems = 0;
+        bool spanRecorded = false;
         bool finishedLast = false;
         ulong continuationTicket = 0;
 
@@ -1256,6 +1330,13 @@ public sealed class JobScheduler : IDisposable
             {
                 if (Interlocked.Exchange(ref hot.NextIndex, 1) == 0)
                 {
+                    if (profiler != null)
+                    {
+                        execStart = Stopwatch.GetTimestamp();
+                        profiler.BeginActiveSpan(trackIndex, execStart, typeId, lane, JobProfileWorkKind.Single, eventKind);
+                    }
+                    localChunks = 1;
+                    localItems = 1;
                     try
                     {
                         data.SingleJob!.Execute();
@@ -1271,6 +1352,13 @@ public sealed class JobScheduler : IDisposable
             {
                 if (Interlocked.Exchange(ref hot.NextIndex, 1) == 0)
                 {
+                    if (profiler != null)
+                    {
+                        execStart = Stopwatch.GetTimestamp();
+                        profiler.BeginActiveSpan(trackIndex, execStart, typeId, lane, JobProfileWorkKind.CallbackOnly, eventKind);
+                    }
+                    localChunks = 1;
+                    localItems = 1;
                     try
                     {
                         data.OnComplete?.Invoke();
@@ -1298,9 +1386,16 @@ public sealed class JobScheduler : IDisposable
                             break;
                         }
 
+                        if (profiler != null && execStart == 0)
+                        {
+                            execStart = Stopwatch.GetTimestamp();
+                            profiler.BeginActiveSpan(trackIndex, execStart, typeId, lane, workKind, eventKind);
+                        }
+
                         int itemCount = Math.Min(chunkSize, totalCount - start);
                         ExecuteBatchRange(ref data, slot, kind, start, itemCount);
                         localCompletedItems += itemCount;
+                        localChunks++;
                     }
                 }
                 else
@@ -1315,38 +1410,63 @@ public sealed class JobScheduler : IDisposable
                             break;
                         }
 
+                        if (profiler != null && execStart == 0)
+                        {
+                            execStart = Stopwatch.GetTimestamp();
+                            profiler.BeginActiveSpan(trackIndex, execStart, typeId, lane, workKind, eventKind);
+                        }
+
                         ExecuteBatchRange(ref data, slot, kind, start, itemCount);
                         localCompletedItems += itemCount;
+                        localChunks++;
                     }
                 }
 
                 if (localCompletedItems > 0)
                 {
+                    localItems = localCompletedItems;
                     finishedLast = Interlocked.Add(ref hot.RemainingItems, -localCompletedItems) == 0;
                 }
             }
 
+            if (finishedLast &&
+                kind != JobKind.CallbackOnly &&
+                Volatile.Read(ref hot.Failed) == 0 &&
+                data.OnComplete is { } callback)
+            {
+                try
+                {
+                    callback();
+                }
+                catch (Exception ex)
+                {
+                    RecordError(slot, ex);
+                }
+            }
+
+            if (execStart != 0 && !spanRecorded)
+            {
+                spanRecorded = true;
+                profiler!.EndActiveSpan(
+                    trackIndex,
+                    execStart,
+                    Stopwatch.GetTimestamp(),
+                    typeId,
+                    lane,
+                    workKind,
+                    eventKind,
+                    localItems,
+                    localChunks,
+                    failed: Volatile.Read(ref hot.Failed) != 0);
+            }
+
             if (finishedLast)
             {
-                if (kind != JobKind.CallbackOnly &&
-                    Volatile.Read(ref hot.Failed) == 0 &&
-                    data.OnComplete is { } callback)
-                {
-                    try
-                    {
-                        callback();
-                    }
-                    catch (Exception ex)
-                    {
-                        RecordError(slot, ex);
-                    }
-                }
-
                 int edgeHead = Interlocked.Exchange(ref hot.DependentHead, CompletedSentinel);
                 data.CompletedEdgeHead = edgeHead;
                 if (edgeHead != EmptyDependentHead)
                 {
-                    continuationTicket = ReleaseDependents(slot, callerLane, allowContinuation);
+                    continuationTicket = ReleaseDependents(slot, callerLane, allowContinuation, trackIndex);
                 }
 
                 Interlocked.Or(ref hot.ClaimState, ClosedBit);
@@ -1354,6 +1474,22 @@ public sealed class JobScheduler : IDisposable
         }
         finally
         {
+            if (execStart != 0 && !spanRecorded)
+            {
+                spanRecorded = true;
+                profiler!.EndActiveSpan(
+                    trackIndex,
+                    execStart,
+                    Stopwatch.GetTimestamp(),
+                    typeId,
+                    lane,
+                    workKind,
+                    eventKind,
+                    localItems,
+                    localChunks,
+                    failed: Volatile.Read(ref hot.Failed) != 0);
+            }
+
             long after = Interlocked.Decrement(ref hot.ClaimState);
             if ((after & ClosedBit) != 0 && (after & ActiveMask) == 0)
             {
@@ -1370,14 +1506,14 @@ public sealed class JobScheduler : IDisposable
         _data[fenceSlot].CompletedEdgeHead = edgeHead;
         if (edgeHead != EmptyDependentHead)
         {
-            ReleaseDependents(fenceSlot, JobLane.Frame, allowContinuation: false);
+            ReleaseDependents(fenceSlot, JobLane.Frame, allowContinuation: false, callerTrackIndex: 0);
         }
 
         Interlocked.Exchange(ref _hot[fenceSlot].Done, 1);
         NotifyMainIfWaiting();
     }
 
-    private ulong ReleaseDependents(int rootCompletedSlot, JobLane callerLane, bool allowContinuation)
+    private ulong ReleaseDependents(int rootCompletedSlot, JobLane callerLane, bool allowContinuation, int callerTrackIndex)
     {
         const int StackLimit = 64;
         Span<int> localStack = stackalloc int[StackLimit];
@@ -1458,7 +1594,7 @@ public sealed class JobScheduler : IDisposable
                     if (queuedTickets > 0)
                     {
                         WorkerLane targetLane = childLane == JobLane.Frame ? _frameLane : _backgroundLane;
-                        targetLane.EnqueueNoWake(childTicket, queuedTickets);
+                        targetLane.EnqueueNoWake(childTicket, queuedTickets, callerTrackIndex);
                         if (childLane == JobLane.Frame)
                         {
                             frameWakeTickets += queuedTickets;
@@ -1617,12 +1753,12 @@ public sealed class JobScheduler : IDisposable
             {
                 while (ticket != 0)
                 {
-                    ticket = ExecuteTicketWithContinuation(ticket, JobLane.Frame);
+                    ticket = ExecuteTicketWithContinuation(ticket, JobLane.Frame, trackIndex: 0);
                     if (Volatile.Read(ref _hot[slot].Done) != 0)
                     {
                         if (ticket != 0)
                         {
-                            _frameLane.EnqueueAndWake(ticket, 1);
+                            _frameLane.EnqueueAndWake(ticket, 1, callerTrackIndex: 0);
                         }
                         return;
                     }
@@ -1631,6 +1767,7 @@ public sealed class JobScheduler : IDisposable
             }
 
             int spins = 0;
+            long spinStart = _profilingEnabled ? Stopwatch.GetTimestamp() : 0;
             while (spins < MainThreadSpinCount && Volatile.Read(ref _hot[slot].Done) == 0)
             {
                 if (_enableMainThreadHelp && !_frameLane.IsQueueEmpty)
@@ -1639,6 +1776,11 @@ public sealed class JobScheduler : IDisposable
                 }
                 Thread.SpinWait(1);
                 spins++;
+            }
+
+            if (spinStart != 0 && spins > 0)
+            {
+                _profiler?.RecordMainWait(JobProfileEventKind.MainWaitSpin, spinStart, Stopwatch.GetTimestamp());
             }
 
             if (Volatile.Read(ref _hot[slot].Done) != 0)
@@ -1655,7 +1797,12 @@ public sealed class JobScheduler : IDisposable
             if (Volatile.Read(ref _hot[slot].Done) == 0 &&
                 (!_enableMainThreadHelp || _frameLane.IsQueueEmpty))
             {
+                long sleepStart = _profilingEnabled ? Stopwatch.GetTimestamp() : 0;
                 _mainWakeSignal.WaitOne();
+                if (sleepStart != 0)
+                {
+                    _profiler?.RecordMainWait(JobProfileEventKind.MainWaitSleep, sleepStart, Stopwatch.GetTimestamp());
+                }
             }
             Volatile.Write(ref _mainWaiting.Value, 0);
         }
@@ -1669,12 +1816,12 @@ public sealed class JobScheduler : IDisposable
             {
                 while (ticket != 0)
                 {
-                    ticket = ExecuteTicketWithContinuation(ticket, JobLane.Frame);
+                    ticket = ExecuteTicketWithContinuation(ticket, JobLane.Frame, trackIndex: 0);
                     if (GetActiveLaneJobs(lane) == 0)
                     {
                         if (ticket != 0)
                         {
-                            _frameLane.EnqueueAndWake(ticket, 1);
+                            _frameLane.EnqueueAndWake(ticket, 1, callerTrackIndex: 0);
                         }
                         return;
                     }
@@ -1683,6 +1830,7 @@ public sealed class JobScheduler : IDisposable
             }
 
             int spins = 0;
+            long spinStart = _profilingEnabled ? Stopwatch.GetTimestamp() : 0;
             while (spins < MainThreadSpinCount && GetActiveLaneJobs(lane) != 0)
             {
                 if (_enableMainThreadHelp && !_frameLane.IsQueueEmpty)
@@ -1691,6 +1839,11 @@ public sealed class JobScheduler : IDisposable
                 }
                 Thread.SpinWait(1);
                 spins++;
+            }
+
+            if (spinStart != 0 && spins > 0)
+            {
+                _profiler?.RecordMainWait(JobProfileEventKind.MainWaitSpin, spinStart, Stopwatch.GetTimestamp());
             }
 
             if (GetActiveLaneJobs(lane) == 0)
@@ -1707,7 +1860,12 @@ public sealed class JobScheduler : IDisposable
             if (GetActiveLaneJobs(lane) != 0 &&
                 (!_enableMainThreadHelp || _frameLane.IsQueueEmpty))
             {
+                long sleepStart = _profilingEnabled ? Stopwatch.GetTimestamp() : 0;
                 _mainWakeSignal.WaitOne();
+                if (sleepStart != 0)
+                {
+                    _profiler?.RecordMainWait(JobProfileEventKind.MainWaitSleep, sleepStart, Stopwatch.GetTimestamp());
+                }
             }
             Volatile.Write(ref _mainWaiting.Value, 0);
         }
@@ -1908,6 +2066,7 @@ public sealed class JobScheduler : IDisposable
         }
 
         data.CompletedEdgeHead = EmptyDependentHead;
+        data.ProfileTypeId = 0;
         data.SingleJob = null;
         data.BatchJob = null;
         data.BatchRangeJob = null;

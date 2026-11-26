@@ -387,6 +387,175 @@ public class TestJobScheduler
         Assert.That(after - before, Is.Zero);
     }
 
+    /// <summary>Verifies that enabling profiling captures tracks, markers, type stats, counters, and snapshot copies.</summary>
+    [Test]
+    public void TestProfilingCapturesExecutionStatsAndMarkers()
+    {
+        using var scheduler = new JobScheduler(frameWorkerCount: 2, backgroundWorkerCount: 1);
+        Assert.That(scheduler.IsProfilingEnabled, Is.False);
+
+        var snapshot = new JobScheduler.ProfileSnapshot();
+        Assert.That(scheduler.TryCaptureProfileSnapshot(snapshot), Is.False);
+
+        scheduler.IsProfilingEnabled = true;
+        Assert.That(scheduler.IsProfilingEnabled, Is.True);
+
+        int singleDone = 0;
+        int batchSum = 0;
+        int rangeSum = 0;
+        int callbackCount = 0;
+
+        scheduler.RecordProfileMarker("PhaseA");
+        JobHandle hSingle = scheduler.Schedule(new SingleJob(() => Interlocked.Increment(ref singleDone)));
+        JobHandle hBatch = scheduler.ScheduleBatch(new BatchJob(12, _ => Interlocked.Increment(ref batchSum)), batchSize: 4);
+        JobHandle hRange = scheduler.ScheduleBatch(
+            new BatchRangeJob(16, (_, count) => Interlocked.Add(ref rangeSum, count)),
+            batchSize: 4,
+            onJobComplete: () => Interlocked.Increment(ref callbackCount));
+        JobHandle combined = scheduler.CombineDependencies(hSingle, hBatch, hRange);
+        scheduler.Complete(combined);
+        scheduler.WaitAll();
+
+        Assert.That(scheduler.TryCaptureProfileSnapshot(snapshot), Is.True);
+        Assert.That(singleDone, Is.EqualTo(1));
+        Assert.That(batchSum, Is.EqualTo(12));
+        Assert.That(rangeSum, Is.EqualTo(16));
+        Assert.That(callbackCount, Is.EqualTo(1));
+
+        Assert.That(snapshot.Tracks.Count, Is.EqualTo(1 + scheduler.FrameWorkerCount + scheduler.BackgroundWorkerCount));
+        Assert.That(snapshot.GetTrackName(0), Is.EqualTo("Main"));
+        Assert.That(snapshot.GetTrackName(1), Is.EqualTo("Frame 0"));
+        Assert.That(snapshot.GetTrackName(3), Is.EqualTo("Bg 0"));
+        Assert.That(snapshot.Counters.JobsScheduledFrame, Is.GreaterThanOrEqualTo(3));
+        Assert.That(snapshot.Counters.FencesCreated, Is.GreaterThanOrEqualTo(1));
+        Assert.That(snapshot.Counters.DroppedEvents, Is.Zero);
+
+        bool hasMarker = false;
+        bool hasSingleEvent = false;
+        for (int i = 0; i < snapshot.Events.Count; i++)
+        {
+            JobProfileEvent ev = snapshot.Events[i];
+            string name = snapshot.GetTypeName(ev.TypeId);
+            if (ev.Kind == JobProfileEventKind.Marker && name == "PhaseA")
+            {
+                hasMarker = true;
+            }
+            if ((ev.Kind == JobProfileEventKind.JobExecute || ev.Kind == JobProfileEventKind.MainHelp) &&
+                name.Contains(nameof(SingleJob), StringComparison.Ordinal))
+            {
+                hasSingleEvent = true;
+            }
+        }
+
+        Assert.That(hasMarker, Is.True);
+        Assert.That(hasSingleEvent, Is.True);
+        Assert.That(snapshot.TypeStats.Count, Is.GreaterThanOrEqualTo(3));
+
+        var copy = new JobScheduler.ProfileSnapshot();
+        copy.CopyFrom(snapshot);
+        Assert.That(copy.Tracks.Count, Is.EqualTo(snapshot.Tracks.Count));
+        Assert.That(copy.Events.Count, Is.EqualTo(snapshot.Events.Count));
+        Assert.That(copy.TypeStats.Count, Is.EqualTo(snapshot.TypeStats.Count));
+        Assert.That(copy.GetTypeName(snapshot.TypeStats[0].TypeId), Is.EqualTo(snapshot.GetTypeName(snapshot.TypeStats[0].TypeId)));
+    }
+
+    /// <summary>Verifies that an active background job is reported as in-progress until it finishes.</summary>
+    [Test]
+    public void TestProfilingInProgressBackgroundJob()
+    {
+        using var scheduler = new JobScheduler(frameWorkerCount: 1, backgroundWorkerCount: 1);
+        scheduler.IsProfilingEnabled = true;
+
+        using var started = new ManualResetEventSlim();
+        using var gate = new ManualResetEventSlim();
+
+        JobHandle bg = scheduler.Schedule(new SingleJob(() =>
+        {
+            started.Set();
+            gate.Wait(TimeSpan.FromSeconds(10));
+        }), lane: JobLane.Background);
+
+        Assert.That(started.Wait(TimeSpan.FromSeconds(10)), Is.True);
+
+        var snapshot = new JobScheduler.ProfileSnapshot();
+        Assert.That(scheduler.TryCaptureProfileSnapshot(snapshot), Is.True);
+
+        bool foundInProgress = false;
+        for (int i = 0; i < snapshot.Events.Count; i++)
+        {
+            JobProfileEvent ev = snapshot.Events[i];
+            if (ev.TrackIndex == 2 && ev.IsInProgress &&
+                snapshot.GetTypeName(ev.TypeId).Contains(nameof(SingleJob), StringComparison.Ordinal))
+            {
+                foundInProgress = true;
+                break;
+            }
+        }
+
+        Assert.That(foundInProgress, Is.True);
+
+        gate.Set();
+        scheduler.Complete(bg);
+
+        Assert.That(scheduler.TryCaptureProfileSnapshot(snapshot), Is.True);
+
+        bool foundCompleted = false;
+        for (int i = 0; i < snapshot.Events.Count; i++)
+        {
+            JobProfileEvent ev = snapshot.Events[i];
+            if (ev.TrackIndex == 2 && !ev.IsInProgress &&
+                snapshot.GetTypeName(ev.TypeId).Contains(nameof(SingleJob), StringComparison.Ordinal))
+            {
+                foundCompleted = true;
+                break;
+            }
+        }
+
+        Assert.That(foundCompleted, Is.True);
+    }
+
+    /// <summary>Verifies zero steady-state allocations on the producer thread while profiling and capturing snapshots.</summary>
+    [Test]
+    public void TestProfilingSteadyStateZeroAllocations()
+    {
+        using var scheduler = new JobScheduler();
+        scheduler.IsProfilingEnabled = true;
+
+        var single = new SingleJob(static () => { });
+        var batch = new BatchJob(32, static _ => { });
+        var range = new BatchRangeJob(64, static (_, _) => { });
+        JobDelegate onJobComplete = static () => { };
+        var snapshot = new JobScheduler.ProfileSnapshot();
+
+        for (int i = 0; i < 30; i++)
+        {
+            scheduler.RecordProfileMarker("WarmupMarker");
+            JobHandle h0 = scheduler.Schedule(single, onJobComplete: onJobComplete);
+            JobHandle h1 = scheduler.ScheduleBatch(batch, onJobComplete: onJobComplete);
+            JobHandle h2 = scheduler.ScheduleBatch(range, onJobComplete: onJobComplete);
+            JobHandle hCombined = scheduler.CombineDependencies(h0, h1, h2);
+            scheduler.Complete(hCombined);
+            scheduler.WaitAll(JobLane.Frame);
+            scheduler.TryCaptureProfileSnapshot(snapshot);
+        }
+
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        for (int i = 0; i < 200; i++)
+        {
+            scheduler.RecordProfileMarker("WarmupMarker");
+            JobHandle h0 = scheduler.Schedule(single, onJobComplete: onJobComplete);
+            JobHandle h1 = scheduler.ScheduleBatch(batch, onJobComplete: onJobComplete);
+            JobHandle h2 = scheduler.ScheduleBatch(range, onJobComplete: onJobComplete);
+            JobHandle hCombined = scheduler.CombineDependencies(h0, h1, h2);
+            scheduler.Complete(hCombined);
+            scheduler.WaitAll(JobLane.Frame);
+            scheduler.TryCaptureProfileSnapshot(snapshot);
+        }
+        long after = GC.GetAllocatedBytesForCurrentThread();
+
+        Assert.That(after - before, Is.Zero);
+    }
+
     private static void RunZeroAllocLoop(
         JobScheduler scheduler,
         IJob single,
