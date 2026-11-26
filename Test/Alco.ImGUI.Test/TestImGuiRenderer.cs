@@ -232,6 +232,67 @@ public sealed class TestImGuiRenderer
     }
 
     /// <summary>
+    /// Verifies <see cref="ImGUIRenderer.IsInFrame"/> tracks frame state and stays false if <see cref="ImGui.NewFrame"/> fails.
+    /// </summary>
+    [Test]
+    public unsafe void NoGpu_IsInFrame_ResetsOnFailedNewFrameAndRenderIsSafeNoOp()
+    {
+        GPUDevice device = Gpu.CreateDevice(new DeviceDesc { Backend = GraphicsBackend.NoGPU });
+        RenderingSystem system = new(device, textureHeapByteCount: 8 * 1024 * 1024, bufferHeapByteCount: 8 * 1024 * 1024);
+        using ShaderSystem shaderSystem = system.CreateShaderSystem();
+        Material material = CreateImGuiMaterial(shaderSystem);
+
+        string tempIniPath = Path.Combine(Path.GetTempPath(), $"alco_imgui_test_{Guid.NewGuid():N}.ini");
+        IntPtr tempIniUtf8 = Marshal.StringToHGlobalAnsi(tempIniPath);
+        ImGUIRenderer? renderer = null;
+        try
+        {
+            renderer = new ImGUIRenderer(system, material, "FrameGuardTest");
+            Assert.That(renderer.IsInFrame, Is.False);
+            Assert.DoesNotThrow(() => renderer.Render());
+
+            ImGuiIOPtr io = ImGui.GetIO();
+            io.NativePtr->IniFilename = (byte*)tempIniUtf8;
+            io.IniSavingRate = 0.01f;
+
+            renderer.Begin(128, 128, 1.0f / 60.0f);
+            Assert.That(renderer.IsInFrame, Is.True);
+
+            // Build a 256-level DockSpace so the next NewFrame ini-save triggers imgui.cpp:20377.
+            const uint dockspaceId = 0x12345678;
+            uint nodeId = ImGuiDockBuilder.AddNode(dockspaceId, ImGuiDockNodeFlags.None);
+            for (int i = 0; i < 256; i++)
+            {
+                ImGuiDockBuilder.SplitNode(nodeId, ImGuiDir.Right, 0.4f, out _, out nodeId);
+            }
+            ImGuiDockBuilder.Finish(dockspaceId);
+
+            renderer.Render();
+            Assert.That(renderer.IsInFrame, Is.False);
+
+            Assert.Throws<ImGuiNativeException>(() => renderer.Begin(128, 128, 1.0f));
+            Assert.That(renderer.IsInFrame, Is.False);
+            Assert.DoesNotThrow(() => renderer.Render());
+        }
+        finally
+        {
+            if (ImGui.GetCurrentContext() != IntPtr.Zero)
+            {
+                ImGui.GetIO().NativePtr->IniFilename = null;
+            }
+            renderer?.Dispose();
+            Marshal.FreeHGlobal(tempIniUtf8);
+            if (File.Exists(tempIniPath))
+            {
+                File.Delete(tempIniPath);
+            }
+            shaderSystem.Dispose();
+            system.Dispose();
+            device.Destroy();
+        }
+    }
+
+    /// <summary>
     /// Verifies offscreen ImGui rendering across GPU backends: vertex colors, bindless Texture sampling, scissor clipping, and alpha blending.
     /// </summary>
     [TestCase(GraphicsBackend.Dx12)]

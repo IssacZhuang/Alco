@@ -103,6 +103,11 @@ public sealed class ImGUISystem : BaseEngineSystem
     /// </summary>
     public override void OnEndFrame(float deltaTime)
     {
+        if (!_imGUIRenderer.IsInFrame)
+        {
+            return;
+        }
+
         _imGUIRenderer.Render();
 
         if (!_engine.MainPresenter.HasValidFrame || !_imGUIRenderer.HasDrawData)

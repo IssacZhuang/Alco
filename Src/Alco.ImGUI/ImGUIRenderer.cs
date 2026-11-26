@@ -52,6 +52,11 @@ public sealed unsafe class ImGUIRenderer : AutoDisposable
     }
 
     /// <summary>
+    /// Gets whether an ImGui frame is currently active between <see cref="Begin(uint, uint, float, Vector2)"/> and <see cref="Render"/>.
+    /// </summary>
+    public bool IsInFrame { get; private set; }
+
+    /// <summary>
     /// Creates the ImGui context and initial font atlas for rendering through <see cref="RenderingSystem"/>.
     /// </summary>
     /// <param name="renderingSystem">The rendering system that owns the GPU resources and descriptor heaps.</param>
@@ -126,6 +131,7 @@ public sealed unsafe class ImGUIRenderer : AutoDisposable
     public void Begin(uint width, uint height, float deltaTime, Vector2 framebufferScale)
     {
         ObjectDisposedException.ThrowIf(IsDisposed, this);
+        IsInFrame = false;
         EnsureCurrentContext();
 
         if (_fontTextureDirty)
@@ -140,6 +146,7 @@ public sealed unsafe class ImGUIRenderer : AutoDisposable
         io.DeltaTime = deltaTime > 0.0f ? deltaTime : 1.0f / 60.0f;
 
         ImGui.NewFrame();
+        IsInFrame = true;
         Gizmo.BeginFrame(width, height);
     }
 
@@ -149,8 +156,20 @@ public sealed unsafe class ImGUIRenderer : AutoDisposable
     public void Render()
     {
         ObjectDisposedException.ThrowIf(IsDisposed, this);
-        EnsureCurrentContext();
-        ImGui.Render();
+        if (!IsInFrame)
+        {
+            return;
+        }
+
+        try
+        {
+            EnsureCurrentContext();
+            ImGui.Render();
+        }
+        finally
+        {
+            IsInFrame = false;
+        }
     }
 
     /// <summary>
@@ -495,6 +514,7 @@ public sealed unsafe class ImGUIRenderer : AutoDisposable
     /// <inheritdoc />
     protected override void Dispose(bool disposing)
     {
+        IsInFrame = false;
         if (ReferenceEquals(Instance, this))
         {
             Instance = null;
