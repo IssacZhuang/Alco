@@ -50,14 +50,22 @@ public struct MeshScene3DBucketMeta
     public float3 LocalCenter;
     public int VertexOffset;
     public float3 LocalExtent;
-    public uint Pad0;
+    public uint DrawSlot;
+};
+
+// Per-draw GPU record indexed by SV_DrawIndex (16 bytes).
+public struct MeshScene3DDrawEntry
+{
+    public GPUBufferView Vertices;
+    public uint VisibleBase;
+    public uint BucketTag;
 };
 
 // Root header placed at offset 0 of every MeshScene3D graphics material (144 bytes).
 public struct MeshScene3DPassHeader
 {
     public float4x4 ViewProjection;
-    public GPUBufferView Vertices;
+    public GPUBufferView DrawEntries;
     public GPUBufferView Pool;
     public GPUBufferView VisibleSlots;
     public GPUBufferView MaterialParams;
@@ -139,6 +147,7 @@ public struct MeshScene3DVsOut
     public nointerpolation uint MaterialParamId : TEXCOORD9;
     public nointerpolation uint UserData0 : TEXCOORD10;
     public nointerpolation uint UserData1 : TEXCOORD11;
+    public nointerpolation uint BucketTag : TEXCOORD12;
 };
 
 public interface IMeshScene3DSurface
@@ -161,6 +170,11 @@ public interface IMeshScene3DSurface
         return 0.5;
     }
 };
+
+public MeshScene3DDrawEntry meshScene3DLoadDrawEntry(GPUBufferView drawEntries, uint drawId)
+{
+    return gpu_load<MeshScene3DDrawEntry>(drawEntries, drawId);
+}
 
 public MeshScene3DVertex meshScene3DLoadVertex(GPUBufferView vertices, uint vertexId)
 {

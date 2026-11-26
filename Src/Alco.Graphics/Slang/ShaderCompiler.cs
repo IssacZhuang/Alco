@@ -1281,6 +1281,8 @@ public sealed class ShaderCompiler : IDisposable
         List<(string Name, string Value)> merged = MergeDefines(_options.Defines, requestDefines);
         if (Target is ShaderTarget.MetalSource or ShaderTarget.MetalLibrary)
             AddDefineIfAbsent(merged, "ALCO_GRAPHICS_METAL", "1");
+        if (Target is ShaderTarget.Spirv or ShaderTarget.SpirvCompact)
+            AddDefineIfAbsent(merged, "ALCO_GRAPHICS_DRAW_INDEX", "1");
         merged.Sort(static (a, b) => StringComparer.Ordinal.Compare(a.Name, b.Name));
         return merged;
     }

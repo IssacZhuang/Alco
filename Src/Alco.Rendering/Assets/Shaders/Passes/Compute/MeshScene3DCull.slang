@@ -85,6 +85,6 @@ public void mainCS(uint3 dispatchId : SV_DispatchThreadID)
     }
 
     // Offset 4 inside DrawIndexedIndirectArgs (20 bytes) is InstanceCount.
-    uint dst = gpu_atomic_add_u32(gpu_offset_bytes(root.DrawArgs, bucket * 20u + 4u), 1u);
+    uint dst = gpu_atomic_add_u32(gpu_offset_bytes(root.DrawArgs, meta.DrawSlot * 20u + 4u), 1u);
     gpu_store<uint>(root.VisibleSlots, meta.VisibleBase + dst, slot);
 }

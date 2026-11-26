@@ -64,6 +64,7 @@ public unsafe class TestMeshScene3D
         public VertexPBR Vertex;
         public MeshScene3DInstance Instance;
         public MeshScene3DBucketMeta BucketMeta;
+        public MeshScene3DDrawEntry DrawEntry;
         public MeshScene3DPassHeader PassHeader;
     }
 
@@ -128,6 +129,7 @@ public unsafe class TestMeshScene3D
             public MeshScene3DVertex Vertex;
             public MeshScene3DInstance Instance;
             public MeshScene3DBucketMeta BucketMeta;
+            public MeshScene3DDrawEntry DrawEntry;
             public MeshScene3DPassHeader PassHeader;
         };
 
@@ -199,6 +201,7 @@ public unsafe class TestMeshScene3D
         {
             Assert.That(sizeof(MeshScene3DInstance), Is.EqualTo(128));
             Assert.That(sizeof(MeshScene3DBucketMeta), Is.EqualTo(48));
+            Assert.That(sizeof(MeshScene3DDrawEntry), Is.EqualTo(16));
             Assert.That(sizeof(MeshScene3DPassHeader), Is.EqualTo(144));
             Assert.That(sizeof(VertexPBR), Is.EqualTo(48));
             Assert.That(resetArgs.Reflection.MatchesStructLayout<ExpectedResetArgsRoot>("MeshScene3DResetArgsRoot"), Is.True);
@@ -227,7 +230,7 @@ public unsafe class TestMeshScene3D
                 {
                     Assert.That(composed.Reflection.Root, Is.Not.Null, $"{surface} alphaTest={alphaSpec}");
                     Assert.That(composed.Reflection.Root!.Find("Pass")?.Type.SizeBytes, Is.EqualTo((uint)sizeof(MeshScene3DPassHeader)), $"{surface} header");
-                    Assert.That(composed.Reflection.Root.Find("Pass.Vertices")?.OffsetBytes, Is.EqualTo(64u), $"{surface} Pass.Vertices");
+                    Assert.That(composed.Reflection.Root.Find("Pass.DrawEntries")?.OffsetBytes, Is.EqualTo(64u), $"{surface} Pass.DrawEntries");
                     Assert.That(composed.Reflection.Root.Find("Pass.VisibleSlots")?.OffsetBytes, Is.EqualTo(80u), $"{surface} Pass.VisibleSlots");
                     Assert.That(composed.Reflection.Root.Find("Pass.PassFlags")?.OffsetBytes, Is.EqualTo(124u), $"{surface} Pass.PassFlags");
                     Assert.That(composed.Reflection.Root.SizeBytes, Is.GreaterThanOrEqualTo((uint)sizeof(MeshScene3DPassHeader) + expectedTail));
@@ -521,15 +524,27 @@ public unsafe class TestMeshScene3D
 
                 GpuDrawIndexedIndirectArgs[] args1 = ReadBackIndexedDrawArgsAndSubmit(host.Device, context, scene.DrawArgsBuffer, bucketCount);
                 byte[] pixels1 = ReadBackRgba8FreshFrame(host.Device, rendering, colorTarget, width, height);
+                uint slot0 = scene.GetBucketDrawSlot(0u);
+                uint slot1 = scene.GetBucketDrawSlot(1u);
+                uint slot4 = scene.GetBucketDrawSlot(4u);
+                uint slot98 = scene.GetBucketDrawSlot(98u);
+                uint slot99 = scene.GetBucketDrawSlot(99u);
 
                 Assert.Multiple(() =>
                 {
-                    Assert.That(drawCalls1, Is.EqualTo(bucketCount)); // Each bucket has at least 1 live slot.
-                    Assert.That(args1[0].InstanceCount, Is.EqualTo(1u));
-                    Assert.That(args1[4].InstanceCount, Is.EqualTo(0u)); // Offscreen bucket 4 culled out.
-                    Assert.That(args1[98].InstanceCount, Is.EqualTo(1u)); // Hidden slot excluded.
-                    Assert.That(args1[99].InstanceCount, Is.EqualTo(1u));
-                    Assert.That(args1[99].IndexCount, Is.EqualTo(6u));
+                    if (scene.IsMultiDrawEnabled)
+                    {
+                        Assert.That(drawCalls1, Is.EqualTo(1));
+                    }
+                    else
+                    {
+                        Assert.That(drawCalls1, Is.EqualTo(bucketCount)); // Each bucket has at least 1 live slot.
+                    }
+                    Assert.That(args1[slot0].InstanceCount, Is.EqualTo(1u));
+                    Assert.That(args1[slot4].InstanceCount, Is.EqualTo(0u)); // Offscreen bucket 4 culled out.
+                    Assert.That(args1[slot98].InstanceCount, Is.EqualTo(1u)); // Hidden slot excluded.
+                    Assert.That(args1[slot99].InstanceCount, Is.EqualTo(1u));
+                    Assert.That(args1[slot99].IndexCount, Is.EqualTo(6u));
 
                     // Tilted red at (-40, 20) & green at (+40, 20)
                     (byte rRed, byte gRed, byte bRed, _) = SampleWorldPixel(pixels1, width, height, -40f, 20f);
@@ -579,11 +594,11 @@ public unsafe class TestMeshScene3D
                 {
                     Assert.That(scene.GetBucketLiveCount(98u), Is.EqualTo(1)); // only hidden slot left
                     Assert.That(scene.GetBucketLiveCount(99u), Is.EqualTo(2)); // swappable + moved green
-                    Assert.That(mainArgs2[98].InstanceCount, Is.EqualTo(0u));
-                    Assert.That(mainArgs2[99].InstanceCount, Is.EqualTo(1u));
-                    Assert.That(secArgs2[0].InstanceCount, Is.EqualTo(0u)); // bucket 0 has mask=1 -> filtered out by RequiredCullMask=2
-                    Assert.That(secArgs2[1].InstanceCount, Is.EqualTo(1u)); // bucket 1 has mask=2 -> visible
-                    Assert.That(secArgs2[99].InstanceCount, Is.EqualTo(1u)); // swappable has mask=3 -> visible
+                    Assert.That(mainArgs2[slot98].InstanceCount, Is.EqualTo(0u));
+                    Assert.That(mainArgs2[slot99].InstanceCount, Is.EqualTo(1u));
+                    Assert.That(secArgs2[slot0].InstanceCount, Is.EqualTo(0u)); // bucket 0 has mask=1 -> filtered out by RequiredCullMask=2
+                    Assert.That(secArgs2[slot1].InstanceCount, Is.EqualTo(1u)); // bucket 1 has mask=2 -> visible
+                    Assert.That(secArgs2[slot99].InstanceCount, Is.EqualTo(1u)); // swappable has mask=3 -> visible
 
                     // Bucket 99 now draws swappable's halfSize=10 rotated quad scaled 1.5x -> reaches (-40, 10) too,
                     // while overrideMat tinted red down (0.2x R).
@@ -699,6 +714,280 @@ public unsafe class TestMeshScene3D
                 if (!depthTarget.IsDisposed) depthTarget.Dispose();
                 if (!texGreen.IsDisposed) texGreen.Dispose();
                 if (!texRed.IsDisposed) texRed.Dispose();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies MDI coalesces distinct meshes with varied FirstIndex/VertexOffset/UInt16/UInt32/BucketTag
+    /// per (Material, IndexType, HeapPage) and coalesces across materials when materialOverride is supplied.
+    /// </summary>
+    [TestCase(GraphicsBackend.VulkanCompact)]
+    [TestCase(GraphicsBackend.Vulkan)]
+    [TestCase(GraphicsBackend.Dx12)]
+    [TestCase(GraphicsBackend.Metal)]
+    public void MeshScene3D_MultiDrawIndirect_BatchesDistinctMeshes_PreservesBucketTag_AndCoalescesOverride(GraphicsBackend backend)
+    {
+        if (!TryCreateGpuHost(backend, out RenderingTestHost? host))
+        {
+            return;
+        }
+
+        const string tagSurfaceModule = "TestBucketTagMdiSurface";
+        const string tagSurfaceSource = """
+            #language slang 2025
+            module TestBucketTagMdiSurface;
+
+            import Core;
+            import SharedSampler;
+            import AlcoRendering_MeshScene3D;
+
+            public struct TagTintParams
+            {
+                public float4 Tint;
+            };
+
+            public struct Surface : IMeshScene3DSurface
+            {
+                public typedef TagTintParams Params;
+
+                public float4 GetColor(MeshScene3DSurfaceInput input, Params p)
+                {
+                    float4 tex = input.TextureId != 0u
+                        ? meshScene3DSampleTexture(input.TextureId, input.Flags, input.Uv, input.DdxUv, input.DdyUv)
+                        : float4(1.0, 1.0, 1.0, 1.0);
+                    float3 tagColor = float3(1.0, 1.0, 1.0);
+                    if (input.BucketTag == 1u) tagColor = float3(1.0, 0.0, 0.0);
+                    else if (input.BucketTag == 2u) tagColor = float3(0.0, 1.0, 0.0);
+                    else if (input.BucketTag == 3u) tagColor = float3(0.0, 0.0, 1.0);
+                    else if (input.BucketTag == 4u) tagColor = float3(1.0, 1.0, 0.0);
+                    return float4(tex.rgb * tagColor * p.Tint.rgb, tex.a * p.Tint.a);
+                }
+            }
+            """;
+
+        using (host!)
+        {
+            RenderingSystem rendering = host.RenderingSystem;
+            const int width = 256;
+            const int height = 128;
+
+            Texture colorTarget = CreateColorTarget(rendering, width, height);
+            Texture depthTarget = CreateDepthTarget(rendering, width, height);
+            Texture texWhite = CreateRgbaTexture(rendering, 2, 2, (255, 255, 255, 255));
+
+            Shader shader = AlcoMesh3DShaders.ComposeMeshScene3DSurfaceFromSource(
+                rendering.Shaders,
+                tagSurfaceModule,
+                tagSurfaceModule + ".slang",
+                tagSurfaceSource,
+                "TestBucketTagMdi");
+
+            Material matA = shader.CreateMaterial("MdiMatA", false);
+            matA.Blend = BlendState.Opaque;
+            matA.Rasterization = RasterizationState.CullNone;
+            matA.DepthStencilState = DepthStencilState.Write;
+            Vector4 tintA = Vector4.One;
+            matA.SetData("Material.Tint", ref tintA);
+
+            Material matB = shader.CreateMaterial("MdiMatB", false);
+            matB.Blend = BlendState.Opaque;
+            matB.Rasterization = RasterizationState.CullNone;
+            matB.DepthStencilState = DepthStencilState.Write;
+            Vector4 tintB = new(0.5f, 0.5f, 0.5f, 1.0f);
+            matB.SetData("Material.Tint", ref tintB);
+
+            Material overrideMat = shader.CreateMaterial("MdiMatOverride", false);
+            overrideMat.Blend = BlendState.Opaque;
+            overrideMat.Rasterization = RasterizationState.CullNone;
+            overrideMat.DepthStencilState = DepthStencilState.Write;
+            Vector4 tintOverride = new(0.35f, 0.35f, 0.35f, 1.0f);
+            overrideMat.SetData("Material.Tint", ref tintOverride);
+
+            // Geometry 0 (UInt16, FirstIndex=6, VertexOffset=4)
+            VertexPBR[] verts0 =
+            [
+                new VertexPBR(new Vector3(5000f, 5000f, 0f), Vector3.UnitZ, Vector2.Zero),
+                new VertexPBR(new Vector3(5010f, 5000f, 0f), Vector3.UnitZ, Vector2.Zero),
+                new VertexPBR(new Vector3(5010f, 5010f, 0f), Vector3.UnitZ, Vector2.Zero),
+                new VertexPBR(new Vector3(5000f, 5010f, 0f), Vector3.UnitZ, Vector2.Zero),
+                new VertexPBR(new Vector3(-8f, -8f, 0f), Vector3.UnitZ, new Vector2(0f, 1f)),
+                new VertexPBR(new Vector3(8f, -8f, 0f), Vector3.UnitZ, new Vector2(1f, 1f)),
+                new VertexPBR(new Vector3(8f, 8f, 0f), Vector3.UnitZ, new Vector2(1f, 0f)),
+                new VertexPBR(new Vector3(-8f, 8f, 0f), Vector3.UnitZ, new Vector2(0f, 0f)),
+            ];
+            ushort[] idx0 = [0, 1, 2, 0, 2, 3, 0, 1, 2, 0, 2, 3];
+            using ModelGeometry geom0 = ModelGeometry.Create<VertexPBR>(
+                rendering, verts0, idx0, new Vector3(-8f, -8f, 0f), new Vector3(8f, 8f, 0f), "MdiQuad16Offset");
+
+            // Geometry 1 (UInt32, standard)
+            using ModelGeometry geom1 = CreateQuadGeometry(rendering, 8f, "MdiQuad32A");
+
+            // Geometry 2 (UInt32, FirstIndex=6, VertexOffset=4)
+            VertexPBR[] verts2 =
+            [
+                new VertexPBR(new Vector3(4000f, 4000f, 0f), Vector3.UnitZ, Vector2.Zero),
+                new VertexPBR(new Vector3(4010f, 4000f, 0f), Vector3.UnitZ, Vector2.Zero),
+                new VertexPBR(new Vector3(4010f, 4010f, 0f), Vector3.UnitZ, Vector2.Zero),
+                new VertexPBR(new Vector3(4000f, 4010f, 0f), Vector3.UnitZ, Vector2.Zero),
+                new VertexPBR(new Vector3(-9f, -9f, 0f), Vector3.UnitZ, new Vector2(0f, 1f)),
+                new VertexPBR(new Vector3(9f, -9f, 0f), Vector3.UnitZ, new Vector2(1f, 1f)),
+                new VertexPBR(new Vector3(9f, 9f, 0f), Vector3.UnitZ, new Vector2(1f, 0f)),
+                new VertexPBR(new Vector3(-9f, 9f, 0f), Vector3.UnitZ, new Vector2(0f, 0f)),
+            ];
+            uint[] idx2 = [0u, 1u, 2u, 0u, 2u, 3u, 0u, 1u, 2u, 0u, 2u, 3u];
+            using ModelGeometry geom2 = ModelGeometry.Create<VertexPBR>(
+                rendering, verts2, idx2, new Vector3(-9f, -9f, 0f), new Vector3(9f, 9f, 0f), "MdiQuad32Offset");
+
+            // Geometry 3 (UInt32, matB) & Geometry 4 (UInt32, empty middle bucket)
+            using ModelGeometry geom3 = CreateQuadGeometry(rendering, 8f, "MdiQuad32B");
+            using ModelGeometry geom4Empty = CreateQuadGeometry(rendering, 5f, "MdiQuad32Empty");
+
+            using var scene = new MeshScene3D(rendering);
+            var handles = new List<GpuInstancePool<MeshScene3DInstance>.Registration>();
+            var context = new RenderContext(rendering);
+
+            try
+            {
+                uint bucket0 = scene.RegisterBucket(new MeshScene3DBucketDesc(
+                    Tier: 0,
+                    Geometry: geom0,
+                    Material: matA,
+                    DepthStencil: DepthStencilState.Write,
+                    BucketTag: 1u,
+                    FirstIndex: 6u,
+                    IndexCount: 6u,
+                    VertexOffset: 4,
+                    LocalBoundsMin: new Vector3(-8f, -8f, 0f),
+                    LocalBoundsMax: new Vector3(8f, 8f, 0f)));
+
+                uint bucket1 = scene.RegisterBucket(new MeshScene3DBucketDesc(0, geom1, matA, DepthStencilState.Write, BucketTag: 2u));
+                _ = scene.RegisterBucket(new MeshScene3DBucketDesc(0, geom4Empty, matA, DepthStencilState.Write, BucketTag: 1u));
+                uint bucket2 = scene.RegisterBucket(new MeshScene3DBucketDesc(
+                    Tier: 0,
+                    Geometry: geom2,
+                    Material: matA,
+                    DepthStencil: DepthStencilState.Write,
+                    BucketTag: 3u,
+                    FirstIndex: 6u,
+                    IndexCount: 6u,
+                    VertexOffset: 4,
+                    LocalBoundsMin: new Vector3(-9f, -9f, 0f),
+                    LocalBoundsMax: new Vector3(9f, 9f, 0f)));
+                uint bucket3 = scene.RegisterBucket(new MeshScene3DBucketDesc(0, geom3, matB, DepthStencilState.Write, BucketTag: 4u));
+
+                GpuInstancePool<MeshScene3DInstance>.Registration swappable =
+                    scene.RegisterDeferred(bucket0, MakeInstance(new Vector3(-75f, 20f, 0f), Quaternion.Identity, Vector3.One, texWhite, 1u), texWhite);
+                handles.Add(swappable);
+                handles.Add(scene.RegisterDeferred(bucket1, MakeInstance(new Vector3(-25f, 20f, 0f), Quaternion.Identity, Vector3.One, texWhite, 1u), texWhite));
+                handles.Add(scene.RegisterDeferred(bucket2, MakeInstance(new Vector3(25f, 20f, 0f), Quaternion.Identity, Vector3.One, texWhite, 1u), texWhite));
+                handles.Add(scene.RegisterDeferred(bucket3, MakeInstance(new Vector3(75f, 20f, 0f), Quaternion.Identity, Vector3.One, texWhite, 1u), texWhite));
+
+                var camera = new Camera2D { Size = new Vector2(width, height), Near = -50f, Far = 50f };
+                var passSig = new RenderPassSignature([Format.Rgba8Unorm], Format.D32Float);
+                var passDesc = new RenderingDesc
+                {
+                    Colors = [new ColorAttachment { Target = colorTarget, Load = LoadOp.Clear, Store = StoreOp.Store, Clear = new Vector4(0f, 0f, 0f, 1f) }],
+                    Depth = new DepthAttachment { Target = depthTarget, Load = LoadOp.Clear, Store = StoreOp.Store, Clear = 1f },
+                };
+
+                // Frame 1: Normal pass splits by (Material, IndexType, HeapPage) -> 3 calls on MDI vs 4 on single-draw.
+                context.BeginFrame();
+                scene.PrepareAndCull(context, MeshScene3DCullView.FromCamera(camera, cullMargin: 0f));
+                int drawCalls1;
+                using (RenderContext.RenderScope render = context.BeginRenderPass(passDesc, passSig))
+                {
+                    render.SetViewport(new Viewport { Width = width, Height = height });
+                    render.SetScissor(new Scissor { Width = width, Height = height });
+                    drawCalls1 = scene.RenderTier(context, in render, tier: 0, camera);
+                }
+
+                _ = ReadBackIndexedDrawArgsAndSubmit(host.Device, context, scene.DrawArgsBuffer, scene.BucketCount);
+                byte[] pixels1 = ReadBackRgba8FreshFrame(host.Device, rendering, colorTarget, width, height);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(drawCalls1, Is.EqualTo(scene.IsMultiDrawEnabled ? 3 : 4));
+
+                    (byte r0, byte g0, byte b0, _) = SampleWorldPixel(pixels1, width, height, -75f, 20f);
+                    Assert.That(r0, Is.GreaterThan((byte)220));
+                    Assert.That(g0, Is.LessThan((byte)20));
+                    Assert.That(b0, Is.LessThan((byte)20));
+
+                    (byte r1, byte g1, byte b1, _) = SampleWorldPixel(pixels1, width, height, -25f, 20f);
+                    Assert.That(g1, Is.GreaterThan((byte)220));
+                    Assert.That(r1, Is.LessThan((byte)20));
+                    Assert.That(b1, Is.LessThan((byte)20));
+
+                    (byte r2, byte g2, byte b2, _) = SampleWorldPixel(pixels1, width, height, 25f, 20f);
+                    Assert.That(b2, Is.GreaterThan((byte)220));
+                    Assert.That(r2, Is.LessThan((byte)20));
+                    Assert.That(g2, Is.LessThan((byte)20));
+
+                    (byte r3, byte g3, byte b3, _) = SampleWorldPixel(pixels1, width, height, 75f, 20f);
+                    Assert.That(r3, Is.InRange((byte)100, (byte)155));
+                    Assert.That(g3, Is.InRange((byte)100, (byte)155));
+                    Assert.That(b3, Is.LessThan((byte)20));
+                });
+
+                // Frame 2: Switch UInt16 instance into UInt32 bucket2 and render with materialOverride -> 1 MDI draw call across matA + matB.
+                swappable.SetBucket(bucket2);
+                context.BeginFrame();
+                scene.PrepareAndCull(context, MeshScene3DCullView.FromCamera(camera, cullMargin: 0f));
+                int drawCalls2;
+                using (RenderContext.RenderScope render = context.BeginRenderPass(passDesc, passSig))
+                {
+                    render.SetViewport(new Viewport { Width = width, Height = height });
+                    render.SetScissor(new Scissor { Width = width, Height = height });
+                    drawCalls2 = scene.RenderTier(
+                        context,
+                        in render,
+                        tier: 0,
+                        camera,
+                        materialOverride: overrideMat,
+                        depthStencilOverride: DepthStencilState.Write);
+                }
+
+                _ = ReadBackIndexedDrawArgsAndSubmit(host.Device, context, scene.DrawArgsBuffer, scene.BucketCount);
+                byte[] pixels2 = ReadBackRgba8FreshFrame(host.Device, rendering, colorTarget, width, height);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(drawCalls2, Is.EqualTo(scene.IsMultiDrawEnabled ? 1 : 3));
+
+                    // Swapped instance at (-75, 20) now draws bucket2 (Tag=3 blue) with overrideMat tint (0.35).
+                    (byte r0, byte g0, byte b0, _) = SampleWorldPixel(pixels2, width, height, -75f, 20f);
+                    Assert.That(b0, Is.InRange((byte)60, (byte)120));
+                    Assert.That(r0, Is.LessThan((byte)20));
+                    Assert.That(g0, Is.LessThan((byte)20));
+
+                    (byte r1, byte g1, byte b1, _) = SampleWorldPixel(pixels2, width, height, -25f, 20f);
+                    Assert.That(g1, Is.InRange((byte)60, (byte)120));
+                    Assert.That(r1, Is.LessThan((byte)20));
+                    Assert.That(b1, Is.LessThan((byte)20));
+
+                    (byte r2, byte g2, byte b2, _) = SampleWorldPixel(pixels2, width, height, 25f, 20f);
+                    Assert.That(b2, Is.InRange((byte)60, (byte)120));
+                    Assert.That(r2, Is.LessThan((byte)20));
+                    Assert.That(g2, Is.LessThan((byte)20));
+
+                    (byte r3, byte g3, byte b3, _) = SampleWorldPixel(pixels2, width, height, 75f, 20f);
+                    Assert.That(r3, Is.InRange((byte)60, (byte)120));
+                    Assert.That(g3, Is.InRange((byte)60, (byte)120));
+                    Assert.That(b3, Is.LessThan((byte)20));
+                });
+            }
+            finally
+            {
+                for (int i = 0; i < handles.Count; ++i)
+                {
+                    handles[i].Dispose();
+                }
+
+                context.Dispose();
+                if (!colorTarget.IsDisposed) colorTarget.Dispose();
+                if (!depthTarget.IsDisposed) depthTarget.Dispose();
+                if (!texWhite.IsDisposed) texWhite.Dispose();
             }
         }
     }

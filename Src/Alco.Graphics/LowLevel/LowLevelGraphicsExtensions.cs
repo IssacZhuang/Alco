@@ -281,6 +281,12 @@ public static class LowLevelGraphicsExtensions
         scope.DrawIndexedIndirectLowLevel(material, root, depthStencil, indices, type, arguments,
             drawCount, stride, argumentByteOffset, indexByteOffset);
 
+    /// <summary>Records an indexed indirect draw with explicit low-level <see cref="GPURange"/> root, index, and argument spans.</summary>
+    public static void DrawIndexedIndirect(this RenderContext.RenderScope scope, Material material, GPURange root,
+        DepthStencilState depthStencil, GPURange indices, IndexType type, GPURange arguments,
+        uint drawCount = 1, uint stride = 0) =>
+        scope.DrawIndexedIndirectLowLevel(material, root, depthStencil, indices, type, arguments, drawCount, stride);
+
     /// <summary>Records a compute dispatch with an explicit prepacked <see cref="GPURange"/> root.</summary>
     public static void Dispatch(this RenderContext.ComputeScope scope, Material material, GPURange root, Extent3D groupCount) =>
         scope.DispatchLowLevel(material, root, groupCount);

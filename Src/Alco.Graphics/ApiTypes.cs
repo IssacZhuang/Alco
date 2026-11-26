@@ -404,6 +404,9 @@ public sealed class DeviceCaps
 
     /// <summary>Compacted-size queries and compact copies on a device that supports inline ray queries.</summary>
     public bool AccelerationStructureCompaction { get; internal set; }
+
+    /// <summary>Maximum draw count accepted by a single multi-draw indirect command.</summary>
+    public uint MaxIndirectDrawCount { get; internal set; }
 }
 
 /// <summary>The graphics backend selected when creating a device.</summary>

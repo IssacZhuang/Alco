@@ -39,5 +39,5 @@ public void mainCS(uint3 id : SV_DispatchThreadID)
     args.FirstIndex = meta.FirstIndex;
     args.VertexOffset = meta.VertexOffset;
     args.FirstInstance = 0u;
-    gpu_store<DrawIndexedIndirectArgs>(root.DrawArgs, id.x, args);
+    gpu_store<DrawIndexedIndirectArgs>(root.DrawArgs, meta.DrawSlot, args);
 }

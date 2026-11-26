@@ -12,15 +12,22 @@ public struct MeshScene3DPassRoot<T : IMeshScene3DSurface>
 };
 
 [shader("vertex")]
+#ifdef ALCO_GRAPHICS_DRAW_INDEX
+public MeshScene3DVsOut vsMain<T : IMeshScene3DSurface>(uint vertexId : SV_VertexID, uint instanceId : SV_InstanceID, uint drawId : SV_DrawIndex)
+{
+#else
 public MeshScene3DVsOut vsMain<T : IMeshScene3DSurface>(uint vertexId : SV_VertexID, uint instanceId : SV_InstanceID)
 {
+    uint drawId = 0u;
+#endif
     MeshScene3DPassRoot<T> root = gpu_load_root<MeshScene3DPassRoot<T>>();
-    uint slot = meshScene3DLoadSlot(root.Pass.VisibleSlots, instanceId);
+    MeshScene3DDrawEntry drawEntry = meshScene3DLoadDrawEntry(root.Pass.DrawEntries, drawId);
+    uint slot = meshScene3DLoadSlot(root.Pass.VisibleSlots, drawEntry.VisibleBase + instanceId);
     MeshScene3DInstance inst = meshScene3DLoadInstance(root.Pass.Pool, slot);
     inst.World0.w -= root.Pass.OriginOffset.x;
     inst.World1.w -= root.Pass.OriginOffset.y;
     inst.World2.w -= root.Pass.OriginOffset.z;
-    MeshScene3DVertex vert = meshScene3DLoadVertex(root.Pass.Vertices, vertexId);
+    MeshScene3DVertex vert = meshScene3DLoadVertex(drawEntry.Vertices, vertexId);
 
     MeshScene3DVertexInput vertexInput;
     vertexInput.VertexId = vertexId;
@@ -29,7 +36,7 @@ public MeshScene3DVsOut vsMain<T : IMeshScene3DSurface>(uint vertexId : SV_Verte
     vertexInput.Vertex = vert;
     vertexInput.Instance = inst;
     vertexInput.Time = root.Pass.Time;
-    vertexInput.BucketTag = root.Pass.BucketTag;
+    vertexInput.BucketTag = drawEntry.BucketTag;
     vertexInput.PassFlags = root.Pass.PassFlags;
     vertexInput.UserParams = root.Pass.UserParams;
     vertexInput.MaterialParams = root.Pass.MaterialParams;
@@ -53,6 +60,7 @@ public MeshScene3DVsOut vsMain<T : IMeshScene3DSurface>(uint vertexId : SV_Verte
     output.MaterialParamId = inst.MaterialParamId;
     output.UserData0 = inst.UserData0;
     output.UserData1 = inst.UserData1;
+    output.BucketTag = drawEntry.BucketTag;
     return output;
 }
 
@@ -80,7 +88,7 @@ public float4 psMain<T : IMeshScene3DSurface, let alphaTest : bool>(MeshScene3DV
     surf.Flags = input.Flags;
     surf.UserData0 = input.UserData0;
     surf.UserData1 = input.UserData1;
-    surf.BucketTag = root.Pass.BucketTag;
+    surf.BucketTag = input.BucketTag;
     surf.PassFlags = root.Pass.PassFlags;
     surf.Time = root.Pass.Time;
     surf.UserParams = root.Pass.UserParams;

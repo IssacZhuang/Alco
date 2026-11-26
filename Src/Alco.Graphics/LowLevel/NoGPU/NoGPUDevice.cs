@@ -35,6 +35,7 @@ internal sealed unsafe class NoGPUDevice : GPUDevice
             TextureCompressionAstc = true,
             StorageInputOutput16 = false,
             IndirectMeshDraw = false,
+            MaxIndirectDrawCount = 1u,
         };
         QueueCount = Capabilities.QueueCount;
         TimestampQueryCount = desc.TimestampQueryCount;

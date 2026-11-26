@@ -1,6 +1,7 @@
 using System.Numerics;
 using System.Runtime.InteropServices;
 using Alco.Graphics;
+using Alco.Graphics.LowLevel;
 
 namespace Alco.Rendering;
 
@@ -12,6 +13,7 @@ namespace Alco.Rendering;
 public sealed unsafe class MeshScene3D : AutoDisposable
 {
     private const int InitialBucketCapacity = 64;
+    private const uint IndexedArgsStride = 20u;
 
     private sealed class BucketState
     {
@@ -22,7 +24,16 @@ public sealed unsafe class MeshScene3D : AutoDisposable
         public required int VertexOffset;
         public required Vector3 LocalCenter;
         public required Vector3 LocalExtent;
+        public GPUHeapOwner? IndexHeapOwner;
+        public uint PageFirstIndex;
+        public ulong PageEndBytes;
+        public bool CanBatchInPage;
+        public uint DrawSlot;
         public uint VisibleBase;
+        public int SortHeapId;
+        public int SortParamsId;
+        public int SortMaterialId;
+        public int SortDepthId;
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -77,13 +88,23 @@ public sealed unsafe class MeshScene3D : AutoDisposable
 
     private readonly List<BucketState> _buckets = new();
     private readonly Dictionary<int, List<BucketState>> _tiers = new();
+    private readonly List<int> _tierKeys = new();
+    private readonly Dictionary<GPUHeapOwner, int> _heapSortIds = new(ReferenceEqualityComparer.Instance);
+    private readonly Dictionary<Alco.Graphics.Buffer, int> _paramsBufferSortIds = new(ReferenceEqualityComparer.Instance);
+    private readonly Dictionary<Material, int> _materialSortIds = new(ReferenceEqualityComparer.Instance);
+    private readonly Dictionary<DepthStencilState, int> _depthSortIds = new();
     private readonly MeshScene3DCullOutput _defaultCullOutput;
+    private readonly int _maxIndirectDrawCount;
+    private readonly bool _multiDrawEnabled;
 
     private MeshScene3DBucketMeta[] _bucketMetaStaging = new MeshScene3DBucketMeta[InitialBucketCapacity];
+    private MeshScene3DDrawEntry[] _drawEntriesStaging = new MeshScene3DDrawEntry[InitialBucketCapacity];
     private uint[] _bucketSlotIndices = BuildSequentialIndices(InitialBucketCapacity);
     private Alco.Graphics.Buffer _bucketMetaBuffer;
+    private Alco.Graphics.Buffer _drawEntriesBuffer;
     private int _bucketCapacity = InitialBucketCapacity;
     private bool _bucketsDirty = true;
+    private bool _layoutDirty = true;
     private int _drawCallsSubmitted;
 
     /// <summary>Creates a GPU-driven 3D mesh scene backed by <paramref name="system"/>.</summary>
@@ -104,9 +125,18 @@ public sealed unsafe class MeshScene3D : AutoDisposable
 
         VerifyLayouts();
 
+        _maxIndirectDrawCount = system.ActiveBackend is GraphicsBackend.Vulkan or GraphicsBackend.VulkanCompact
+            ? (int)Math.Min(65535u, system.Caps.MaxIndirectDrawCount)
+            : 0;
+        _multiDrawEnabled = _maxIndirectDrawCount > 1;
+
         _bucketMetaBuffer = system.CreateBuffer((ulong)_bucketCapacity * (ulong)sizeof(MeshScene3DBucketMeta));
+        _drawEntriesBuffer = system.CreateBuffer((ulong)_bucketCapacity * (ulong)sizeof(MeshScene3DDrawEntry));
         _defaultCullOutput = new MeshScene3DCullOutput(system, _bucketCapacity, _pool.SlotCapacity);
     }
+
+    /// <summary>Gets whether multi-draw indirect batching is enabled for the active graphics backend.</summary>
+    public bool IsMultiDrawEnabled => _multiDrawEnabled;
 
     /// <summary>Gets the persistent GPU buffer storing all <see cref="MeshScene3DInstance"/> slots.</summary>
     public Alco.Graphics.Buffer PoolBuffer => _pool.PoolBuffer;
@@ -119,6 +149,17 @@ public sealed unsafe class MeshScene3D : AutoDisposable
 
     /// <summary>Gets the current number of registered draw buckets.</summary>
     public int BucketCount => _buckets.Count;
+
+    /// <summary>Gets the contiguous draw slot assigned to <paramref name="bucketId"/> inside draw argument and draw entry buffers.</summary>
+    /// <param name="bucketId">Bucket identifier returned by <see cref="RegisterBucket"/>.</param>
+    /// <returns>Zero-based contiguous draw slot index.</returns>
+    public uint GetBucketDrawSlot(uint bucketId)
+    {
+        ObjectDisposedException.ThrowIf(IsDisposed, this);
+        ValidateBucketId(bucketId);
+        EnsureDrawLayout();
+        return _buckets[(int)bucketId].DrawSlot;
+    }
 
     /// <summary>Gets scene telemetry from the latest sync, cull, and render calls.</summary>
     public MeshScene3DStats Stats => new(
@@ -182,6 +223,13 @@ public sealed unsafe class MeshScene3D : AutoDisposable
                 $"Bucket index range [{desc.FirstIndex}, {desc.FirstIndex + resolvedIndexCount}) exceeds Geometry.IndexCount ({desc.Geometry.IndexCount}).");
         }
 
+        if (desc.VertexOffset < 0 || (uint)desc.VertexOffset >= desc.Geometry.VertexCount)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(desc),
+                $"Bucket VertexOffset ({desc.VertexOffset}) must be in [0, {desc.Geometry.VertexCount}).");
+        }
+
         if (desc.Material.Shader.Kind != ShaderKind.Graphics ||
             desc.Material.Root.SizeBytes < (uint)sizeof(MeshScene3DPassHeader))
         {
@@ -195,6 +243,30 @@ public sealed unsafe class MeshScene3D : AutoDisposable
         Vector3 center = (bMin + bMax) * 0.5f;
         Vector3 extent = Vector3.Abs((bMax - bMin) * 0.5f);
 
+        GPURange idxRange = desc.Geometry.IndexBuffer.GetRange();
+        ulong idxStride = desc.Geometry.IndexType == IndexType.UInt16 ? 2ul : 4ul;
+        ulong relEndBytes = (ulong)(desc.FirstIndex + resolvedIndexCount) * idxStride;
+        bool canBatch = _multiDrawEnabled
+            && idxRange.Buffer != null
+            && (idxRange.Offset & (idxStride - 1ul)) == 0ul
+            && relEndBytes <= idxRange.Size;
+        uint pageFirstIndex = desc.FirstIndex;
+        ulong pageEndBytes = 0ul;
+        if (canBatch)
+        {
+            ulong pageFirst = idxRange.Offset / idxStride + desc.FirstIndex;
+            ulong pageEnd = idxRange.Offset + relEndBytes;
+            if (pageFirst <= uint.MaxValue && pageEnd >= idxRange.Offset)
+            {
+                pageFirstIndex = (uint)pageFirst;
+                pageEndBytes = pageEnd;
+            }
+            else
+            {
+                canBatch = false;
+            }
+        }
+
         uint bucketId = (uint)_buckets.Count;
         BucketState state = new()
         {
@@ -205,6 +277,11 @@ public sealed unsafe class MeshScene3D : AutoDisposable
             VertexOffset = desc.VertexOffset,
             LocalCenter = center,
             LocalExtent = extent,
+            IndexHeapOwner = canBatch ? idxRange.Buffer : null,
+            PageFirstIndex = pageFirstIndex,
+            PageEndBytes = pageEndBytes,
+            CanBatchInPage = canBatch,
+            DrawSlot = bucketId,
         };
         _buckets.Add(state);
 
@@ -215,6 +292,7 @@ public sealed unsafe class MeshScene3D : AutoDisposable
         }
 
         tierList.Add(state);
+        _layoutDirty = true;
         _bucketsDirty = true;
         return bucketId;
     }
@@ -332,7 +410,7 @@ public sealed unsafe class MeshScene3D : AutoDisposable
         {
             context.Barrier(
                 Stage.Compute, Access.ShaderWrite,
-                Stage.Compute, Access.ShaderRead | Access.ShaderWrite);
+                Stage.Compute | Stage.Vertex | Stage.Pixel, Access.ShaderRead);
         }
     }
 
@@ -496,54 +574,168 @@ public sealed unsafe class MeshScene3D : AutoDisposable
             return 0;
         }
 
+        EnsureDrawLayout();
         MeshScene3DCullOutput activeOutput = cullOutput ?? _defaultCullOutput;
         int submitted = 0;
         GPUBufferView poolView = _pool.PoolBuffer.View;
         GPUBufferView visibleBaseView = activeOutput.VisibleSlotsBuffer.View;
         Alco.Graphics.Buffer drawArgsBuffer = activeOutput.DrawArgsBuffer;
 
-        for (int i = 0; i < tierBuckets.Count; ++i)
+        if (!_multiDrawEnabled)
         {
-            BucketState bucket = tierBuckets[i];
-            if (_pool.GetBucketCount(bucket.Id) == 0)
+            for (int i = 0; i < tierBuckets.Count; ++i)
             {
+                BucketState bucket = tierBuckets[i];
+                if (_pool.GetBucketCount(bucket.Id) == 0)
+                {
+                    continue;
+                }
+
+                submitted += SubmitSingleBucket(
+                    context,
+                    in render,
+                    bucket,
+                    in viewProjection,
+                    time,
+                    userParams,
+                    passFlags,
+                    poolView,
+                    visibleBaseView,
+                    drawArgsBuffer,
+                    materialOverride,
+                    depthStencilOverride,
+                    originOffset);
+            }
+
+            _drawCallsSubmitted += submitted;
+            return submitted;
+        }
+
+        int index = 0;
+        int bucketCount = tierBuckets.Count;
+        while (index < bucketCount)
+        {
+            BucketState first = tierBuckets[index];
+            if (!first.CanBatchInPage)
+            {
+                if (_pool.GetBucketCount(first.Id) > 0)
+                {
+                    submitted += SubmitSingleBucket(
+                        context,
+                        in render,
+                        first,
+                        in viewProjection,
+                        time,
+                        userParams,
+                        passFlags,
+                        poolView,
+                        visibleBaseView,
+                        drawArgsBuffer,
+                        materialOverride,
+                        depthStencilOverride,
+                        originOffset);
+                }
+
+                ++index;
                 continue;
             }
 
-            Material material = materialOverride ?? bucket.Desc.Material;
-            DepthStencilState depthStencil = depthStencilOverride ?? bucket.Desc.DepthStencil;
-            Alco.Graphics.Buffer? matParams = bucket.Desc.MaterialParamsBuffer;
+            Material runMaterial = materialOverride ?? first.Desc.Material;
+            DepthStencilState runDepth = depthStencilOverride ?? first.Desc.DepthStencil;
+            Alco.Graphics.Buffer? runMatParams = first.Desc.MaterialParamsBuffer;
+            GPUHeapOwner runHeap = first.IndexHeapOwner!;
+            IndexType runIndexType = first.Desc.Geometry.IndexType;
 
-            MeshScene3DPassHeader header = new()
+            int runEnd = index + 1;
+            while (runEnd < bucketCount)
             {
-                ViewProjection = viewProjection,
-                Vertices = bucket.Desc.Geometry.VertexBuffer.View,
-                Pool = poolView,
-                VisibleSlots = visibleBaseView.OffsetBy(bucket.VisibleBase * sizeof(uint)),
-                MaterialParams = matParams != null ? matParams.View : default,
-                UserParams = userParams,
-                Time = time,
-                BucketTag = bucket.Desc.BucketTag,
-                HasMaterialParams = matParams != null ? 1u : 0u,
-                PassFlags = passFlags,
-                OriginOffset = originOffset,
-            };
+                BucketState next = tierBuckets[runEnd];
+                if (!next.CanBatchInPage)
+                {
+                    break;
+                }
 
-            uint rootSize = material.Root.SizeBytes;
-            Span<byte> dest = context.AllocateTransient<byte>(checked((int)rootSize), out BufferSlice rootSlice);
-            material.CopyRoot(dest);
-            MemoryMarshal.Write(dest, in header);
+                Material nextMaterial = materialOverride ?? next.Desc.Material;
+                DepthStencilState nextDepth = depthStencilOverride ?? next.Desc.DepthStencil;
+                if (!ReferenceEquals(nextMaterial, runMaterial)
+                    || !nextDepth.Equals(runDepth)
+                    || !ReferenceEquals(next.Desc.MaterialParamsBuffer, runMatParams)
+                    || !ReferenceEquals(next.IndexHeapOwner, runHeap)
+                    || next.Desc.Geometry.IndexType != runIndexType)
+                {
+                    break;
+                }
 
-            render.DrawIndexedIndirect(
-                material,
-                rootSlice,
-                depthStencil,
-                bucket.Desc.Geometry.IndexBuffer,
-                bucket.Desc.Geometry.IndexType,
-                drawArgsBuffer.Slice((ulong)bucket.Id * (ulong)sizeof(GpuDrawIndexedIndirectArgs)),
-                drawCount: 1u,
-                stride: 0u);
-            ++submitted;
+                ++runEnd;
+            }
+
+            int trimmedStart = index;
+            while (trimmedStart < runEnd && _pool.GetBucketCount(tierBuckets[trimmedStart].Id) == 0)
+            {
+                ++trimmedStart;
+            }
+
+            int trimmedEnd = runEnd;
+            while (trimmedEnd > trimmedStart && _pool.GetBucketCount(tierBuckets[trimmedEnd - 1].Id) == 0)
+            {
+                --trimmedEnd;
+            }
+
+            if (trimmedStart < trimmedEnd)
+            {
+                ulong pageEnd = 0ul;
+                for (int k = trimmedStart; k < trimmedEnd; ++k)
+                {
+                    if (tierBuckets[k].PageEndBytes > pageEnd)
+                    {
+                        pageEnd = tierBuckets[k].PageEndBytes;
+                    }
+                }
+
+                uint firstDrawSlot = tierBuckets[trimmedStart].DrawSlot;
+                int totalDraws = trimmedEnd - trimmedStart;
+                GPURange pageIndexRange = new() { Buffer = runHeap, Offset = 0ul, Size = pageEnd };
+
+                for (int chunkOffset = 0; chunkOffset < totalDraws;)
+                {
+                    int chunkCount = Math.Min(totalDraws - chunkOffset, _maxIndirectDrawCount);
+                    uint chunkFirstSlot = firstDrawSlot + (uint)chunkOffset;
+                    BucketState chunkLead = tierBuckets[trimmedStart + chunkOffset];
+
+                    BufferSlice rootSlice = BuildPassRootSlice(
+                        context,
+                        runMaterial,
+                        in viewProjection,
+                        poolView,
+                        visibleBaseView,
+                        runMatParams,
+                        chunkFirstSlot,
+                        chunkLead.Desc.BucketTag,
+                        time,
+                        userParams,
+                        passFlags,
+                        originOffset);
+
+                    BufferSlice argsSlice = drawArgsBuffer.Slice(
+                        (ulong)chunkFirstSlot * IndexedArgsStride,
+                        (ulong)chunkCount * IndexedArgsStride);
+
+                    render.DrawIndexedIndirect(
+                        runMaterial,
+                        rootSlice.GetRange(),
+                        runDepth,
+                        pageIndexRange,
+                        runIndexType,
+                        argsSlice.GetRange(),
+                        drawCount: (uint)chunkCount,
+                        stride: IndexedArgsStride);
+
+                    ++submitted;
+                    chunkOffset += chunkCount;
+                }
+            }
+
+            index = runEnd;
         }
 
         _drawCallsSubmitted += submitted;
@@ -566,6 +758,16 @@ public sealed unsafe class MeshScene3D : AutoDisposable
         {
             _bucketMetaBuffer.Dispose();
         }
+
+        if (!_drawEntriesBuffer.IsDisposed)
+        {
+            _drawEntriesBuffer.Dispose();
+        }
+
+        _heapSortIds.Clear();
+        _paramsBufferSortIds.Clear();
+        _materialSortIds.Clear();
+        _depthSortIds.Clear();
     }
 
     private static void SynchronizeCullOutputReuse(RenderContext context)
@@ -642,6 +844,7 @@ public sealed unsafe class MeshScene3D : AutoDisposable
 
     private void UploadBucketMeta(RenderContext context, in RenderContext.ComputeScope compute)
     {
+        EnsureDrawLayout();
         int count = _buckets.Count;
         uint prefix = 0;
         for (int i = 0; i < count; ++i)
@@ -654,27 +857,50 @@ public sealed unsafe class MeshScene3D : AutoDisposable
                 IndexCount = bucket.IndexCount,
                 VisibleBase = bucket.VisibleBase,
                 BucketTag = bucket.Desc.BucketTag,
-                FirstIndex = bucket.FirstIndex,
+                FirstIndex = bucket.CanBatchInPage ? bucket.PageFirstIndex : bucket.FirstIndex,
                 LocalCenter = bucket.LocalCenter,
-                VertexOffset = bucket.VertexOffset,
+                VertexOffset = 0,
                 LocalExtent = bucket.LocalExtent,
+                DrawSlot = bucket.DrawSlot,
+            };
+            uint vertexByteOffset = checked((uint)bucket.VertexOffset * (uint)sizeof(VertexPBR));
+            _drawEntriesStaging[(int)bucket.DrawSlot] = new MeshScene3DDrawEntry
+            {
+                Vertices = bucket.Desc.Geometry.VertexBuffer.View.OffsetBy(vertexByteOffset),
+                VisibleBase = bucket.VisibleBase,
+                BucketTag = bucket.Desc.BucketTag,
             };
         }
 
-        Alco.Graphics.Buffer patchBuf = _transientBuffers.Acquire(context, (ulong)count * (ulong)sizeof(MeshScene3DBucketMeta));
+        Alco.Graphics.Buffer metaPatchBuf = _transientBuffers.Acquire(context, (ulong)count * (ulong)sizeof(MeshScene3DBucketMeta));
         Alco.Graphics.Buffer slotBuf = _transientBuffers.Acquire(context, (ulong)count * sizeof(uint));
-        patchBuf.SetData<MeshScene3DBucketMeta>(_bucketMetaStaging.AsSpan(0, count));
+        metaPatchBuf.SetData<MeshScene3DBucketMeta>(_bucketMetaStaging.AsSpan(0, count));
         slotBuf.SetData<uint>(_bucketSlotIndices.AsSpan(0, count));
 
-        InstanceScatterRoot scatterRoot = new()
+        Extent3D scatterGroups = new((uint)((count + 63) / 64), 1u, 1u);
+        InstanceScatterRoot metaScatterRoot = new()
         {
-            Patches = patchBuf.View,
+            Patches = metaPatchBuf.View,
             PatchSlots = slotBuf.View,
             Pool = _bucketMetaBuffer.View,
             PatchCount = (uint)count,
             WordsPerInstance = (uint)(sizeof(MeshScene3DBucketMeta) / 4),
         };
-        compute.Dispatch(_scatterShader, in scatterRoot, new Extent3D((uint)((count + 63) / 64), 1u, 1u));
+        compute.Dispatch(_scatterShader, in metaScatterRoot, scatterGroups);
+
+        Alco.Graphics.Buffer entryPatchBuf = _transientBuffers.Acquire(context, (ulong)count * (ulong)sizeof(MeshScene3DDrawEntry));
+        entryPatchBuf.SetData<MeshScene3DDrawEntry>(_drawEntriesStaging.AsSpan(0, count));
+
+        InstanceScatterRoot entryScatterRoot = new()
+        {
+            Patches = entryPatchBuf.View,
+            PatchSlots = slotBuf.View,
+            Pool = _drawEntriesBuffer.View,
+            PatchCount = (uint)count,
+            WordsPerInstance = (uint)(sizeof(MeshScene3DDrawEntry) / 4),
+        };
+        compute.Dispatch(_scatterShader, in entryScatterRoot, scatterGroups);
+
         compute.Barrier(
             Stage.Compute, Access.ShaderWrite,
             Stage.Compute, Access.ShaderRead);
@@ -689,11 +915,156 @@ public sealed unsafe class MeshScene3D : AutoDisposable
         }
 
         Array.Resize(ref _bucketMetaStaging, nextCapacity);
+        Array.Resize(ref _drawEntriesStaging, nextCapacity);
         _bucketSlotIndices = BuildSequentialIndices(nextCapacity);
         _bucketMetaBuffer.Dispose();
+        _drawEntriesBuffer.Dispose();
         _bucketMetaBuffer = _system.CreateBuffer((ulong)nextCapacity * (ulong)sizeof(MeshScene3DBucketMeta));
+        _drawEntriesBuffer = _system.CreateBuffer((ulong)nextCapacity * (ulong)sizeof(MeshScene3DDrawEntry));
         _bucketCapacity = nextCapacity;
         _bucketsDirty = true;
+    }
+
+    private BufferSlice BuildPassRootSlice(
+        RenderContext context,
+        Material material,
+        in Matrix4x4 viewProjection,
+        GPUBufferView poolView,
+        GPUBufferView visibleBaseView,
+        Alco.Graphics.Buffer? matParams,
+        uint firstDrawSlot,
+        uint bucketTag,
+        float time,
+        Vector4 userParams,
+        uint passFlags,
+        Vector3 originOffset)
+    {
+        MeshScene3DPassHeader header = new()
+        {
+            ViewProjection = viewProjection,
+            DrawEntries = _drawEntriesBuffer.GetView((ulong)firstDrawSlot * (ulong)sizeof(MeshScene3DDrawEntry)),
+            Pool = poolView,
+            VisibleSlots = visibleBaseView,
+            MaterialParams = matParams != null ? matParams.View : default,
+            UserParams = userParams,
+            Time = time,
+            BucketTag = bucketTag,
+            HasMaterialParams = matParams != null ? 1u : 0u,
+            PassFlags = passFlags,
+            OriginOffset = originOffset,
+        };
+
+        uint rootSize = material.Root.SizeBytes;
+        Span<byte> dest = context.AllocateTransient<byte>(checked((int)rootSize), out BufferSlice rootSlice);
+        material.CopyRoot(dest);
+        MemoryMarshal.Write(dest, in header);
+        return rootSlice;
+    }
+
+    private int SubmitSingleBucket(
+        RenderContext context,
+        in RenderContext.RenderScope render,
+        BucketState bucket,
+        in Matrix4x4 viewProjection,
+        float time,
+        Vector4 userParams,
+        uint passFlags,
+        GPUBufferView poolView,
+        GPUBufferView visibleBaseView,
+        Alco.Graphics.Buffer drawArgsBuffer,
+        Material? materialOverride,
+        DepthStencilState? depthStencilOverride,
+        Vector3 originOffset)
+    {
+        Material material = materialOverride ?? bucket.Desc.Material;
+        DepthStencilState depthStencil = depthStencilOverride ?? bucket.Desc.DepthStencil;
+        BufferSlice rootSlice = BuildPassRootSlice(
+            context,
+            material,
+            in viewProjection,
+            poolView,
+            visibleBaseView,
+            bucket.Desc.MaterialParamsBuffer,
+            bucket.DrawSlot,
+            bucket.Desc.BucketTag,
+            time,
+            userParams,
+            passFlags,
+            originOffset);
+
+        render.DrawIndexedIndirect(
+            material,
+            rootSlice,
+            depthStencil,
+            bucket.Desc.Geometry.IndexBuffer.Slice(),
+            bucket.Desc.Geometry.IndexType,
+            drawArgsBuffer.Slice((ulong)bucket.DrawSlot * IndexedArgsStride, IndexedArgsStride),
+            drawCount: 1u,
+            stride: 0u);
+        return 1;
+    }
+
+    private void EnsureDrawLayout()
+    {
+        if (!_layoutDirty)
+        {
+            return;
+        }
+
+        _tierKeys.Clear();
+        foreach (int tierKey in _tiers.Keys)
+        {
+            _tierKeys.Add(tierKey);
+        }
+        _tierKeys.Sort();
+
+        uint nextSlot = 0u;
+        for (int t = 0; t < _tierKeys.Count; ++t)
+        {
+            List<BucketState> tierBuckets = _tiers[_tierKeys[t]];
+            for (int i = 0; i < tierBuckets.Count; ++i)
+            {
+                BucketState b = tierBuckets[i];
+                b.SortHeapId = b.IndexHeapOwner == null ? -1 : GetOrAddSortId(_heapSortIds, b.IndexHeapOwner);
+                b.SortParamsId = b.Desc.MaterialParamsBuffer == null ? -1 : GetOrAddSortId(_paramsBufferSortIds, b.Desc.MaterialParamsBuffer);
+                b.SortMaterialId = GetOrAddSortId(_materialSortIds, b.Desc.Material);
+                b.SortDepthId = GetOrAddSortId(_depthSortIds, b.Desc.DepthStencil);
+            }
+
+            tierBuckets.Sort(static (a, b) =>
+            {
+                int c = b.CanBatchInPage.CompareTo(a.CanBatchInPage);
+                if (c != 0) return c;
+                c = a.SortHeapId.CompareTo(b.SortHeapId);
+                if (c != 0) return c;
+                c = ((int)a.Desc.Geometry.IndexType).CompareTo((int)b.Desc.Geometry.IndexType);
+                if (c != 0) return c;
+                c = a.SortParamsId.CompareTo(b.SortParamsId);
+                if (c != 0) return c;
+                c = a.SortMaterialId.CompareTo(b.SortMaterialId);
+                if (c != 0) return c;
+                c = a.SortDepthId.CompareTo(b.SortDepthId);
+                if (c != 0) return c;
+                return a.Id.CompareTo(b.Id);
+            });
+
+            for (int i = 0; i < tierBuckets.Count; ++i)
+            {
+                tierBuckets[i].DrawSlot = nextSlot++;
+            }
+        }
+
+        _layoutDirty = false;
+    }
+
+    private static int GetOrAddSortId<TKey>(Dictionary<TKey, int> map, TKey key) where TKey : notnull
+    {
+        if (!map.TryGetValue(key, out int id))
+        {
+            id = map.Count;
+            map.Add(key, id);
+        }
+        return id;
     }
 
     private void ValidateBucketId(uint bucketId)
@@ -706,6 +1077,11 @@ public sealed unsafe class MeshScene3D : AutoDisposable
 
     private void VerifyLayouts()
     {
+        if ((uint)sizeof(GpuDrawIndexedIndirectArgs) != IndexedArgsStride)
+        {
+            throw new InvalidOperationException("GpuDrawIndexedIndirectArgs stride mismatch.");
+        }
+
         if ((uint)sizeof(MeshScene3DResetArgsRoot) != _resetArgsShader.Root.SizeBytes ||
             !_resetArgsShader.Reflection.MatchesStructLayout<MeshScene3DResetArgsRoot>("MeshScene3DResetArgsRoot"))
         {

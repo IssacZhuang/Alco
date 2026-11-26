@@ -128,6 +128,7 @@ internal sealed unsafe partial class D3D12Device : GPUDevice
             device.Capabilities.TextureCompressionBc = true;
             device.Capabilities.StorageInputOutput16 = true;
             device.Capabilities.IndirectMeshDraw = true;
+            device.Capabilities.MaxIndirectDrawCount = uint.MaxValue;
             return device;
         }
         catch (GPUException)

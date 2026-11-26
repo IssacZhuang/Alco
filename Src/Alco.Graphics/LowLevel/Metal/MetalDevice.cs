@@ -197,6 +197,7 @@ internal sealed unsafe partial class MetalDevice : GPUDevice
                 TextureCompressionAstc = true,
                 StorageInputOutput16 = true,
                 IndirectMeshDraw = device.MtlDevice.SupportsFamily(Mtl.MTLGPUFamily.Apple9),
+                MaxIndirectDrawCount = uint.MaxValue,
             };
             return device;
         }

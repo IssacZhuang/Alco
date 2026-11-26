@@ -505,6 +505,7 @@ internal abstract unsafe partial class VulkanDeviceBase
                 TextureCompressionAstc = selected.TextureCompressionAstc,
                 StorageInputOutput16 = selected.StorageInputOutput16,
                 IndirectMeshDraw = !compact,
+                MaxIndirectDrawCount = device.PhysicalProperties.limits.maxDrawIndirectCount,
             };
         }
         if (!compact)

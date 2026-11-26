@@ -193,7 +193,7 @@ public struct MeshScene3DBucketMeta
     /// <summary>Opaque caller-defined bucket tag forwarded to surface shaders.</summary>
     public uint BucketTag;
 
-    /// <summary>Starting index in the bucket's index buffer.</summary>
+    /// <summary>Starting index in the bound index buffer (page-relative when MDI is enabled).</summary>
     public uint FirstIndex;
 
     /// <summary>Center of the bucket's local-space bounding box.</summary>
@@ -205,8 +205,22 @@ public struct MeshScene3DBucketMeta
     /// <summary>Half-extents of the bucket's local-space bounding box.</summary>
     public Vector3 LocalExtent;
 
-    /// <summary>Padding to maintain 16-byte struct alignment.</summary>
-    public uint Pad0;
+    /// <summary>Contiguous indirect draw slot index assigned to this bucket in DrawArgs and DrawEntries.</summary>
+    public uint DrawSlot;
+}
+
+/// <summary>Per-draw GPU record indexed by <c>SV_DrawIndex</c> during indirect rendering (16 bytes).</summary>
+[StructLayout(LayoutKind.Sequential)]
+public struct MeshScene3DDrawEntry
+{
+    /// <summary>View of the bucket geometry's <see cref="VertexPBR"/> buffer.</summary>
+    public GPUBufferView Vertices;
+
+    /// <summary>Base element offset of this bucket inside the compacted visible slot buffer.</summary>
+    public uint VisibleBase;
+
+    /// <summary>Opaque caller-defined bucket tag copied from <see cref="MeshScene3DBucketDesc.BucketTag"/>.</summary>
+    public uint BucketTag;
 }
 
 /// <summary>Root header placed at offset 0 of every <see cref="MeshScene3D"/> graphics material (144 bytes).</summary>
@@ -216,13 +230,13 @@ public struct MeshScene3DPassHeader
     /// <summary>Row-major view-projection matrix.</summary>
     public Matrix4x4 ViewProjection;
 
-    /// <summary>View of the bucket geometry's <see cref="VertexPBR"/> buffer.</summary>
-    public GPUBufferView Vertices;
+    /// <summary>View into the run's contiguous <see cref="MeshScene3DDrawEntry"/> records indexed by <c>SV_DrawIndex</c>.</summary>
+    public GPUBufferView DrawEntries;
 
     /// <summary>View of the persistent <see cref="MeshScene3DInstance"/> pool buffer.</summary>
     public GPUBufferView Pool;
 
-    /// <summary>View into the compacted visible slot indices starting at this bucket's base offset.</summary>
+    /// <summary>View of the un-offset compacted visible slot indices (indexed by <see cref="MeshScene3DDrawEntry.VisibleBase"/> + <c>SV_InstanceID</c>).</summary>
     public GPUBufferView VisibleSlots;
 
     /// <summary>Optional view of the bucket's shared material parameter table.</summary>

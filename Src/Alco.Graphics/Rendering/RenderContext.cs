@@ -1283,6 +1283,17 @@ public sealed class RenderContext : RenderingResource
                 arguments.LowLevelRange.Slice(argumentByteOffset), drawCount, stride);
         }
 
+        internal void DrawIndexedIndirectLowLevel(Material material, GPURange root, DepthStencilState depthStencil,
+            GPURange indices, IndexType type, GPURange arguments, uint drawCount = 1, uint stride = 0)
+        {
+            _context.AssertScope(ScopeKind.Render, _id);
+            Debug.Assert(root.Buffer != null && root.Offset % BumpAllocator.Alignment == 0 && root.Size >= material.Root.SizeBytes);
+            Debug.Assert(indices.Buffer != null && indices.Size > 0);
+            Debug.Assert(arguments.Buffer != null && arguments.Size > 0);
+            _context.BindMaterial(material, depthStencil);
+            _context.RecordingCommands.DrawIndexedIndirect(root, indices, type, arguments, drawCount, stride);
+        }
+
         /// <summary>Records a mesh draw with a fresh root snapshot.</summary>
         public void DrawMeshlets(Material material, Extent3D groupCount)
         {
