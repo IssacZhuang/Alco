@@ -66,6 +66,18 @@ public sealed partial class World3DScene
         [field: FieldOffset(24)] uint PatchCount,
         [field: FieldOffset(28)] uint WordsPerInstance);
 
+    private static string ReadWorldShader(string moduleName)
+    {
+        string resourceName = moduleName + ".slang";
+        using Stream stream = typeof(World3DScene).Assembly.GetManifestResourceStream(resourceName)
+            ?? throw new InvalidOperationException($"Missing embedded shader module {resourceName}.");
+        using StreamReader reader = new(stream);
+        return reader.ReadToEnd();
+    }
+
+    private static void ValidateRoot<T>(ShaderRootLayout root) where T : unmanaged =>
+        GpuStore.ValidateLayout<T>(root.TypeName, root.SizeBytes, root.Fields);
+
     private readonly record struct CopyJob(BufferSlice Source, BufferSlice Destination);
 
     private readonly record struct ScatterJob(GpuBuffer Destination, BufferSlice Patches, BufferSlice Slots, ScatterRoot Root);
@@ -129,6 +141,16 @@ public sealed partial class World3DScene
         public int GeometryPatches { get; private set; }
         /// <summary>The number of table pages requiring a full initial copy this frame.</summary>
         public int InitializedTablePages { get; private set; }
+
+        /// <summary>Declares reads of the directory and the allocated pages it addresses.</summary>
+        public void ReadTables(RenderGraphBuilder builder, RenderGraphPassBuilder pass, RGUsage usage, bool materials = false)
+        {
+            pass.Read(builder.ImportBuffer(Directory!, "World3D.Directory"), usage);
+            _instances.ReadPages(builder, pass, usage, "World3D.Instances");
+            _geometry.ReadPages(builder, pass, usage, "World3D.GeometryLods");
+            if (materials)
+                _materials.ReadPages(builder, pass, usage, "World3D.Materials");
+        }
 
         /// <summary>Queues an instance table write.</summary>
         public void SetInstance(int slot, in InstanceGpu data) => _instances.Set(slot, 0, in data);
@@ -354,6 +376,14 @@ public sealed partial class World3DScene
             private static readonly ulong EntryBytes = (ulong)Unsafe.SizeOf<T>();
             private readonly Page?[] _pages = new Page?[TablePageCount];
             private readonly List<int> _dirtyPages = [];
+            private readonly List<GpuBuffer> _buffers = [];
+
+            /// <summary>Declares reads of the backing pages, including pages first allocated this frame.</summary>
+            public void ReadPages(RenderGraphBuilder builder, RenderGraphPassBuilder pass, RGUsage usage, string name)
+            {
+                foreach (GpuBuffer buffer in _buffers)
+                    pass.Read(builder.ImportBuffer(buffer, name), usage);
+            }
 
             /// <summary>Coalesces writes to the same page-local entry until submission.</summary>
             public void Set(int slot, int entry, in T data)
@@ -419,6 +449,7 @@ public sealed partial class World3DScene
                 foreach (Page? page in _pages)
                     page?.Buffer?.Dispose();
                 Array.Clear(_pages);
+                _buffers.Clear();
                 _dirtyPages.Clear();
             }
 
@@ -433,7 +464,12 @@ public sealed partial class World3DScene
             private void StageInitialization(GpuStore store, RenderContext context, int pageId, Page page)
             {
                 int count = TablePageSize * entriesPerSlot;
-                GpuBuffer buffer = page.Buffer ??= store._system.CreateBuffer((ulong)count * EntryBytes, MemoryType.GpuOnly);
+                if (page.Buffer == null)
+                {
+                    page.Buffer = store._system.CreateBuffer((ulong)count * EntryBytes, MemoryType.GpuOnly);
+                    _buffers.Add(page.Buffer);
+                }
+                GpuBuffer buffer = page.Buffer;
                 Span<T> rows = context.AllocateTransient<T>(count, out BufferSlice source);
                 rows.Clear();
                 foreach ((int slot, T value) in page.Patches)
@@ -469,11 +505,8 @@ public sealed partial class World3DScene
 
         private static void ValidateShaderLayouts(ShaderCompiler compiler, ShaderRootLayout root)
         {
-            const string resourceName = SceneDataModule + ".slang";
-            using Stream stream = typeof(World3DScene).Assembly.GetManifestResourceStream(resourceName)
-                ?? throw new InvalidOperationException($"Missing embedded shader module {resourceName}.");
-            using StreamReader reader = new(stream);
-            IReadOnlyList<ShaderTypeLayout> types = compiler.LoadModuleFromSource(SceneDataModule, resourceName, reader.ReadToEnd()).GetTypes();
+            IReadOnlyList<ShaderTypeLayout> types = compiler.LoadModuleFromSource(
+                SceneDataModule, SceneDataModule + ".slang", ReadWorldShader(SceneDataModule)).GetTypes();
             ShaderTypeLayout Find(string name) => types.FirstOrDefault(type => type.TypeName == name)
                 ?? throw new InvalidOperationException($"Shader ABI type '{name}' was not reflected in {SceneDataModule}.");
 
@@ -501,10 +534,12 @@ public sealed partial class World3DScene
             ValidateArray(Find("World3DGeometryPage"), "Rows", 0, TablePageSize, MaxGeometryLods * lodBytes);
         }
 
-        private static void ValidateLayout<T>(ShaderTypeLayout layout) where T : unmanaged =>
+        /// <summary>Checks a reflected payload type against its managed layout.</summary>
+        public static void ValidateLayout<T>(ShaderTypeLayout layout) where T : unmanaged =>
             ValidateLayout<T>(layout.TypeName!, layout.SizeBytes, layout.Fields);
 
-        private static void ValidateLayout<T>(string shaderType, uint size, IReadOnlyList<ShaderFieldLayout> fields) where T : unmanaged
+        /// <summary>Verifies the exact reflected size, field offsets, and scalar types of a managed shader layout.</summary>
+        public static void ValidateLayout<T>(string shaderType, uint size, IReadOnlyList<ShaderFieldLayout> fields) where T : unmanaged
         {
             FieldInfo[] managedFields = typeof(T).GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
             if (size != Unsafe.SizeOf<T>() || fields.Count != managedFields.Length)

@@ -5,17 +5,18 @@
     <RootNamespace>_26_PBRDeferred</RootNamespace>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <DefaultItemExcludes>$(DefaultItemExcludes);Assets/Bistro/**</DefaultItemExcludes>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\Src\Alco.Engine\Alco.Engine.csproj" />
     <ProjectReference Include="..\..\Src\Alco.ImGUI\Alco.ImGUI.csproj" />
     <ProjectReference Include="..\..\Src\Alco.World3D\Alco.World3D.csproj" />
-    <ProjectReference Include="..\..\Sandbox\~SandboxUtils\~SandboxUtils.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="$(MSBuildThisFileDirectory)/Assets/**/*.*">
+    <Content Include="Assets/**/*.*" Exclude="Assets/Bistro/**">
       <Link>Assets/%(RecursiveDir)%(Filename)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>

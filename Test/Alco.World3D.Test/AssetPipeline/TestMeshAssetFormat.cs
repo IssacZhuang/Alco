@@ -218,7 +218,7 @@ public class TestMeshAssetFormat
         using SafeMemoryHandle indexData = new(6 * sizeof(uint));
         reader.ReadChunk(reader.GetChunk("lod0/indices"), indexData);
         uint[] indices = new uint[6];
-        Buffer.BlockCopy(indexData.AsReadOnlySpan().ToArray(), 0, indices, 0, 24);
+        System.Buffer.BlockCopy(indexData.AsReadOnlySpan().ToArray(), 0, indices, 0, 24);
         Assert.That(indices, Is.EqualTo(data.Lods[0].Indices));
     }
 
@@ -239,7 +239,7 @@ public class TestMeshAssetFormat
         using SafeMemoryHandle indexData = new(data.Lods[1].Indices.Length * sizeof(uint));
         reader.ReadChunk(reader.GetChunk("lod1/indices"), indexData);
         uint[] indices = new uint[data.Lods[1].Indices.Length];
-        Buffer.BlockCopy(indexData.AsReadOnlySpan().ToArray(), 0, indices, 0, indices.Length * sizeof(uint));
+        System.Buffer.BlockCopy(indexData.AsReadOnlySpan().ToArray(), 0, indices, 0, indices.Length * sizeof(uint));
         Assert.That(indices, Is.EqualTo(data.Lods[1].Indices));
     }
 

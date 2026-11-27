@@ -9,8 +9,7 @@ using Alco.Rendering;
 
 /// <summary>
 /// CPU fallback decode of block-compressed payloads: hand-crafted blocks cover the
-/// BC1 color modes (including punchthrough), the BC2/BC3 alpha codings, and the
-/// rejected BC4-BC7 families.
+/// BC1 color modes, BC2/BC3 alpha, BC5 UNORM channels, and unsupported formats.
 /// </summary>
 [TestFixture]
 public unsafe class TestBcDecoder
@@ -191,6 +190,35 @@ public unsafe class TestBcDecoder
         Assert.That(pixels[7], Is.EqualTo(255));
         Assert.That(pixels[11], Is.EqualTo(119));
         Assert.That(pixels[15], Is.EqualTo(119));
+    }
+
+    /// <summary>Verifies that BC5 independently decodes both interpolation modes into red and green.</summary>
+    [Test]
+    public void Bc5_Unorm_DecodesIndependentChannels()
+    {
+        byte[] block = new byte[16];
+        block[0] = 255;
+        block[8] = 50;
+        block[9] = 250;
+        ulong redIndices = 0;
+        ulong greenIndices = 0;
+        for (int i = 0; i < 16; i++)
+        {
+            redIndices |= (ulong)(i % 8) << (i * 3);
+            greenIndices |= (ulong)(7 - i % 8) << (i * 3);
+        }
+        for (int i = 0; i < 6; i++)
+        {
+            block[2 + i] = (byte)(redIndices >> (i * 8));
+            block[10 + i] = (byte)(greenIndices >> (i * 8));
+        }
+        byte[] pixels = DecodeSingleBlock(block, DdsDecoder.BcFamily.BC5);
+        byte[] red = [255, 0, 218, 182, 145, 109, 72, 36];
+        byte[] green = [50, 250, 90, 130, 170, 210, 0, 255];
+        for (int i = 0; i < 16; i++)
+        {
+            Assert.That(pixels[(i * 4)..(i * 4 + 4)], Is.EqualTo(new byte[] { red[i % 8], green[7 - i % 8], 0, 255 }), $"pixel {i}");
+        }
     }
 
     /// <summary>Verifies rejection of unsupported CPU decoding families.</summary>

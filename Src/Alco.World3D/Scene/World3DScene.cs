@@ -33,12 +33,20 @@ public sealed partial class World3DScene : IDisposable
         ObjectDisposedException.ThrowIf(system.IsDisposed, system);
         _system = system;
         _gpu = new GpuStore(system);
+        _gbufferPrograms = new GBufferPrograms(system);
         _graph = new RenderGraph(system, new Extent2D(1, 1), "World3D")
-            .Use(new SyncNode(_gpu)).Use(new ClearNode());
+            .Use(new SyncNode(_gpu)).Use(new ClearNode(this)).Use(new GeometryPasses(this));
+        AddLightingPipeline();
     }
 
     /// <summary>Gets the upload budget for vertex and index data per recorded frame, rounded down to four bytes.</summary>
     public ulong GeometryUploadBudgetBytes { get; set; } = 16 * 1024 * 1024;
+
+    /// <summary>Gets or sets the maximum camera draw distance; nonpositive values leave it unlimited.</summary>
+    public float MaximumDrawDistance { get; set; }
+
+    /// <summary>Gets the GBuffer submissions recorded in the most recent frame.</summary>
+    public World3DDrawStats LastRecordedDraws { get; private set; }
 
     /// <summary>Gets the number of logically live instances.</summary>
     public int InstanceCount => _instances.Count;
@@ -95,7 +103,7 @@ public sealed partial class World3DScene : IDisposable
     public bool TryRemoveGeometry(WorldGeometryHandle handle)
     {
         BeginEdit();
-        if (!TryGetGeometry(handle, out GeometryEntry? geometry) || geometry.References != 0)
+        if (!TryGetGeometry(handle, out GeometryEntry? geometry) || geometry.Instances.Count != 0)
             return false;
         RemoveGeometryLods(geometry);
         _gpu.ClearGeometry(handle.Slot);
@@ -104,7 +112,7 @@ public sealed partial class World3DScene : IDisposable
         return true;
     }
 
-    /// <summary>Registers a standard material and retains its texture bindings.</summary>
+    /// <summary>Registers a material and retains its texture bindings.</summary>
     /// <param name="description">The PBR factors, routing, and texture handles.</param>
     /// <param name="handle">Receives the new material handle.</param>
     /// <returns>Whether all bindings were valid and the material was registered.</returns>
@@ -113,7 +121,7 @@ public sealed partial class World3DScene : IDisposable
         BeginEdit();
         handle = default;
         if (!TryResolveMaterial(in description, out MaterialGpu gpu, out MaterialTextures bindings) ||
-            !_materials.TryAdd(new MaterialEntry(bindings), out int slot, out uint generation))
+            !_materials.TryAdd(new MaterialEntry(bindings, new MaterialRoute(in description)), out int slot, out uint generation))
             return false;
         bindings.Retain();
         _gpu.SetMaterial(slot, in gpu);
@@ -121,7 +129,7 @@ public sealed partial class World3DScene : IDisposable
         return true;
     }
 
-    /// <summary>Updates a standard material without changing its handle or the instances that refer to it.</summary>
+    /// <summary>Updates a material without changing its handle or the instances that refer to it.</summary>
     /// <param name="handle">The material to update.</param>
     /// <param name="description">The replacement factors, routing, and bindings.</param>
     /// <returns>Whether the material and replacement bindings were valid.</returns>
@@ -137,6 +145,12 @@ public sealed partial class World3DScene : IDisposable
             bindings.Retain();
             material.Textures = bindings;
         }
+        MaterialRoute route = new(in description);
+        if (material.Route != route)
+        {
+            material.Route = route;
+            _dirtyDrawInstances.UnionWith(material.Instances);
+        }
         _gpu.SetMaterial(handle.Slot, in gpu);
         return true;
     }
@@ -147,7 +161,7 @@ public sealed partial class World3DScene : IDisposable
     public bool TryRemoveMaterial(WorldMaterialHandle handle)
     {
         BeginEdit();
-        if (!TryGetMaterial(handle, out MaterialEntry? material) || material.References != 0)
+        if (!TryGetMaterial(handle, out MaterialEntry? material) || material.Instances.Count != 0)
             return false;
         _gpu.SetMaterial(handle.Slot, default);
         _materials.Remove(handle.Slot);
@@ -255,6 +269,7 @@ public sealed partial class World3DScene : IDisposable
             !_instances.TryAdd(instance, out int slot, out uint generation))
             return false;
         LinkInstance(slot, instance);
+        _dirtyDrawInstances.Add(slot);
         _gpu.SetInstance(slot, in gpu);
         handle = new WorldInstanceHandle(_id, slot, generation);
         return true;
@@ -270,6 +285,8 @@ public sealed partial class World3DScene : IDisposable
         if (!TryGetInstanceEntry(handle, out InstanceEntry? previous) ||
             !TryResolveInstance(in description, out InstanceGpu gpu, out InstanceEntry? instance))
             return false;
+        if (!ReferenceEquals(previous.Geometry, instance.Geometry) || GetDrawRoute(previous) != GetDrawRoute(instance))
+            _dirtyDrawInstances.Add(handle.Slot);
         UnlinkInstance(handle.Slot, previous, unlinkSector: true);
         _instances.SetLive(handle.Slot, instance);
         LinkInstance(handle.Slot, instance);
@@ -311,6 +328,11 @@ public sealed partial class World3DScene : IDisposable
         ReconcileFrame();
         _disposed = true;
         _graph.Dispose();
+        _gbufferPrograms.Dispose();
+        _drawLayout.Dispose();
+        _selection?.Dispose();
+        _drawArgs?.Dispose();
+        _drawRefs?.Dispose();
         _gpu.Dispose();
         foreach (TextureEntry texture in _textures.LiveValues())
             texture.Texture.Dispose();
@@ -368,17 +390,17 @@ public sealed partial class World3DScene : IDisposable
         return true;
     }
 
-    private void LinkInstance(int slot, InstanceEntry instance)
+    private static void LinkInstance(int slot, InstanceEntry instance)
     {
-        ++instance.Geometry.References;
-        ++instance.Material.References;
+        instance.Geometry.Instances.Add(slot);
+        instance.Material.Instances.Add(slot);
         instance.Sector.Instances.Add(slot);
     }
 
     private static void UnlinkInstance(int slot, InstanceEntry instance, bool unlinkSector)
     {
-        --instance.Geometry.References;
-        --instance.Material.References;
+        instance.Geometry.Instances.Remove(slot);
+        instance.Material.Instances.Remove(slot);
         if (unlinkSector)
             instance.Sector.Instances.Remove(slot);
     }
@@ -387,6 +409,7 @@ public sealed partial class World3DScene : IDisposable
     {
         UnlinkInstance(slot, instance, unlinkSector);
         _instances.Remove(slot);
+        _dirtyDrawInstances.Add(slot);
         _gpu.SetInstance(slot, default);
         _retireOnSubmit.Add(() => _instances.Reclaim(slot));
     }
@@ -397,7 +420,8 @@ public sealed partial class World3DScene : IDisposable
         bindings = default;
         if (!IsUnit(desc.Metallic) || !IsUnit(desc.Roughness) || !IsUnit(desc.AlphaCutoff) || !IsFinite(desc.Emissive) ||
             !IsFinite(new Vector3(desc.BaseColor.X, desc.BaseColor.Y, desc.BaseColor.Z)) || !IsUnit(desc.BaseColor.W) ||
-            desc.AlphaMode > World3DAlphaMode.Blend || !TryResolveTexture(desc.BaseColorTexture, out TextureEntry? color) ||
+            desc.AlphaMode > World3DAlphaMode.Blend || (desc.SurfaceModule != null && string.IsNullOrWhiteSpace(desc.SurfaceModule)) ||
+            !TryResolveTexture(desc.BaseColorTexture, out TextureEntry? color) ||
             !TryResolveTexture(desc.NormalTexture, out TextureEntry? normal) ||
             !TryResolveTexture(desc.MetallicRoughnessTexture, out TextureEntry? metallicRoughness) ||
             !TryResolveTexture(desc.EmissiveTexture, out TextureEntry? emissive))
@@ -447,10 +471,11 @@ public sealed partial class World3DScene : IDisposable
         public readonly HashSet<int> Instances = [];
     }
 
-    private sealed class MaterialEntry(MaterialTextures textures)
+    private sealed class MaterialEntry(MaterialTextures textures, MaterialRoute route)
     {
         public MaterialTextures Textures = textures;
-        public int References;
+        public MaterialRoute Route = route;
+        public readonly HashSet<int> Instances = [];
     }
 
     private sealed class TextureEntry(Texture texture)
@@ -479,6 +504,9 @@ public sealed partial class World3DScene : IDisposable
         private readonly Stack<int> _free = [];
 
         public int Count { get; private set; }
+
+        /// <summary>Gets the exclusive upper bound of the slot range, including holes.</summary>
+        public int End => _slots.Count;
 
         public bool TryAdd(T value, out int slot, out uint generation)
         {
@@ -510,6 +538,9 @@ public sealed partial class World3DScene : IDisposable
         }
 
         public T GetLive(int slot) => _slots[slot].Value!;
+
+        /// <summary>Gets the current value at an existing slot, or null for a tombstone.</summary>
+        public T? GetSlot(int slot) => _slots[slot].Value;
 
         public void SetLive(int slot, T value) => _slots[slot] = (value, _slots[slot].Generation);
 

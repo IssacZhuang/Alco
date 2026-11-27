@@ -90,6 +90,8 @@ public readonly record struct World3DMaterialDesc
     public WorldTextureHandle MetallicRoughnessTexture { get; init; }
     /// <summary>The optional emissive texture; the default handle has no emissive map.</summary>
     public WorldTextureHandle EmissiveTexture { get; init; }
+    /// <summary>The Slang module exporting an ISurface implementation, or null for the standard PBR surface.</summary>
+    public string? SurfaceModule { get; init; }
 }
 
 /// <summary>Describes an instance's resources, placement, and sector ownership.</summary>
@@ -109,3 +111,8 @@ public readonly record struct World3DInstanceDesc(WorldSectorHandle Sector, Worl
 /// <param name="InitializedTablePages">New GPU table pages initialized.</param>
 public readonly record struct World3DSceneSyncStats(ulong GeometryBytes, int GeometryPatches,
     int MaterialPatches, int InstancePatches, int InitializedTablePages);
+
+/// <summary>Counts GBuffer submissions before GPU culling determines which draws execute.</summary>
+/// <param name="MdiCalls">The number of indexed indirect API calls.</param>
+/// <param name="IndirectSlots">The total submitted commands, including commands with zero instances.</param>
+public readonly record struct World3DDrawStats(int MdiCalls, int IndirectSlots);

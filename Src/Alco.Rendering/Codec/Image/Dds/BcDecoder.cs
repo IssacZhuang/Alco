@@ -4,7 +4,7 @@ using System.Runtime.InteropServices;
 namespace Alco.Rendering;
 
 /// <summary>
-/// CPU decoder for block-compressed DDS payloads (BC1-BC3) that decompresses one mip level to an RGBA8 pixel buffer.
+/// CPU decoder for BC1–BC3 and unsigned BC5 DDS payloads that decompresses one mip level to RGBA8.
 /// All methods are thread-safe.
 /// </summary>
 /// <remarks>
@@ -32,7 +32,7 @@ public static unsafe class BcDecoder
         int height,
         int level)
     {
-        if (family is not (DdsDecoder.BcFamily.BC1 or DdsDecoder.BcFamily.BC2 or DdsDecoder.BcFamily.BC3))
+        if (family is not (DdsDecoder.BcFamily.BC1 or DdsDecoder.BcFamily.BC2 or DdsDecoder.BcFamily.BC3 or DdsDecoder.BcFamily.BC5))
         {
             throw new ImageDecodeException($"CPU fallback decode is not implemented for {family} textures.");
         }
@@ -88,12 +88,23 @@ public static unsafe class BcDecoder
         return output;
     }
 
-    /// <summary>Decompress a single BC1/BC2/BC3 block into a 64-byte RGBA tile.</summary>
     private static void DecodeBlock(ReadOnlySpan<byte> block, DdsDecoder.BcFamily family, Span<byte> tile)
     {
         if (family == DdsDecoder.BcFamily.BC1)
         {
             DecodeBc1Colors(block, punchthrough: true, tile);
+            return;
+        }
+        if (family == DdsDecoder.BcFamily.BC5)
+        {
+            // Match a sampled BC5 UNORM texture: R and G are independent BC3 alpha blocks.
+            DecodeInterpolatedChannel(block, tile, 0);
+            DecodeInterpolatedChannel(block[8..], tile, 1);
+            for (int i = 0; i < 16; i++)
+            {
+                tile[i * 4 + 2] = 0;
+                tile[i * 4 + 3] = 0xFF;
+            }
             return;
         }
 
@@ -112,7 +123,11 @@ public static unsafe class BcDecoder
             return;
         }
 
-        // BC3: 8-bit interpolated alpha (DXT5).
+        DecodeInterpolatedChannel(block, tile, 3);
+    }
+
+    private static void DecodeInterpolatedChannel(ReadOnlySpan<byte> block, Span<byte> tile, int channel)
+    {
         byte a0 = block[0];
         byte a1 = block[1];
         Span<byte> palette = stackalloc byte[8];
@@ -143,7 +158,7 @@ public static unsafe class BcDecoder
             int window = block[byteIndex]
                 | (byteIndex + 1 < 8 ? block[byteIndex + 1] << 8 : 0)
                 | (byteIndex + 2 < 8 ? block[byteIndex + 2] << 16 : 0);
-            tile[i * 4 + 3] = palette[(window >> (bit % 8)) & 0x7];
+            tile[i * 4 + channel] = palette[(window >> (bit % 8)) & 0x7];
         }
     }
 

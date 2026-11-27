@@ -575,10 +575,11 @@ public sealed class TestWorld3DScene
             }
         }
 
+        /// <summary>Records Phase 0 synchronization and an optional output clear.</summary>
         public World3DView RecordFrame(World3DCamera? camera = null, RenderGraphTarget output = default)
         {
             Context.BeginFrame();
-            Assert.That(Scene.TryRecordFrame(Context, camera ?? CameraAt(default), s_viewport, out var view, output), Is.True);
+            Assert.That(Scene.TryRecordFrame(Context, camera ?? CameraAt(default), s_viewport, out var view, output, renderWorld: false), Is.True);
             return view;
         }
 

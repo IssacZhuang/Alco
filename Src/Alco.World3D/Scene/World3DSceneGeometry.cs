@@ -15,7 +15,7 @@ public sealed partial class World3DScene
     /// <param name="lod">The zero-based LOD index.</param>
     /// <param name="vertices">The PBR vertices, all within the registered geometry bounds.</param>
     /// <param name="indices">The geometry-local triangle indices.</param>
-    /// <param name="minimumDistance">A nonnegative distance hint for later LOD selection.</param>
+    /// <param name="minimumDistance">The nonnegative camera distance to the instance bound's center at which this LOD qualifies.</param>
     /// <returns>Whether the LOD was valid, not already pending, and had storage available.</returns>
     public bool TryQueueGeometryLod(WorldGeometryHandle handle, int lod, ReadOnlySpan<VertexPBR> vertices,
         ReadOnlySpan<uint> indices, float minimumDistance = 0)
@@ -65,7 +65,7 @@ public sealed partial class World3DScene
     /// <param name="handle">The geometry receiving this LOD.</param>
     /// <param name="lod">The zero-based LOD index.</param>
     /// <param name="source">Immutable, synchronized <see cref="VertexPBR"/> and UInt32 buffers from this scene's rendering system.</param>
-    /// <param name="minimumDistance">A nonnegative distance hint for later LOD selection.</param>
+    /// <param name="minimumDistance">The nonnegative camera distance to the instance bound's center at which this LOD qualifies.</param>
     /// <returns>Whether the LOD was accepted and ownership transferred.</returns>
     public bool TryQueueGeometryLod(WorldGeometryHandle handle, int lod, ModelGeometry source, float minimumDistance = 0)
     {
@@ -135,7 +135,10 @@ public sealed partial class World3DScene
                 StageModelGeometryCopy(lod, destination, end);
             _recordedLods.Add(new RecordedLod(node, end));
             if (end == lod.ByteCount)
+            {
                 _gpu.SetGeometryLod(lod.Slot, lod.Lod, resident.Gpu);
+                StageDrawResidency(lod.Geometry, lod.Lod, resident);
+            }
             uploaded += size;
             remaining -= size;
         }
@@ -207,7 +210,7 @@ public sealed partial class World3DScene
         public readonly Vector3 LocalMax = localMax;
         public readonly ResidentLod?[] Resident = new ResidentLod?[MaxGeometryLods];
         public readonly LinkedListNode<PendingLod>?[] Pending = new LinkedListNode<PendingLod>?[MaxGeometryLods];
-        public int References;
+        public readonly HashSet<int> Instances = [];
 
         public bool CanQueue(int lod, float minimumDistance) =>
             (uint)lod < MaxGeometryLods && Pending[lod] == null && minimumDistance >= 0 && float.IsFinite(minimumDistance);

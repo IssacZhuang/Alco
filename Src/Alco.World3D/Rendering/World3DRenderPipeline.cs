@@ -13,17 +13,18 @@ public sealed partial class World3DScene
     private World3DView? _submittedView;
     private bool _recordingSucceeded;
 
-    /// <summary>Records incremental scene updates and, when supplied, clears the output target.</summary>
+    /// <summary>Records incremental scene updates and renders to the output when supplied.</summary>
     /// <param name="context">The same active render context for every frame, recording on queue zero.</param>
     /// <param name="camera">The primary view's double-position camera.</param>
     /// <param name="viewport">The headless viewport size; a valid output supplies its own size.</param>
     /// <param name="view">Receives the frame's camera-relative view.</param>
-    /// <param name="output">An optional color attachment to clear.</param>
+    /// <param name="output">An optional color output target.</param>
     /// <param name="outputFinalUsage">The output's next usage outside the graph.</param>
+    /// <param name="renderWorld">Whether to render instead of only synchronizing and clearing the output.</param>
     /// <returns>Whether the camera and viewport were valid and the frame was recorded.</returns>
     /// <remarks>Call after BeginFrame, then submit or discard before editing the scene. Discard the frame if recording throws.</remarks>
     public bool TryRecordFrame(RenderContext context, in World3DCamera camera, Extent2D viewport, out World3DView view,
-        RenderGraphTarget output = default, RGUsage outputFinalUsage = RGUsage.None)
+        RenderGraphTarget output = default, RGUsage outputFinalUsage = RGUsage.None, bool renderWorld = true)
     {
         ArgumentNullException.ThrowIfNull(context);
         ObjectDisposedException.ThrowIf(context.IsDisposed, context);
@@ -41,9 +42,12 @@ public sealed partial class World3DScene
         _recordedFrame = context.CurrentFrameId;
         _recordedDiscardVersion = context.DiscardVersion;
         _recordedView = view;
+        _recordedWorld = output.IsValid && renderWorld;
         _gpu.ResetJobs();
         LastRecordedSync = default;
+        LastRecordedDraws = default;
         ulong geometryBytes = PrepareGeometryCopies(context);
+        PrepareGeometryPasses(context);
         _gpu.PrepareTables(context);
         _graph.Execute(context, output, outputFinalUsage: outputFinalUsage);
         _recordingSucceeded = true;
@@ -61,7 +65,21 @@ public sealed partial class World3DScene
             return;
 
         bool submitted = _recordingSucceeded && !context.IsDisposed && context.DiscardVersion == _recordedDiscardVersion;
+        _submittedWorld = submitted && _recordedWorld;
         CompleteGeometryCopies(submitted);
+        _stagedDrawLods.Clear();
+        if (_recordedWorld)
+        {
+            if (submitted)
+            {
+                _drawLayout.Commit();
+                _dirtyDrawInstances.Clear();
+            }
+            else
+            {
+                RefreshDrawLayout();
+            }
+        }
         if (submitted)
         {
             _submittedView = _recordedView;
@@ -191,11 +209,11 @@ public sealed partial class World3DScene
         }
     }
 
-    private sealed class ClearNode : IRenderGraphNode
+    private sealed class ClearNode(World3DScene scene) : IRenderGraphNode
     {
         void IRenderGraphNode.Setup(RenderGraphBuilder builder)
         {
-            if (builder.HasOutput)
+            if (builder.HasOutput && !scene._recordedWorld)
                 builder.AddPass("World3D.Clear").Write(builder.Output, RGUsage.ColorAttachmentWrite);
         }
 
