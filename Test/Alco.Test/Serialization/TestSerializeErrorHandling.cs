@@ -103,17 +103,17 @@ public class TestSerializeErrorHandling
             Object3 = new FaultySerializableObject { Name = "Object3", ShouldThrow = false }
         };
 
-        // Act - Serialize using BinaryParser
-        ReadOnlyMemory<byte> serializedData = BinaryParser.Encode(container, errorCollector.OnError);
+        // Act - Serialize using PackedBinarySerializer
+        ReadOnlyMemory<byte> serializedData = PackedBinarySerializer.Encode(container, onError: errorCollector.OnError);
 
         // Assert - One error should be collected
         Assert.That(errorCollector.Errors.Count, Is.EqualTo(1));
         Assert.That(errorCollector.Errors[0], Does.Contain("Failed to bind optional serializable 'object2'"));
         Assert.That(errorCollector.Errors[0], Does.Contain("Object2 error"));
 
-        // Act - Deserialize using BinaryParser
+        // Act - Deserialize using PackedBinarySerializer
         errorCollector.Errors.Clear();
-        var deserializedContainer = BinaryParser.Decode<ContainerObject>(serializedData, errorCollector.OnError);
+        var deserializedContainer = PackedBinarySerializer.Decode<ContainerObject>(serializedData, onError: errorCollector.OnError);
 
         // Assert - Container name should be preserved
         Assert.That(deserializedContainer.ContainerName, Is.EqualTo("TestContainer"));
@@ -144,8 +144,8 @@ public class TestSerializeErrorHandling
             }
         };
 
-        // Act - Serialize using BinaryParser
-        ReadOnlyMemory<byte> serializedData = BinaryParser.Encode(container, errorCollector.OnError);
+        // Act - Serialize using PackedBinarySerializer
+        ReadOnlyMemory<byte> serializedData = PackedBinarySerializer.Encode(container, onError: errorCollector.OnError);
 
         // Assert - Two errors should be collected
         Assert.That(errorCollector.Errors.Count, Is.EqualTo(2));
@@ -154,9 +154,9 @@ public class TestSerializeErrorHandling
         Assert.That(errorCollector.Errors[1], Does.Contain("Failed to bind serializable list item at index 3 for key 'objectList'"));
         Assert.That(errorCollector.Errors[1], Does.Contain("Item3 error"));
 
-        // Act - Deserialize using BinaryParser
+        // Act - Deserialize using PackedBinarySerializer
         errorCollector.Errors.Clear();
-        var deserializedContainer = BinaryParser.Decode<ContainerObject>(serializedData, errorCollector.OnError);
+        var deserializedContainer = PackedBinarySerializer.Decode<ContainerObject>(serializedData, onError: errorCollector.OnError);
 
         // Assert - Container name should be preserved
         Assert.That(deserializedContainer.ContainerName, Is.EqualTo("TestContainer"));
@@ -182,7 +182,7 @@ public class TestSerializeErrorHandling
             Object3 = new FaultySerializableObject { Name = "Object3" }
         };
 
-        ReadOnlyMemory<byte> serializedData = BinaryParser.Encode(container);
+        ReadOnlyMemory<byte> serializedData = PackedBinarySerializer.Encode(container);
         var errorCollector = new ErrorCollector();
         Assert.That(PackedBinaryReadNode.TryOpen(serializedData, out PackedBinaryReadNode? readNode,
             onError: errorCollector.OnError), Is.True);
@@ -209,7 +209,7 @@ public class TestSerializeErrorHandling
     [Test]
     public void TestDeserializeWithListItemErrors()
     {
-        // Arrange - Create a valid serialized list first using BinaryParser
+        // Arrange - Create a valid serialized list first using PackedBinarySerializer
         var container = new ContainerObject
         {
             ContainerName = "TestContainer",
@@ -223,7 +223,7 @@ public class TestSerializeErrorHandling
             }
         };
 
-        ReadOnlyMemory<byte> serializedData = BinaryParser.Encode(container);
+        ReadOnlyMemory<byte> serializedData = PackedBinarySerializer.Encode(container);
         var errorCollector = new ErrorCollector();
         Assert.That(PackedBinaryReadNode.TryOpen(serializedData, out PackedBinaryReadNode? readNode,
             onError: errorCollector.OnError), Is.True);
@@ -269,8 +269,8 @@ public class TestSerializeErrorHandling
             }
         };
 
-        // Act - Serialize using BinaryParser
-        ReadOnlyMemory<byte> serializedData = BinaryParser.Encode(container, errorCollector.OnError);
+        // Act - Serialize using PackedBinarySerializer
+        ReadOnlyMemory<byte> serializedData = PackedBinarySerializer.Encode(container, onError: errorCollector.OnError);
 
         // Assert - Three errors should be collected (2 from objects, 1 from list)
         Assert.That(errorCollector.Errors.Count, Is.EqualTo(3));
@@ -286,9 +286,9 @@ public class TestSerializeErrorHandling
         Assert.That(listError, Is.Not.Null);
         Assert.That(listError, Does.Contain("ListItem1 error"));
 
-        // Act - Deserialize using BinaryParser
+        // Act - Deserialize using PackedBinarySerializer
         errorCollector.Errors.Clear();
-        var deserializedContainer = BinaryParser.Decode<ContainerObject>(serializedData, errorCollector.OnError);
+        var deserializedContainer = PackedBinarySerializer.Decode<ContainerObject>(serializedData, onError: errorCollector.OnError);
 
         // Assert - Successful serialization/deserialization for non-faulty objects
         Assert.That(deserializedContainer.ContainerName, Is.EqualTo("TestContainer"));
@@ -313,11 +313,11 @@ public class TestSerializeErrorHandling
 
         // Act - This should not throw, even without custom error handler
         ReadOnlyMemory<byte> serializedData = ReadOnlyMemory<byte>.Empty;
-        Assert.DoesNotThrow(() => serializedData = BinaryParser.Encode(container)); // No error handler
+        Assert.DoesNotThrow(() => serializedData = PackedBinarySerializer.Encode(container)); // No error handler
 
         // Deserialize should also not throw
         ContainerObject? deserializedContainer = null;
-        Assert.DoesNotThrow(() => deserializedContainer = BinaryParser.Decode<ContainerObject>(serializedData)); // No error handler
+        Assert.DoesNotThrow(() => deserializedContainer = PackedBinarySerializer.Decode<ContainerObject>(serializedData)); // No error handler
 
         // Basic functionality should still work
         Assert.That(deserializedContainer!.ContainerName, Is.EqualTo("TestContainer"));

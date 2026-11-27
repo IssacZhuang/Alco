@@ -17,7 +17,7 @@ public readonly record struct ChunkWriteInput(
     ChunkKey Key,
     ReadOnlyMemory<byte> UncompressedPayload,
     byte Flags = 0,
-    byte SchemaVersion = StreamingSaveFormat.DefaultChunkSchemaVersion);
+    byte SchemaVersion = ChunkRecordCodec.DefaultChunkSchemaVersion);
 
 /// <summary>
 /// Pre-compressed chunk payload passed to <see cref="ChunkSegmentStore.AppendPrecompressedBatch"/>.
@@ -34,7 +34,7 @@ public readonly record struct PrecompressedChunkWrite(
     uint UncompressedSize,
     ChunkCodecId Codec,
     byte Flags = 0,
-    byte SchemaVersion = StreamingSaveFormat.DefaultChunkSchemaVersion);
+    byte SchemaVersion = ChunkRecordCodec.DefaultChunkSchemaVersion);
 
 /// <summary>
 /// Configuration parameters governing segment compaction in <see cref="ChunkSegmentStore.Compact"/>.
@@ -85,16 +85,13 @@ public readonly record struct CompactionReport(
 /// <summary>
 /// Manages immutable append-only chunk segments (<c>seg_NNNNNN.chk</c>) for a single world with concurrent reading and crash-safe compaction.
 /// </summary>
-public sealed class ChunkSegmentStore : IDisposable
+public sealed class ChunkSegmentStore : IChunkReader, IDisposable
 {
     private readonly IRandomAccessStorage _storage;
     private readonly Guid _worldGuid;
     private readonly ChunkCodecSet _codecs;
-    private readonly bool _ownsCodecs;
+    private readonly SegmentHandleCache _handleCache;
     private readonly object _writeLock = new();
-    private readonly object _handleLock = new();
-    private readonly Dictionary<uint, SegmentHandleRef> _readHandles = new();
-    private readonly HashSet<uint> _retiredSegmentIds = [];
 
     private uint _nextSegmentId;
     private IRandomAccessHandle? _activeWriteHandle;
@@ -108,14 +105,15 @@ public sealed class ChunkSegmentStore : IDisposable
     /// </summary>
     /// <param name="storage">The backing storage.</param>
     /// <param name="worldGuid">The world identifier.</param>
-    /// <param name="codecs">Optional shared codec set; a dedicated set is created and owned when <see langword="null"/>.</param>
-    public ChunkSegmentStore(IRandomAccessStorage storage, Guid worldGuid, ChunkCodecSet? codecs = null)
+    /// <param name="codecs">The shared codec set used for compression and decompression.</param>
+    public ChunkSegmentStore(IRandomAccessStorage storage, Guid worldGuid, ChunkCodecSet codecs)
     {
         ArgumentNullException.ThrowIfNull(storage);
+        ArgumentNullException.ThrowIfNull(codecs);
         _storage = storage;
         _worldGuid = worldGuid;
-        _ownsCodecs = codecs is null;
-        _codecs = codecs ?? new ChunkCodecSet();
+        _codecs = codecs;
+        _handleCache = new SegmentHandleCache(storage, worldGuid);
 
         uint maxSegmentId = 0;
         IReadOnlyList<string> existingFiles = _storage.EnumerateFiles(
@@ -135,18 +133,12 @@ public sealed class ChunkSegmentStore : IDisposable
     public Guid WorldGuid => _worldGuid;
 
     /// <summary>Gets or sets the soft maximum byte size of a single segment file before rolling.</summary>
-    public long MaxSegmentBytes { get; set; } = StreamingSaveFormat.DefaultMaxSegmentBytes;
+    public long MaxSegmentBytes { get; set; } = ChunkRecordCodec.DefaultMaxSegmentBytes;
 
     /// <summary>Gets or sets the maximum allowed uncompressed chunk size when reading records.</summary>
-    public int MaxUncompressedChunkBytes { get; set; } = StreamingSaveFormat.DefaultMaxUncompressedChunkBytes;
+    public int MaxUncompressedChunkBytes { get; set; } = ChunkRecordCodec.DefaultMaxUncompressedChunkBytes;
 
-    /// <summary>
-    /// Reads, verifies, and decompresses the chunk described by <paramref name="entry"/> in a thread-safe manner.
-    /// </summary>
-    /// <param name="entry">The chunk index entry locating the record.</param>
-    /// <param name="uncompressedDestination">The buffer writer receiving the uncompressed chunk payload.</param>
-    /// <param name="failureReason">The failure reason when returning <see langword="false"/>.</param>
-    /// <returns><see langword="true"/> if the chunk passed CRC verification and decompressed cleanly; otherwise, <see langword="false"/>.</returns>
+    /// <inheritdoc/>
     public bool TryReadChunk(
         in ChunkIndexEntry entry,
         IBufferWriter<byte> uncompressedDestination,
@@ -161,13 +153,13 @@ public sealed class ChunkSegmentStore : IDisposable
             return false;
         }
 
-        if (!TryAcquireSegmentHandle(entry.SegmentId, out SegmentHandleRef? handleRef, out failureReason))
+        if (!_handleCache.TryAcquire(entry.SegmentId, out SegmentHandleCache.Lease lease, out failureReason))
             return false;
 
-        try
+        using (lease)
         {
-            return StreamingSaveFormat.TryReadAndDecompressChunkRecord(
-                handleRef.Handle,
+            return ChunkRecordCodec.TryReadAndDecompressChunkRecord(
+                lease.Handle,
                 entry.RecordOffset,
                 entry,
                 _codecs,
@@ -175,19 +167,9 @@ public sealed class ChunkSegmentStore : IDisposable
                 uncompressedDestination,
                 out failureReason);
         }
-        finally
-        {
-            ReleaseSegmentHandle(handleRef);
-        }
     }
 
-    /// <summary>
-    /// Reads and verifies the compressed chunk payload for <paramref name="entry"/> without decompressing it.
-    /// </summary>
-    /// <param name="entry">The chunk index entry locating the record.</param>
-    /// <param name="compressedDestination">The buffer writer receiving the verified compressed payload.</param>
-    /// <param name="failureReason">The failure reason when returning <see langword="false"/>.</param>
-    /// <returns><see langword="true"/> if the record passed verification; otherwise, <see langword="false"/>.</returns>
+    /// <inheritdoc/>
     public bool TryReadCompressedChunk(
         in ChunkIndexEntry entry,
         IBufferWriter<byte> compressedDestination,
@@ -202,21 +184,17 @@ public sealed class ChunkSegmentStore : IDisposable
             return false;
         }
 
-        if (!TryAcquireSegmentHandle(entry.SegmentId, out SegmentHandleRef? handleRef, out failureReason))
+        if (!_handleCache.TryAcquire(entry.SegmentId, out SegmentHandleCache.Lease lease, out failureReason))
             return false;
 
-        try
+        using (lease)
         {
-            return StreamingSaveFormat.TryReadVerifiedCompressedRecord(
-                handleRef.Handle,
+            return ChunkRecordCodec.TryReadVerifiedCompressedRecord(
+                lease.Handle,
                 entry.RecordOffset,
                 entry,
                 compressedDestination,
                 out failureReason);
-        }
-        finally
-        {
-            ReleaseSegmentHandle(handleRef);
         }
     }
 
@@ -233,11 +211,16 @@ public sealed class ChunkSegmentStore : IDisposable
         bool flushToDisk = true)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
+        if (!ChunkCodecSet.IsValid(codec))
+            throw new ArgumentOutOfRangeException(nameof(codec), $"Unsupported chunk codec {(byte)codec}.");
         if (chunks.IsEmpty)
             return [];
 
-        IChunkCodec codecImpl = _codecs.GetCodec(codec);
-        int[] order = SortIndicesByKey(chunks);
+        var keys = new ChunkKey[chunks.Length];
+        for (int i = 0; i < chunks.Length; i++)
+            keys[i] = chunks[i].Key;
+
+        int[] order = SortUniqueIndicesByKey(keys);
         var results = new ChunkIndexEntry[chunks.Length];
 
         lock (_writeLock)
@@ -249,12 +232,12 @@ public sealed class ChunkSegmentStore : IDisposable
                 {
                     ChunkWriteInput input = chunks[order[i]];
                     ReadOnlySpan<byte> uncompressed = input.UncompressedPayload.Span;
-                    int maxCompressed = codecImpl.GetMaxCompressedLength(uncompressed.Length);
+                    int maxCompressed = _codecs.GetMaxCompressedLength(codec, uncompressed.Length);
                     byte[]? compBuffer = maxCompressed > 0 ? ArrayPool<byte>.Shared.Rent(maxCompressed) : null;
                     try
                     {
                         Span<byte> compSpan = compBuffer is not null ? compBuffer.AsSpan(0, maxCompressed) : Span<byte>.Empty;
-                        int compLength = codecImpl.Compress(uncompressed, compSpan);
+                        int compLength = _codecs.Compress(codec, uncompressed, compSpan);
                         results[i] = WriteRecordLocked(
                             input.Key,
                             compSpan[..compLength],
@@ -299,13 +282,16 @@ public sealed class ChunkSegmentStore : IDisposable
         if (chunks.IsEmpty)
             return [];
 
+        var keys = new ChunkKey[chunks.Length];
         for (int i = 0; i < chunks.Length; i++)
         {
-            if (!_codecs.TryGetCodec(chunks[i].Codec, out _))
+            if (!ChunkCodecSet.IsValid(chunks[i].Codec))
                 throw new ArgumentOutOfRangeException(nameof(chunks), $"Unsupported codec {(byte)chunks[i].Codec}.");
+
+            keys[i] = chunks[i].Key;
         }
 
-        int[] order = SortPrecompressedIndicesByKey(chunks);
+        int[] order = SortUniqueIndicesByKey(keys);
         var results = new ChunkIndexEntry[chunks.Length];
 
         lock (_writeLock)
@@ -357,7 +343,8 @@ public sealed class ChunkSegmentStore : IDisposable
         ObjectDisposedException.ThrowIf(_disposed, this);
 
         options ??= new CompactionOptions();
-        IChunkCodec targetCodecImpl = _codecs.GetCodec(options.TargetCodec);
+        if (!ChunkCodecSet.IsValid(options.TargetCodec))
+            throw new ArgumentOutOfRangeException(nameof(options), $"Unsupported compaction target codec {(byte)options.TargetCodec}.");
 
         lock (_writeLock)
         {
@@ -368,123 +355,38 @@ public sealed class ChunkSegmentStore : IDisposable
             if (segmentFiles.Count == 0)
                 return new CompactionReport(false, 0, 0, 0, 0);
 
-            var uniqueLiveByLocation = new Dictionary<ChunkRecordLocation, ChunkIndexEntry>();
-            var liveBytesPerSegment = new Dictionary<uint, long>();
-            foreach (ChunkIndexEntry entry in liveEntries)
-            {
-                if (!segmentFiles.ContainsKey(entry.SegmentId))
-                    throw new InvalidDataException($"Live chunk {entry.Key} references missing segment {entry.SegmentId}.");
+            PlanCompaction(
+                segmentFiles,
+                liveEntries,
+                options,
+                out List<uint> deadSegmentIds,
+                out HashSet<uint> rewriteSegmentSet,
+                out List<ChunkIndexEntry> entriesToRewrite);
 
-                ChunkRecordLocation location = entry.Location;
-                if (uniqueLiveByLocation.TryGetValue(location, out ChunkIndexEntry existing))
-                {
-                    if (existing != entry)
-                        throw new InvalidDataException($"Conflicting live chunk index entries at segment {location.SegmentId} offset {location.RecordOffset}.");
-
-                    continue;
-                }
-
-                uniqueLiveByLocation.Add(location, entry);
-                liveBytesPerSegment[entry.SegmentId] = liveBytesPerSegment.GetValueOrDefault(entry.SegmentId) +
-                                                       StreamingSaveFormat.AlignedChunkRecordLength(entry.CompressedSize);
-            }
-
-            var deadSegmentIds = new List<uint>();
-            var candidateSegments = new List<(uint SegmentId, double DeadRatio)>();
-            foreach ((uint segId, (_, long fileLen)) in segmentFiles)
-            {
-                long payloadSpan = Math.Max(0L, fileLen - StreamingSaveFormat.SegmentHeaderSize);
-                long liveBytes = liveBytesPerSegment.GetValueOrDefault(segId);
-                if (liveBytes == 0)
-                {
-                    deadSegmentIds.Add(segId);
-                    continue;
-                }
-
-                double deadRatio = payloadSpan > 0 ? Math.Max(0.0, (double)(payloadSpan - liveBytes) / payloadSpan) : 0.0;
-                candidateSegments.Add((segId, deadRatio));
-            }
-
-            var rewriteSegmentSet = SelectSegmentsToRewrite(candidateSegments, options);
             if (deadSegmentIds.Count == 0 && rewriteSegmentSet.Count == 0)
                 return new CompactionReport(false, 0, 0, 0, 0);
 
-            var entriesToRewrite = new List<ChunkIndexEntry>();
-            foreach (ChunkIndexEntry entry in uniqueLiveByLocation.Values)
-            {
-                if (rewriteSegmentSet.Contains(entry.SegmentId))
-                    entriesToRewrite.Add(entry);
-            }
-
-            entriesToRewrite.Sort(static (a, b) =>
-            {
-                int keyCmp = a.Key.CompareTo(b.Key);
-                if (keyCmp != 0)
-                    return keyCmp;
-
-                int segCmp = a.SegmentId.CompareTo(b.SegmentId);
-                return segCmp != 0 ? segCmp : a.RecordOffset.CompareTo(b.RecordOffset);
-            });
-
-            var relocations = new Dictionary<ChunkRecordLocation, ChunkIndexEntry>(entriesToRewrite.Count);
-            var createdSegmentIds = new HashSet<uint>();
-            long newDataBytes = 0;
-
-            if (entriesToRewrite.Count > 0)
-            {
-                var rawScratch = new ArrayBufferWriter<byte>(64 * 1024);
-                try
-                {
-                    for (int i = 0; i < entriesToRewrite.Count; i++)
-                    {
-                        ChunkIndexEntry oldEntry = entriesToRewrite[i];
-                        ChunkIndexEntry newEntry = RewriteSingleEntryLocked(
-                            oldEntry,
-                            targetCodecImpl,
-                            rawScratch,
-                            options.FlushToDisk);
-                        relocations.Add(oldEntry.Location, newEntry);
-                        createdSegmentIds.Add(newEntry.SegmentId);
-                        newDataBytes += StreamingSaveFormat.AlignedChunkRecordLength(newEntry.CompressedSize);
-                    }
-
-                    CloseActiveWriteHandleLocked(flush: options.FlushToDisk);
-                }
-                catch
-                {
-                    CloseActiveWriteHandleLocked(flush: false);
-                    foreach (uint createdId in createdSegmentIds)
-                        RetireAndDeleteSegment(createdId);
-                    throw;
-                }
-            }
+            RewriteSegmentsLocked(
+                entriesToRewrite,
+                options.TargetCodec,
+                options.FlushToDisk,
+                out Dictionary<ChunkRecordLocation, ChunkIndexEntry> relocations,
+                out HashSet<uint> createdSegmentIds,
+                out long newDataBytes);
 
             // Step 2: Atomic caller reference update BEFORE deleting any obsolete segment.
             commitRelocations(relocations);
 
             // Step 3: Retire and delete obsolete segments once no live snapshot references them.
-            long removedBytes = 0;
-            for (int i = 0; i < deadSegmentIds.Count; i++)
-            {
-                uint segId = deadSegmentIds[i];
-                removedBytes += segmentFiles[segId].Length;
-                RetireAndDeleteSegment(segId);
-            }
+            long removedBytes = RetireObsoleteSegments(segmentFiles, deadSegmentIds, rewriteSegmentSet);
+            long createdHeaderBytes = (long)createdSegmentIds.Count * ChunkRecordCodec.SegmentHeaderSize;
 
-            foreach (uint segId in rewriteSegmentSet)
-            {
-                removedBytes += segmentFiles[segId].Length;
-                RetireAndDeleteSegment(segId);
-            }
-
-            long createdHeaderBytes = (long)createdSegmentIds.Count * StreamingSaveFormat.SegmentHeaderSize;
-            long bytesReclaimed = removedBytes - (newDataBytes + createdHeaderBytes);
             return new CompactionReport(
                 Executed: true,
                 RewrittenChunks: entriesToRewrite.Count,
                 RemovedSegments: deadSegmentIds.Count + rewriteSegmentSet.Count,
                 CreatedSegments: createdSegmentIds.Count,
-                BytesReclaimed: bytesReclaimed);
+                BytesReclaimed: removedBytes - (newDataBytes + createdHeaderBytes));
         }
     }
 
@@ -500,79 +402,157 @@ public sealed class ChunkSegmentStore : IDisposable
             CloseActiveWriteHandleLocked(flush: false);
         }
 
-        List<IRandomAccessHandle>? toDispose = null;
-        lock (_handleLock)
-        {
-            foreach (SegmentHandleRef handleRef in _readHandles.Values)
-            {
-                handleRef.Retired = true;
-                handleRef.PendingDelete = false;
-                handleRef.RefCount--;
-                if (handleRef.RefCount == 0)
-                    (toDispose ??= []).Add(handleRef.Handle);
-            }
-
-            _readHandles.Clear();
-        }
-
-        if (toDispose is not null)
-        {
-            for (int i = 0; i < toDispose.Count; i++)
-                toDispose[i].Dispose();
-        }
-
-        if (_ownsCodecs)
-            _codecs.Dispose();
+        _handleCache.Dispose();
     }
 
-    private ChunkIndexEntry RewriteSingleEntryLocked(
-        in ChunkIndexEntry oldEntry,
-        IChunkCodec targetCodec,
-        ArrayBufferWriter<byte> scratch,
-        bool flushOnRoll)
+    private static void PlanCompaction(
+        Dictionary<uint, (string Path, long Length)> segmentFiles,
+        IEnumerable<ChunkIndexEntry> liveEntries,
+        CompactionOptions options,
+        out List<uint> deadSegmentIds,
+        out HashSet<uint> rewriteSegmentSet,
+        out List<ChunkIndexEntry> entriesToRewrite)
     {
-        scratch.Clear();
-        if (oldEntry.Codec == targetCodec.Id)
+        var uniqueLiveByLocation = new Dictionary<ChunkRecordLocation, ChunkIndexEntry>();
+        var liveBytesPerSegment = new Dictionary<uint, long>();
+        foreach (ChunkIndexEntry entry in liveEntries)
         {
-            if (!TryReadCompressedChunk(oldEntry, scratch, out string? failureReason))
-                throw new InvalidDataException($"Compaction failed reading compressed chunk {oldEntry.Key}: {failureReason}");
+            if (!segmentFiles.ContainsKey(entry.SegmentId))
+                throw new InvalidDataException($"Live chunk {entry.Key} references missing segment {entry.SegmentId}.");
 
-            return WriteRecordLocked(
-                oldEntry.Key,
-                scratch.WrittenSpan,
-                oldEntry.UncompressedSize,
-                targetCodec.Id,
-                oldEntry.Flags,
-                oldEntry.SchemaVersion,
-                SegmentFlags.Compacted,
-                flushOnRoll);
+            ChunkRecordLocation location = entry.Location;
+            if (uniqueLiveByLocation.TryGetValue(location, out ChunkIndexEntry existing))
+            {
+                if (existing != entry)
+                    throw new InvalidDataException($"Conflicting live chunk index entries at segment {location.SegmentId} offset {location.RecordOffset}.");
+
+                continue;
+            }
+
+            uniqueLiveByLocation.Add(location, entry);
+            liveBytesPerSegment[entry.SegmentId] = liveBytesPerSegment.GetValueOrDefault(entry.SegmentId) +
+                                                   ChunkRecordCodec.AlignedChunkRecordLength(entry.CompressedSize);
         }
 
-        if (!TryReadChunk(oldEntry, scratch, out string? readFailure))
-            throw new InvalidDataException($"Compaction failed decoding chunk {oldEntry.Key}: {readFailure}");
+        deadSegmentIds = [];
+        var candidateSegments = new List<(uint SegmentId, double DeadRatio)>();
+        foreach ((uint segId, (_, long fileLen)) in segmentFiles)
+        {
+            long payloadSpan = Math.Max(0L, fileLen - ChunkRecordCodec.SegmentHeaderSize);
+            long liveBytes = liveBytesPerSegment.GetValueOrDefault(segId);
+            if (liveBytes == 0)
+            {
+                deadSegmentIds.Add(segId);
+                continue;
+            }
 
-        ReadOnlySpan<byte> uncompressed = scratch.WrittenSpan;
-        int maxComp = targetCodec.GetMaxCompressedLength(uncompressed.Length);
-        byte[]? compBuffer = maxComp > 0 ? ArrayPool<byte>.Shared.Rent(maxComp) : null;
+            double deadRatio = payloadSpan > 0 ? Math.Max(0.0, (double)(payloadSpan - liveBytes) / payloadSpan) : 0.0;
+            candidateSegments.Add((segId, deadRatio));
+        }
+
+        rewriteSegmentSet = SelectSegmentsToRewrite(candidateSegments, options);
+        entriesToRewrite = [];
+        if (rewriteSegmentSet.Count == 0)
+            return;
+
+        foreach (ChunkIndexEntry entry in uniqueLiveByLocation.Values)
+        {
+            if (rewriteSegmentSet.Contains(entry.SegmentId))
+                entriesToRewrite.Add(entry);
+        }
+
+        entriesToRewrite.Sort(static (a, b) =>
+        {
+            int keyCmp = a.Key.CompareTo(b.Key);
+            if (keyCmp != 0)
+                return keyCmp;
+
+            int segCmp = a.SegmentId.CompareTo(b.SegmentId);
+            return segCmp != 0 ? segCmp : a.RecordOffset.CompareTo(b.RecordOffset);
+        });
+    }
+
+    private void RewriteSegmentsLocked(
+        List<ChunkIndexEntry> entriesToRewrite,
+        ChunkCodecId targetCodec,
+        bool flushToDisk,
+        out Dictionary<ChunkRecordLocation, ChunkIndexEntry> relocations,
+        out HashSet<uint> createdSegmentIds,
+        out long newDataBytes)
+    {
+        relocations = new Dictionary<ChunkRecordLocation, ChunkIndexEntry>(entriesToRewrite.Count);
+        createdSegmentIds = [];
+        newDataBytes = 0;
+
+        if (entriesToRewrite.Count == 0)
+            return;
+
+        var uncompressedScratch = new ArrayBufferWriter<byte>(64 * 1024);
+        var compressedScratch = new ArrayBufferWriter<byte>(64 * 1024);
         try
         {
-            Span<byte> compSpan = compBuffer is not null ? compBuffer.AsSpan(0, maxComp) : Span<byte>.Empty;
-            int compLength = targetCodec.Compress(uncompressed, compSpan);
-            return WriteRecordLocked(
-                oldEntry.Key,
-                compSpan[..compLength],
-                oldEntry.UncompressedSize,
-                targetCodec.Id,
-                oldEntry.Flags,
-                oldEntry.SchemaVersion,
-                SegmentFlags.Compacted,
-                flushOnRoll);
+            for (int i = 0; i < entriesToRewrite.Count; i++)
+            {
+                ChunkIndexEntry oldEntry = entriesToRewrite[i];
+                compressedScratch.Clear();
+                if (!ChunkRecordCodec.TryReadForTargetCodec(
+                        this,
+                        oldEntry,
+                        targetCodec,
+                        _codecs,
+                        uncompressedScratch,
+                        compressedScratch,
+                        out string? failureReason))
+                {
+                    throw new InvalidDataException($"Compaction failed processing chunk {oldEntry.Key}: {failureReason}");
+                }
+
+                ChunkIndexEntry newEntry = WriteRecordLocked(
+                    oldEntry.Key,
+                    compressedScratch.WrittenSpan,
+                    oldEntry.UncompressedSize,
+                    targetCodec,
+                    oldEntry.Flags,
+                    oldEntry.SchemaVersion,
+                    SegmentFlags.Compacted,
+                    flushToDisk);
+
+                relocations.Add(oldEntry.Location, newEntry);
+                createdSegmentIds.Add(newEntry.SegmentId);
+                newDataBytes += ChunkRecordCodec.AlignedChunkRecordLength(newEntry.CompressedSize);
+            }
+
+            CloseActiveWriteHandleLocked(flush: flushToDisk);
         }
-        finally
+        catch
         {
-            if (compBuffer is not null)
-                ArrayPool<byte>.Shared.Return(compBuffer);
+            CloseActiveWriteHandleLocked(flush: false);
+            foreach (uint createdId in createdSegmentIds)
+                _handleCache.RetireAndDelete(createdId);
+            throw;
         }
+    }
+
+    private long RetireObsoleteSegments(
+        Dictionary<uint, (string Path, long Length)> segmentFiles,
+        List<uint> deadSegmentIds,
+        HashSet<uint> rewriteSegmentSet)
+    {
+        long removedBytes = 0;
+        for (int i = 0; i < deadSegmentIds.Count; i++)
+        {
+            uint segId = deadSegmentIds[i];
+            removedBytes += segmentFiles[segId].Length;
+            _handleCache.RetireAndDelete(segId);
+        }
+
+        foreach (uint segId in rewriteSegmentSet)
+        {
+            removedBytes += segmentFiles[segId].Length;
+            _handleCache.RetireAndDelete(segId);
+        }
+
+        return removedBytes;
     }
 
     private ChunkIndexEntry WriteRecordLocked(
@@ -585,17 +565,17 @@ public sealed class ChunkSegmentStore : IDisposable
         SegmentFlags segmentFlags,
         bool flushOnRoll)
     {
-        long alignedLengthLong = StreamingSaveFormat.AlignedChunkRecordLength((uint)compressedPayload.Length);
+        long alignedLengthLong = ChunkRecordCodec.AlignedChunkRecordLength((uint)compressedPayload.Length);
         if (alignedLengthLong > int.MaxValue)
             throw new IOException($"Chunk {key} record exceeds maximum single record length.");
 
         int alignedLength = (int)alignedLengthLong;
-        long maxSegBytes = Math.Max(StreamingSaveFormat.SegmentHeaderSize + 1L, MaxSegmentBytes);
+        long maxSegBytes = Math.Max(ChunkRecordCodec.SegmentHeaderSize + 1L, MaxSegmentBytes);
 
         bool mustRoll = _activeWriteHandle is null ||
                         _activeWriteFlags != segmentFlags ||
                         _activeWriteCursor > uint.MaxValue ||
-                        (_activeWriteCursor > StreamingSaveFormat.SegmentHeaderSize && _activeWriteCursor + alignedLengthLong > maxSegBytes);
+                        (_activeWriteCursor > ChunkRecordCodec.SegmentHeaderSize && _activeWriteCursor + alignedLengthLong > maxSegBytes);
 
         if (mustRoll)
             RollWriteSegmentLocked(segmentFlags, flushOnRoll);
@@ -617,7 +597,7 @@ public sealed class ChunkSegmentStore : IDisposable
         try
         {
             Span<byte> recordSpan = recordBuffer.AsSpan(0, alignedLength);
-            int written = StreamingSaveFormat.WriteChunkRecord(recordSpan, entry, compressedPayload);
+            int written = ChunkRecordCodec.WriteChunkRecord(recordSpan, entry, compressedPayload);
             _activeWriteHandle!.WriteAt(_activeWriteCursor, recordSpan[..written]);
             _activeWriteCursor += written;
         }
@@ -638,8 +618,8 @@ public sealed class ChunkSegmentStore : IDisposable
         IRandomAccessHandle handle = _storage.OpenAppendOrCreate(relativePath);
         try
         {
-            Span<byte> header = stackalloc byte[StreamingSaveFormat.SegmentHeaderSize];
-            StreamingSaveFormat.WriteSegmentHeader(header, segmentFlags, segmentId, _worldGuid, DateTime.UtcNow.Ticks);
+            Span<byte> header = stackalloc byte[ChunkRecordCodec.SegmentHeaderSize];
+            ChunkRecordCodec.WriteSegmentHeader(header, segmentFlags, segmentId, _worldGuid, DateTime.UtcNow.Ticks);
             handle.WriteAt(0, header);
         }
         catch
@@ -650,7 +630,7 @@ public sealed class ChunkSegmentStore : IDisposable
 
         _activeWriteHandle = handle;
         _activeWriteSegmentId = segmentId;
-        _activeWriteCursor = StreamingSaveFormat.SegmentHeaderSize;
+        _activeWriteCursor = ChunkRecordCodec.SegmentHeaderSize;
         _activeWriteFlags = segmentFlags;
     }
 
@@ -699,146 +679,6 @@ public sealed class ChunkSegmentStore : IDisposable
         return map;
     }
 
-    private bool TryAcquireSegmentHandle(
-        uint segmentId,
-        [NotNullWhen(true)] out SegmentHandleRef? handleRef,
-        [NotNullWhen(false)] out string? failureReason)
-    {
-        lock (_handleLock)
-        {
-            if (_retiredSegmentIds.Contains(segmentId))
-            {
-                handleRef = null;
-                failureReason = $"Segment {segmentId} has been retired.";
-                return false;
-            }
-
-            if (_readHandles.TryGetValue(segmentId, out SegmentHandleRef? cached) && !cached.Retired)
-            {
-                cached.RefCount++;
-                handleRef = cached;
-                failureReason = null;
-                return true;
-            }
-        }
-
-        string relativePath = StreamingSavePaths.SegmentFilePath(_worldGuid, segmentId);
-        if (!_storage.TryOpenRead(relativePath, out IRandomAccessHandle? openedHandle))
-        {
-            handleRef = null;
-            failureReason = $"Segment file '{relativePath}' does not exist.";
-            return false;
-        }
-
-        if (!StreamingSaveFormat.TryReadAndValidateSegmentHeader(
-                openedHandle,
-                _worldGuid,
-                segmentId,
-                expectedSpill: false,
-                out _,
-                out failureReason))
-        {
-            openedHandle.Dispose();
-            handleRef = null;
-            return false;
-        }
-
-        var newRef = new SegmentHandleRef(openedHandle, relativePath);
-        bool keepNewRef = false;
-        lock (_handleLock)
-        {
-            if (_disposed)
-            {
-                handleRef = null;
-                failureReason = "Segment store was disposed.";
-                openedHandle.Dispose();
-                return false;
-            }
-
-            if (_retiredSegmentIds.Contains(segmentId))
-            {
-                // Segment was retired while we opened it; let this in-flight read finish without caching it.
-                newRef.Retired = true;
-                newRef.PendingDelete = false;
-                newRef.RefCount = 1;
-                handleRef = newRef;
-                keepNewRef = true;
-            }
-            else if (_readHandles.TryGetValue(segmentId, out SegmentHandleRef? existing) && !existing.Retired)
-            {
-                existing.RefCount++;
-                handleRef = existing;
-            }
-            else
-            {
-                newRef.RefCount = 2; // 1 for cache + 1 for caller.
-                _readHandles[segmentId] = newRef;
-                handleRef = newRef;
-                keepNewRef = true;
-            }
-        }
-
-        if (!keepNewRef)
-            openedHandle.Dispose();
-
-        failureReason = null;
-        return true;
-    }
-
-    private void ReleaseSegmentHandle(SegmentHandleRef handleRef)
-    {
-        IRandomAccessHandle? toDispose = null;
-        string? pathToDelete = null;
-        lock (_handleLock)
-        {
-            handleRef.RefCount--;
-            if (handleRef.Retired && handleRef.RefCount == 0)
-            {
-                toDispose = handleRef.Handle;
-                if (handleRef.PendingDelete)
-                    pathToDelete = handleRef.RelativePath;
-            }
-        }
-
-        toDispose?.Dispose();
-        if (pathToDelete is not null)
-            _storage.DeleteFile(pathToDelete);
-    }
-
-    private void RetireAndDeleteSegment(uint segmentId)
-    {
-        IRandomAccessHandle? toDispose = null;
-        string? pathToDelete = null;
-        bool hadCachedHandle = false;
-
-        lock (_handleLock)
-        {
-            _retiredSegmentIds.Add(segmentId);
-            if (_readHandles.Remove(segmentId, out SegmentHandleRef? cached))
-            {
-                hadCachedHandle = true;
-                cached.Retired = true;
-                cached.PendingDelete = true;
-                cached.RefCount--;
-                if (cached.RefCount == 0)
-                {
-                    toDispose = cached.Handle;
-                    pathToDelete = cached.RelativePath;
-                }
-            }
-        }
-
-        toDispose?.Dispose();
-        if (pathToDelete is not null)
-        {
-            _storage.DeleteFile(pathToDelete);
-        }
-        else if (!hadCachedHandle)
-        {
-            _storage.DeleteFile(StreamingSavePaths.SegmentFilePath(_worldGuid, segmentId));
-        }
-    }
-
     private static HashSet<uint> SelectSegmentsToRewrite(
         List<(uint SegmentId, double DeadRatio)> candidates,
         CompactionOptions options)
@@ -883,52 +723,19 @@ public sealed class ChunkSegmentStore : IDisposable
         return selected;
     }
 
-    private static int[] SortIndicesByKey(ReadOnlySpan<ChunkWriteInput> chunks)
+    private static int[] SortUniqueIndicesByKey(ChunkKey[] keys)
     {
-        int[] indices = new int[chunks.Length];
+        var indices = new int[keys.Length];
         for (int i = 0; i < indices.Length; i++)
             indices[i] = i;
-
-        var keys = new ChunkKey[chunks.Length];
-        for (int i = 0; i < chunks.Length; i++)
-            keys[i] = chunks[i].Key;
 
         Array.Sort(keys, indices);
         for (int i = 1; i < keys.Length; i++)
         {
             if (keys[i] == keys[i - 1])
-                throw new ArgumentException($"Duplicate chunk key {keys[i]} in batch.", nameof(chunks));
+                throw new ArgumentException($"Duplicate chunk key {keys[i]} in batch.");
         }
 
         return indices;
-    }
-
-    private static int[] SortPrecompressedIndicesByKey(ReadOnlySpan<PrecompressedChunkWrite> chunks)
-    {
-        int[] indices = new int[chunks.Length];
-        for (int i = 0; i < indices.Length; i++)
-            indices[i] = i;
-
-        var keys = new ChunkKey[chunks.Length];
-        for (int i = 0; i < chunks.Length; i++)
-            keys[i] = chunks[i].Key;
-
-        Array.Sort(keys, indices);
-        for (int i = 1; i < keys.Length; i++)
-        {
-            if (keys[i] == keys[i - 1])
-                throw new ArgumentException($"Duplicate chunk key {keys[i]} in batch.", nameof(chunks));
-        }
-
-        return indices;
-    }
-
-    private sealed class SegmentHandleRef(IRandomAccessHandle handle, string relativePath)
-    {
-        public IRandomAccessHandle Handle { get; } = handle;
-        public string RelativePath { get; } = relativePath;
-        public int RefCount;
-        public bool Retired;
-        public bool PendingDelete;
     }
 }

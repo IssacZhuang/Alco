@@ -1,8 +1,10 @@
 using System;
 using System.Buffers;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
+using System.Threading;
 
 namespace Alco;
 
@@ -49,7 +51,7 @@ internal static class PackedStringTable
     {
         private readonly ReadOnlyMemory<byte> _data;
         private readonly Entry[] _entries;
-        private readonly Dictionary<string, int> _keys = new(StringComparer.Ordinal);
+        private readonly ConcurrentDictionary<string, int> _keys = new(StringComparer.Ordinal);
 
         private struct Entry
         {
@@ -69,6 +71,10 @@ internal static class PackedStringTable
         public static bool TryOpen(ReadOnlyMemory<byte> data, int count, [NotNullWhen(true)] out Reader? reader)
         {
             reader = null;
+            if (count < 0 || count > data.Length)
+                return false;
+
+            var entries = count == 0 ? [] : new Entry[count];
             var cursor = new PackedCursor(data);
             try
             {
@@ -76,7 +82,9 @@ internal static class PackedStringTable
                 {
                     if (!cursor.TryReadLengthPrefixed(out ReadOnlyMemory<byte> utf8))
                         return false;
+
                     Utf8.GetCharCount(utf8.Span);
+                    entries[i] = new Entry { Offset = cursor.Position - utf8.Length, Length = utf8.Length };
                 }
             }
             catch (DecoderFallbackException)
@@ -86,13 +94,6 @@ internal static class PackedStringTable
             if (cursor.Remaining != 0)
                 return false;
 
-            var entries = new Entry[count];
-            cursor = new PackedCursor(data);
-            for (int i = 0; i < count; i++)
-            {
-                cursor.TryReadLengthPrefixed(out ReadOnlyMemory<byte> utf8);
-                entries[i] = new Entry { Offset = cursor.Position - utf8.Length, Length = utf8.Length };
-            }
             reader = new Reader(data, entries);
             return true;
         }
@@ -100,17 +101,19 @@ internal static class PackedStringTable
         public string GetString(int id)
         {
             ref Entry entry = ref _entries[id];
-            return entry.Text ??= Utf8.GetString(_data.Span.Slice(entry.Offset, entry.Length));
+            string? cached = Volatile.Read(ref entry.Text);
+            if (cached is not null)
+                return cached;
+
+            string decoded = Utf8.GetString(_data.Span.Slice(entry.Offset, entry.Length));
+            Volatile.Write(ref entry.Text, decoded);
+            return decoded;
         }
 
         public bool RegisterKey(int id)
         {
             string key = GetString(id);
-            if (_keys.TryGetValue(key, out int oldId))
-                return id == oldId;
-
-            _keys.Add(key, id);
-            return true;
+            return _keys.GetOrAdd(key, id) == id;
         }
 
         public bool TryGetKeyId(string key, out int id) => _keys.TryGetValue(key, out id);

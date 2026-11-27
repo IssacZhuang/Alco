@@ -54,14 +54,15 @@ public sealed class PackedBinaryReadNode : SerializeReadNode
     /// </summary>
     /// <param name="clearMissingReferences">Whether to clear stale references on reused objects.</param>
     /// <returns>The node for the reference-resolution pass.</returns>
-    public PackedBinaryPostLoadNode CreatePostLoadNode(bool clearMissingReferences = false) =>
-        PackedBinaryPostLoadNode.Factory.Create(_table, _session, clearMissingReferences);
+    public SerializeNode CreatePostLoadNode(bool clearMissingReferences = false) =>
+        new PackedBinaryPostLoadNode(_table, _session, clearMissingReferences);
 
     /// <inheritdoc/>
     public override bool TryGetChildNode(string key, [NotNullWhen(true)] out SerializeReadNode? childNode)
     {
         childNode = null;
-        if (!TryGetChildBytes(key, out ReadOnlyMemory<byte> body) || !_session.TryOpenChild(_table, body, key, out PackedTable child))
+        if (!_table.TryGetChildTableBytes(key, _session.Strings, out ReadOnlyMemory<byte> body) ||
+            !_session.TryOpenChild(_table, body, key, out PackedTable child))
             return false;
 
         childNode = new PackedBinaryReadNode(child, _session);
@@ -169,7 +170,7 @@ public sealed class PackedBinaryReadNode : SerializeReadNode
     /// <inheritdoc/>
     public override void BindSerializable<T>(string key, T value)
     {
-        if (!TryGetChildBytes(key, out ReadOnlyMemory<byte> body))
+        if (!_table.TryGetChildTableBytes(key, _session.Strings, out ReadOnlyMemory<byte> body))
             return;
 
         T? item = value;
@@ -268,13 +269,6 @@ public sealed class PackedBinaryReadNode : SerializeReadNode
 
     private bool TryGetField(string key, out PackedTag tag, out PackedCursor payload) =>
         _table.TryGetField(key, _session.Strings, out tag, out payload);
-
-    private bool TryGetChildBytes(string key, out ReadOnlyMemory<byte> body)
-    {
-        body = default;
-        return TryGetField(key, out PackedTag tag, out PackedCursor payload) && tag == PackedTag.Table &&
-            payload.TryReadLengthPrefixed(out body);
-    }
 
     private bool TryGetRawArray<T>(string key, out ReadOnlyMemory<byte> bytes) where T : unmanaged
     {

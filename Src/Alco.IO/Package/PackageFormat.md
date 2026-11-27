@@ -4,7 +4,7 @@ Purpose: compact two-section package (Meta + Content) with a front-loaded entry 
 random/positional access to individual entries. Used by asset bundles (`PackageMeta`, magic `"alco"`)
 and by save files (`SaveMetaData`, magic `"savl"`).
 
-- Meta: a complete PackedBinary document (inner magic `APKB`), written with `elideDefaults: false`.
+- Meta: a complete PackedBinary document (inner magic `APKB`), written with default settings (`elideDefaults: false`).
   The meta type implements `IPackageMeta` (which supplies the file's magic) and derives from
   `PackageMetaBase` (which owns the `_entries` directory). Older, non-`APKB` metadata is not supported.
 - Content: raw entry bytes in entry order, with optional alignment padding and no per-entry framing.

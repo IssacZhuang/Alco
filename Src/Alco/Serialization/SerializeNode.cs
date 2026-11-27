@@ -10,8 +10,6 @@ namespace Alco;
 /// </summary>
 public abstract class SerializeNode
 {
-    protected Action<string>? OnError {get; set;}
-
     /// <summary>
     /// Gets the reference context used to track serialized object identities, if any.
     /// </summary>
@@ -175,16 +173,4 @@ public abstract class SerializeNode
     /// <param name="key">The key identifier for the reference in the serialization format.</param>
     /// <param name="referenceable">The referenced object, or <c>null</c>.</param>
     public abstract void BindReference<T>(string key, ref T? referenceable) where T : IReferenceable;
-
-    protected void AddError(string error)
-    {
-        if(OnError != null)
-        {
-            OnError(error);
-        }
-        else
-        {
-            Log.Error(error);
-        }
-    }
 }

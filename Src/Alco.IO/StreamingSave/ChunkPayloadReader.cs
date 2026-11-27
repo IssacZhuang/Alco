@@ -5,6 +5,34 @@ using System.Collections.Generic;
 namespace Alco.IO;
 
 /// <summary>
+/// Single decoded section slice yielded by <see cref="ChunkPayloadReader"/>.
+/// </summary>
+public readonly ref struct ChunkSection
+{
+    /// <summary>
+    /// Initializes a <see cref="ChunkSection"/> view.
+    /// </summary>
+    /// <param name="id">The section identifier.</param>
+    /// <param name="flags">The section flags.</param>
+    /// <param name="data">The section payload slice.</param>
+    public ChunkSection(ushort id, ushort flags, ReadOnlySpan<byte> data)
+    {
+        Id = id;
+        Flags = flags;
+        Data = data;
+    }
+
+    /// <summary>Gets the section identifier.</summary>
+    public ushort Id { get; }
+
+    /// <summary>Gets the section flags.</summary>
+    public ushort Flags { get; }
+
+    /// <summary>Gets the section payload bytes.</summary>
+    public ReadOnlySpan<byte> Data { get; }
+}
+
+/// <summary>
 /// Zero-allocation reader over a validated <c>ACHK</c> TLV chunk payload.
 /// </summary>
 public readonly ref struct ChunkPayloadReader
@@ -39,21 +67,21 @@ public readonly ref struct ChunkPayloadReader
     public static bool TryOpen(ReadOnlySpan<byte> payload, out ChunkPayloadReader reader)
     {
         reader = default;
-        if (payload.Length < StreamingSaveFormat.ChunkPayloadHeaderSize)
+        if (payload.Length < ChunkRecordCodec.ChunkPayloadHeaderSize)
             return false;
 
-        if (!payload[..4].SequenceEqual(StreamingSaveFormat.ChunkPayloadMagicBytes))
+        if (!payload[..4].SequenceEqual(ChunkRecordCodec.ChunkPayloadMagicBytes))
             return false;
 
         ushort version = BinaryPrimitives.ReadUInt16LittleEndian(payload.Slice(4, 2));
-        if (version != StreamingSaveFormat.ChunkPayloadVersion)
+        if (version != ChunkRecordCodec.ChunkPayloadVersion)
             return false;
 
         ushort sectionCount = BinaryPrimitives.ReadUInt16LittleEndian(payload.Slice(6, 2));
         double lastSimTime = BinaryPrimitives.ReadDoubleLittleEndian(payload.Slice(8, 8));
 
-        long headerAndTableLength = StreamingSaveFormat.ChunkPayloadHeaderSize +
-                                    (long)sectionCount * StreamingSaveFormat.ChunkSectionDescSize;
+        long headerAndTableLength = ChunkRecordCodec.ChunkPayloadHeaderSize +
+                                    (long)sectionCount * ChunkRecordCodec.ChunkSectionDescSize;
         if (headerAndTableLength > payload.Length)
             return false;
 
@@ -63,7 +91,7 @@ public readonly ref struct ChunkPayloadReader
         long dataCursor = headerAndTableLength;
         for (int i = 0; i < sectionCount; i++)
         {
-            int descOffset = StreamingSaveFormat.ChunkPayloadHeaderSize + i * StreamingSaveFormat.ChunkSectionDescSize;
+            int descOffset = ChunkRecordCodec.ChunkPayloadHeaderSize + i * ChunkRecordCodec.ChunkSectionDescSize;
             ushort sectionId = BinaryPrimitives.ReadUInt16LittleEndian(payload.Slice(descOffset, 2));
             uint byteLength = BinaryPrimitives.ReadUInt32LittleEndian(payload.Slice(descOffset + 4, 4));
 
@@ -105,10 +133,10 @@ public readonly ref struct ChunkPayloadReader
     /// <returns><see langword="true"/> if the section was present; otherwise, <see langword="false"/>.</returns>
     public bool TryGetSection(ushort sectionId, out ReadOnlySpan<byte> data, out ushort flags)
     {
-        int dataOffset = StreamingSaveFormat.ChunkPayloadHeaderSize + _sectionCount * StreamingSaveFormat.ChunkSectionDescSize;
+        int dataOffset = ChunkRecordCodec.ChunkPayloadHeaderSize + _sectionCount * ChunkRecordCodec.ChunkSectionDescSize;
         for (int i = 0; i < _sectionCount; i++)
         {
-            int descOffset = StreamingSaveFormat.ChunkPayloadHeaderSize + i * StreamingSaveFormat.ChunkSectionDescSize;
+            int descOffset = ChunkRecordCodec.ChunkPayloadHeaderSize + i * ChunkRecordCodec.ChunkSectionDescSize;
             ushort currentId = BinaryPrimitives.ReadUInt16LittleEndian(_payload.Slice(descOffset, 2));
             ushort currentFlags = BinaryPrimitives.ReadUInt16LittleEndian(_payload.Slice(descOffset + 2, 2));
             int byteLength = (int)BinaryPrimitives.ReadUInt32LittleEndian(_payload.Slice(descOffset + 4, 4));
@@ -129,36 +157,51 @@ public readonly ref struct ChunkPayloadReader
     }
 
     /// <summary>
-    /// Reads the section at <paramref name="index"/> in header order.
+    /// Returns a zero-allocation sequential enumerator over all sections in header order.
     /// </summary>
-    /// <param name="index">The zero-based section index.</param>
-    /// <param name="sectionId">The section identifier.</param>
-    /// <param name="flags">The section flags.</param>
-    /// <param name="data">The section payload slice.</param>
-    public void GetSection(int index, out ushort sectionId, out ushort flags, out ReadOnlySpan<byte> data)
+    /// <returns>An enumerator yielding each <see cref="ChunkSection"/> in O(N) total time.</returns>
+    public Enumerator GetEnumerator() => new(_payload, _sectionCount);
+
+    /// <summary>
+    /// Sequential zero-allocation enumerator over sections in a <see cref="ChunkPayloadReader"/>.
+    /// </summary>
+    public ref struct Enumerator
     {
-        if ((uint)index >= (uint)_sectionCount)
-            throw new ArgumentOutOfRangeException(nameof(index));
+        private readonly ReadOnlySpan<byte> _payload;
+        private readonly int _sectionCount;
+        private int _index;
+        private int _dataOffset;
+        private ChunkSection _current;
 
-        int dataOffset = StreamingSaveFormat.ChunkPayloadHeaderSize + _sectionCount * StreamingSaveFormat.ChunkSectionDescSize;
-        for (int i = 0; i <= index; i++)
+        internal Enumerator(ReadOnlySpan<byte> payload, int sectionCount)
         {
-            int descOffset = StreamingSaveFormat.ChunkPayloadHeaderSize + i * StreamingSaveFormat.ChunkSectionDescSize;
-            ushort currentId = BinaryPrimitives.ReadUInt16LittleEndian(_payload.Slice(descOffset, 2));
-            ushort currentFlags = BinaryPrimitives.ReadUInt16LittleEndian(_payload.Slice(descOffset + 2, 2));
-            int byteLength = (int)BinaryPrimitives.ReadUInt32LittleEndian(_payload.Slice(descOffset + 4, 4));
-
-            if (i == index)
-            {
-                sectionId = currentId;
-                flags = currentFlags;
-                data = _payload.Slice(dataOffset, byteLength);
-                return;
-            }
-
-            dataOffset += byteLength;
+            _payload = payload;
+            _sectionCount = sectionCount;
+            _index = -1;
+            _dataOffset = ChunkRecordCodec.ChunkPayloadHeaderSize + sectionCount * ChunkRecordCodec.ChunkSectionDescSize;
+            _current = default;
         }
 
-        throw new ArgumentOutOfRangeException(nameof(index));
+        /// <summary>Gets the current section slice.</summary>
+        public readonly ChunkSection Current => _current;
+
+        /// <summary>Advances to the next section.</summary>
+        /// <returns><see langword="true"/> if another section is present; otherwise, <see langword="false"/>.</returns>
+        public bool MoveNext()
+        {
+            int nextIndex = _index + 1;
+            if (nextIndex >= _sectionCount)
+                return false;
+
+            int descOffset = ChunkRecordCodec.ChunkPayloadHeaderSize + nextIndex * ChunkRecordCodec.ChunkSectionDescSize;
+            ushort id = BinaryPrimitives.ReadUInt16LittleEndian(_payload.Slice(descOffset, 2));
+            ushort flags = BinaryPrimitives.ReadUInt16LittleEndian(_payload.Slice(descOffset + 2, 2));
+            int byteLength = (int)BinaryPrimitives.ReadUInt32LittleEndian(_payload.Slice(descOffset + 4, 4));
+
+            _current = new ChunkSection(id, flags, _payload.Slice(_dataOffset, byteLength));
+            _dataOffset += byteLength;
+            _index = nextIndex;
+            return true;
+        }
     }
 }

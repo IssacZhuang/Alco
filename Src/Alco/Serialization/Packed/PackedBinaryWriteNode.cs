@@ -9,7 +9,7 @@ namespace Alco;
 /// <summary>
 /// Writes the fields of an object to a packed binary table.
 /// </summary>
-public sealed class PackedBinaryWriteNode : SerializeWriteNode
+internal sealed class PackedBinaryWriteNode : SerializeWriteNode
 {
     private readonly WriteSession _session;
     private readonly Frame _frame;
@@ -478,31 +478,20 @@ public sealed class PackedBinaryWriteNode : SerializeWriteNode
     }
 
     /// <summary>
-    /// Writes complete packed binary documents.
+    /// Appends a packed binary document by saving the root object once.
     /// </summary>
-    internal static class Encoder
+    public static void EncodeTo(IBufferWriter<byte> destination, ISerializable root, ReferenceContext? refCtx, bool elideDefaults, PackedErrors errors)
     {
-        /// <summary>
-        /// Appends a packed binary document by saving the root object once.
-        /// </summary>
-        /// <param name="destination">The destination for the encoded bytes.</param>
-        /// <param name="root">The root object to save.</param>
-        /// <param name="refCtx">The optional context for object references.</param>
-        /// <param name="elideDefaults">Whether bindings omit values matching their defaults.</param>
-        /// <param name="errors">The reporter for recoverable binding failures.</param>
-        public static void EncodeTo(IBufferWriter<byte> destination, ISerializable root, ReferenceContext? refCtx, bool elideDefaults, PackedErrors errors)
-        {
-            PackedWire.RequireLittleEndian();
-            var session = new WriteSession(errors) { ReferenceContext = refCtx, ElideDefaults = elideDefaults };
-            using Frame frame = session.RentFrame();
-            var node = new PackedBinaryWriteNode(session, frame, depth: 0);
-            node.Save(root);
+        PackedWire.RequireLittleEndian();
+        var session = new WriteSession(errors) { ReferenceContext = refCtx, ElideDefaults = elideDefaults };
+        using Frame frame = session.RentFrame();
+        var node = new PackedBinaryWriteNode(session, frame, depth: 0);
+        node.Save(root);
 
-            int stringOffset = checked(PackedWire.HeaderSize + node.GetTableByteLength());
-            PackedWire.WriteHeader(destination, elideDefaults, stringOffset, session.Strings.Count);
-            node.WriteCountedTable(destination);
-            session.Strings.WriteTo(destination);
-        }
+        int stringOffset = checked(PackedWire.HeaderSize + node.GetTableByteLength());
+        PackedWire.WriteHeader(destination, elideDefaults, stringOffset, session.Strings.Count);
+        node.WriteCountedTable(destination);
+        session.Strings.WriteTo(destination);
     }
 
     private sealed class WriteSession(PackedErrors errors)
@@ -510,19 +499,14 @@ public sealed class PackedBinaryWriteNode : SerializeWriteNode
         private readonly List<Frame> _frames = new();
         private int _rentedCount;
 
-        /// <summary>Gets the strings pooled by this encoding session.</summary>
         public PackedStringTable.Writer Strings { get; } = new();
 
-        /// <summary>Gets the error reporter shared by the write nodes.</summary>
         public PackedErrors Errors { get; } = errors;
 
-        /// <summary>Gets the optional context for object references.</summary>
         public ReferenceContext? ReferenceContext { get; init; }
 
-        /// <summary>Gets whether the session omits default-valued bindings.</summary>
         public bool ElideDefaults { get; init; } = true;
 
-        /// <summary>Rents an empty frame for the next level of concurrent writes.</summary>
         public Frame RentFrame()
         {
             if (_rentedCount == _frames.Count)
@@ -531,7 +515,6 @@ public sealed class PackedBinaryWriteNode : SerializeWriteNode
             return _frames[_rentedCount++];
         }
 
-        /// <summary>Releases the most recently rented frame for reuse.</summary>
         public void ReturnFrame() => _rentedCount--;
     }
 
@@ -540,22 +523,15 @@ public sealed class PackedBinaryWriteNode : SerializeWriteNode
         private readonly WriteSession _session;
         private readonly HashSet<int> _keyIds = new();
 
-        /// <summary>Gets the encoded bytes of the active frame.</summary>
         public ArrayBufferWriter<byte> Bytes { get; } = new();
 
-        /// <summary>Creates an empty frame for the owning session.</summary>
-        /// <param name="session">The session that rents the frame.</param>
         public Frame(WriteSession session)
         {
             _session = session;
         }
 
-        /// <summary>Records a key used by the current contents of the frame.</summary>
-        /// <param name="id">The pooled identifier of the key.</param>
-        /// <returns>Whether the key was not already present.</returns>
         public bool TryAddKey(int id) => _keyIds.Add(id);
 
-        /// <inheritdoc/>
         public void Dispose()
         {
             Bytes.ResetWrittenCount();

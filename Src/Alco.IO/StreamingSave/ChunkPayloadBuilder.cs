@@ -36,11 +36,12 @@ public sealed class ChunkPayloadBuilder
     /// <param name="lastSimTime">The simulation timestamp for the next payload.</param>
     public void Reset(double lastSimTime = 0.0)
     {
+        if (_sectionOpen)
+            throw new InvalidOperationException("Cannot reset builder while a section scope is active.");
+
         _lastSimTime = lastSimTime;
         _sections.Clear();
         _writer.Rewind(0);
-        _sectionOpen = false;
-        _openSectionStart = 0;
     }
 
     /// <summary>
@@ -67,53 +68,20 @@ public sealed class ChunkPayloadBuilder
 
     /// <summary>
     /// Begins writing a section directly into the builder's internal buffer.
+    /// Disposing the returned scope without calling <see cref="SectionScope.Commit"/> rewinds any partial writes.
     /// </summary>
-    /// <returns>A buffer writer that receives the section payload until <see cref="CommitSection"/> or <see cref="AbortSection"/> is called.</returns>
-    public IBufferWriter<byte> BeginSection()
+    /// <param name="sectionId">The unique section identifier, validated eagerly.</param>
+    /// <param name="flags">Optional section flags.</param>
+    /// <returns>A disposable write scope bound to this builder.</returns>
+    public SectionScope BeginSection(ushort sectionId, ushort flags = 0)
     {
         if (_sectionOpen)
             throw new InvalidOperationException("A section write is already open.");
 
+        EnsureUniqueSectionId(sectionId);
         _sectionOpen = true;
         _openSectionStart = _writer.WrittenCount;
-        return _writer;
-    }
-
-    /// <summary>
-    /// Commits the currently open section write with the given identifier and flags.
-    /// </summary>
-    /// <param name="sectionId">The unique section identifier.</param>
-    /// <param name="flags">Optional section flags.</param>
-    public void CommitSection(ushort sectionId, ushort flags = 0)
-    {
-        if (!_sectionOpen)
-            throw new InvalidOperationException("No section write is currently open.");
-
-        for (int i = 0; i < _sections.Count; i++)
-        {
-            if (_sections[i].SectionId == sectionId)
-            {
-                _writer.Rewind(_openSectionStart);
-                _sectionOpen = false;
-                throw new ArgumentException($"Duplicate section ID {sectionId}.", nameof(sectionId));
-            }
-        }
-
-        int length = _writer.WrittenCount - _openSectionStart;
-        _sections.Add(new SectionEntry(sectionId, flags, _openSectionStart, length));
-        _sectionOpen = false;
-    }
-
-    /// <summary>
-    /// Aborts the currently open section write and discards all bytes written since <see cref="BeginSection"/>.
-    /// </summary>
-    public void AbortSection()
-    {
-        if (!_sectionOpen)
-            throw new InvalidOperationException("No section write is currently open.");
-
-        _writer.Rewind(_openSectionStart);
-        _sectionOpen = false;
+        return new SectionScope(this, sectionId, flags);
     }
 
     /// <summary>
@@ -128,18 +96,18 @@ public sealed class ChunkPayloadBuilder
         if (_sections.Count > ushort.MaxValue)
             throw new InvalidOperationException("Section count exceeds ushort.MaxValue.");
 
-        int headerAndTableSize = StreamingSaveFormat.ChunkPayloadHeaderSize + _sections.Count * StreamingSaveFormat.ChunkSectionDescSize;
+        int headerAndTableSize = ChunkRecordCodec.ChunkPayloadHeaderSize + _sections.Count * ChunkRecordCodec.ChunkSectionDescSize;
         Span<byte> header = destination.GetSpan(headerAndTableSize)[..headerAndTableSize];
 
-        StreamingSaveFormat.ChunkPayloadMagicBytes.CopyTo(header);
-        BinaryPrimitives.WriteUInt16LittleEndian(header.Slice(4, 2), StreamingSaveFormat.ChunkPayloadVersion);
+        ChunkRecordCodec.ChunkPayloadMagicBytes.CopyTo(header);
+        BinaryPrimitives.WriteUInt16LittleEndian(header.Slice(4, 2), ChunkRecordCodec.ChunkPayloadVersion);
         BinaryPrimitives.WriteUInt16LittleEndian(header.Slice(6, 2), (ushort)_sections.Count);
         BinaryPrimitives.WriteDoubleLittleEndian(header.Slice(8, 8), _lastSimTime);
 
         for (int i = 0; i < _sections.Count; i++)
         {
             SectionEntry entry = _sections[i];
-            int descOffset = StreamingSaveFormat.ChunkPayloadHeaderSize + i * StreamingSaveFormat.ChunkSectionDescSize;
+            int descOffset = ChunkRecordCodec.ChunkPayloadHeaderSize + i * ChunkRecordCodec.ChunkSectionDescSize;
             BinaryPrimitives.WriteUInt16LittleEndian(header.Slice(descOffset, 2), entry.SectionId);
             BinaryPrimitives.WriteUInt16LittleEndian(header.Slice(descOffset + 2, 2), entry.Flags);
             BinaryPrimitives.WriteUInt32LittleEndian(header.Slice(descOffset + 4, 4), checked((uint)entry.Length));
@@ -164,12 +132,25 @@ public sealed class ChunkPayloadBuilder
         if (_sectionOpen)
             throw new InvalidOperationException("Cannot serialize payload while a section write is still open.");
 
-        int totalSize = StreamingSaveFormat.ChunkPayloadHeaderSize +
-                        _sections.Count * StreamingSaveFormat.ChunkSectionDescSize +
+        int totalSize = ChunkRecordCodec.ChunkPayloadHeaderSize +
+                        _sections.Count * ChunkRecordCodec.ChunkSectionDescSize +
                         _writer.WrittenCount;
         var writer = new ArrayBufferWriter<byte>(totalSize);
         WriteTo(writer);
         return writer.WrittenSpan.ToArray();
+    }
+
+    private void CommitOpenSection(ushort sectionId, ushort flags)
+    {
+        int length = _writer.WrittenCount - _openSectionStart;
+        _sections.Add(new SectionEntry(sectionId, flags, _openSectionStart, length));
+        _sectionOpen = false;
+    }
+
+    private void AbortOpenSection()
+    {
+        _writer.Rewind(_openSectionStart);
+        _sectionOpen = false;
     }
 
     private void EnsureUniqueSectionId(ushort sectionId)
@@ -178,6 +159,57 @@ public sealed class ChunkPayloadBuilder
         {
             if (_sections[i].SectionId == sectionId)
                 throw new ArgumentException($"Duplicate section ID {sectionId}.", nameof(sectionId));
+        }
+    }
+
+    /// <summary>
+    /// Stack-bound section write scope that rolls back uncommitted bytes when disposed.
+    /// </summary>
+    public ref struct SectionScope
+    {
+        private readonly ChunkPayloadBuilder? _builder;
+        private readonly ushort _sectionId;
+        private readonly ushort _flags;
+        private bool _completed;
+
+        internal SectionScope(ChunkPayloadBuilder builder, ushort sectionId, ushort flags)
+        {
+            _builder = builder;
+            _sectionId = sectionId;
+            _flags = flags;
+            _completed = false;
+        }
+
+        /// <summary>
+        /// Gets the buffer writer for writing section bytes while the scope is active.
+        /// </summary>
+        public IBufferWriter<byte> Writer =>
+            _builder is null || _completed
+                ? throw new InvalidOperationException("Section scope is no longer active.")
+                : _builder._writer;
+
+        /// <summary>
+        /// Commits the written bytes as a section in the parent <see cref="ChunkPayloadBuilder"/>.
+        /// </summary>
+        public void Commit()
+        {
+            if (_builder is null || _completed)
+                throw new InvalidOperationException("Section scope has already been committed or disposed.");
+
+            _completed = true;
+            _builder.CommitOpenSection(_sectionId, _flags);
+        }
+
+        /// <summary>
+        /// Rewinds any uncommitted writes if <see cref="Commit"/> was not called.
+        /// </summary>
+        public void Dispose()
+        {
+            if (_builder is null || _completed)
+                return;
+
+            _completed = true;
+            _builder.AbortOpenSection();
         }
     }
 

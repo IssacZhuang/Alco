@@ -249,7 +249,7 @@ public sealed class PackageBuilder<TMeta> where TMeta : PackageMetaBase, IPackag
             throw new InvalidOperationException("Content payload too large.");
         }
 
-        ReadOnlyMemory<byte> metaBytes = PackedBinarySerializer.Encode(meta, elideDefaults: false);
+        ReadOnlyMemory<byte> metaBytes = PackedBinarySerializer.Encode(meta);
 
         if (encryptionKey == null)
         {

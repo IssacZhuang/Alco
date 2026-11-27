@@ -7,23 +7,17 @@ namespace Alco;
 /// <summary>
 /// Revisits loaded PackedBinary objects to resolve their references.
 /// </summary>
-public sealed class PackedBinaryPostLoadNode : SerializeNode
+internal sealed class PackedBinaryPostLoadNode : SerializeNode
 {
     private readonly PackedTable _table;
     private readonly PackedReadSession _session;
     private readonly bool _clearMissingReferences;
 
-    private PackedBinaryPostLoadNode(PackedTable table, PackedReadSession session, bool clearMissingReferences)
+    public PackedBinaryPostLoadNode(PackedTable table, PackedReadSession session, bool clearMissingReferences)
     {
         _table = table;
         _session = session;
         _clearMissingReferences = clearMissingReferences;
-    }
-
-    internal static class Factory
-    {
-        public static PackedBinaryPostLoadNode Create(PackedTable table, PackedReadSession session, bool clearMissingReferences) =>
-            new(table, session, clearMissingReferences);
     }
 
     /// <inheritdoc/>
@@ -66,7 +60,7 @@ public sealed class PackedBinaryPostLoadNode : SerializeNode
     public override void BindSerializable<T>(string key, T value)
     {
         T? item = value;
-        if (TryGetChildBytes(key, out ReadOnlyMemory<byte> body))
+        if (_table.TryGetChildTableBytes(key, _session.Strings, out ReadOnlyMemory<byte> body))
         {
             ReplayChild<T>(key, body, ref item);
             return;
@@ -81,7 +75,7 @@ public sealed class PackedBinaryPostLoadNode : SerializeNode
         if (value is null)
             return;
 
-        if (TryGetChildBytes(key, out ReadOnlyMemory<byte> body))
+        if (_table.TryGetChildTableBytes(key, _session.Strings, out ReadOnlyMemory<byte> body))
             ReplayChild<T>(key, body, ref value);
         else if (_clearMissingReferences)
             value = default;
@@ -137,13 +131,6 @@ public sealed class PackedBinaryPostLoadNode : SerializeNode
             return;
         }
         _session.Errors.Report($"Failed to resolve PackedBinary reference '{key}': {id}.");
-    }
-
-    private bool TryGetChildBytes(string key, out ReadOnlyMemory<byte> body)
-    {
-        body = default;
-        return _table.TryGetField(key, _session.Strings, out PackedTag tag, out PackedCursor payload) &&
-            tag == PackedTag.Table && payload.TryReadLengthPrefixed(out body);
     }
 
     private void ReplayChild<T>(string key, ReadOnlyMemory<byte> body, ref T? value) where T : ISerializable

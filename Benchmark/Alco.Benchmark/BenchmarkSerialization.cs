@@ -56,7 +56,7 @@ public class BenchmarkSerializationEncoding
     [Benchmark(Description = "PackedBinary encoding")]
     public byte[] PackedBinaryEncoding()
     {
-        return PackedBinarySerializer.Encode(new SerializationSample(), elideDefaults: false);
+        return PackedBinarySerializer.Encode(new SerializationSample());
     }
 }
 
@@ -103,7 +103,7 @@ public class BenchmarkSerializationDecoding
             }
         });
 
-        _binaryInput = PackedBinarySerializer.Encode(new SerializationSample(), elideDefaults: false);
+        _binaryInput = PackedBinarySerializer.Encode(new SerializationSample());
     }
 
     /// <summary>

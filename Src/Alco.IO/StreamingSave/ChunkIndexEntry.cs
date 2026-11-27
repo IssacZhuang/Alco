@@ -1,4 +1,3 @@
-using System;
 using System.Runtime.InteropServices;
 
 namespace Alco.IO;
@@ -7,7 +6,7 @@ namespace Alco.IO;
 /// Fixed 32-byte blittable index entry locating a chunk record inside a segment or <c>.asav</c> archive.
 /// </summary>
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
-public readonly struct ChunkIndexEntry : IEquatable<ChunkIndexEntry>
+public readonly record struct ChunkIndexEntry
 {
     private readonly uint _mapId;
     private readonly int _chunkX;
@@ -34,7 +33,6 @@ public readonly struct ChunkIndexEntry : IEquatable<ChunkIndexEntry>
     /// <param name="codec">The compression codec used for the payload.</param>
     /// <param name="flags">Optional chunk hint flags.</param>
     /// <param name="schemaVersion">The chunk payload schema version.</param>
-    /// <param name="reserved">Reserved byte (must be <c>0</c>).</param>
     public ChunkIndexEntry(
         uint mapId,
         int chunkX,
@@ -45,8 +43,7 @@ public readonly struct ChunkIndexEntry : IEquatable<ChunkIndexEntry>
         uint uncompressedSize,
         ChunkCodecId codec,
         byte flags = 0,
-        byte schemaVersion = 1,
-        byte reserved = 0)
+        byte schemaVersion = 1)
     {
         _mapId = mapId;
         _chunkX = chunkX;
@@ -58,7 +55,7 @@ public readonly struct ChunkIndexEntry : IEquatable<ChunkIndexEntry>
         _codec = codec;
         _flags = flags;
         _schemaVersion = schemaVersion;
-        _reserved = reserved;
+        _reserved = 0;
     }
 
     /// <summary>Gets the numeric map identifier.</summary>
@@ -91,9 +88,6 @@ public readonly struct ChunkIndexEntry : IEquatable<ChunkIndexEntry>
     /// <summary>Gets the chunk payload schema version.</summary>
     public byte SchemaVersion => _schemaVersion;
 
-    /// <summary>Gets the reserved header byte.</summary>
-    public byte Reserved => _reserved;
-
     /// <summary>Gets the logical chunk key.</summary>
     public ChunkKey Key => new(_mapId, _chunkX, _chunkY);
 
@@ -109,46 +103,5 @@ public readonly struct ChunkIndexEntry : IEquatable<ChunkIndexEntry>
     /// <param name="codec">The new compression codec.</param>
     /// <returns>The updated index entry.</returns>
     public ChunkIndexEntry WithLocation(uint segmentId, uint recordOffset, uint compressedSize, ChunkCodecId codec) =>
-        new(_mapId, _chunkX, _chunkY, segmentId, recordOffset, compressedSize, _uncompressedSize, codec, _flags, _schemaVersion, _reserved);
-
-    /// <inheritdoc/>
-    public bool Equals(ChunkIndexEntry other) =>
-        _mapId == other._mapId &&
-        _chunkX == other._chunkX &&
-        _chunkY == other._chunkY &&
-        _segmentId == other._segmentId &&
-        _recordOffset == other._recordOffset &&
-        _compressedSize == other._compressedSize &&
-        _uncompressedSize == other._uncompressedSize &&
-        _codec == other._codec &&
-        _flags == other._flags &&
-        _schemaVersion == other._schemaVersion &&
-        _reserved == other._reserved;
-
-    /// <inheritdoc/>
-    public override bool Equals(object? obj) => obj is ChunkIndexEntry other && Equals(other);
-
-    /// <inheritdoc/>
-    public override int GetHashCode()
-    {
-        var hash = new HashCode();
-        hash.Add(_mapId);
-        hash.Add(_chunkX);
-        hash.Add(_chunkY);
-        hash.Add(_segmentId);
-        hash.Add(_recordOffset);
-        hash.Add(_compressedSize);
-        hash.Add(_uncompressedSize);
-        hash.Add(_codec);
-        hash.Add(_flags);
-        hash.Add(_schemaVersion);
-        hash.Add(_reserved);
-        return hash.ToHashCode();
-    }
-
-    /// <summary>Compares two entries for value equality.</summary>
-    public static bool operator ==(ChunkIndexEntry left, ChunkIndexEntry right) => left.Equals(right);
-
-    /// <summary>Compares two entries for value inequality.</summary>
-    public static bool operator !=(ChunkIndexEntry left, ChunkIndexEntry right) => !left.Equals(right);
+        new(_mapId, _chunkX, _chunkY, segmentId, recordOffset, compressedSize, _uncompressedSize, codec, _flags, _schemaVersion);
 }

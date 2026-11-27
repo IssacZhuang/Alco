@@ -23,7 +23,7 @@ public static class StructuredFileUtility
     public static byte[] Compose<TMeta>(TMeta meta, ReadOnlySpan<byte> content)
         where TMeta : IStructuredFileMeta, new()
     {
-        byte[] metaBytes = PackedBinarySerializer.Encode(meta, elideDefaults: false);
+        byte[] metaBytes = PackedBinarySerializer.Encode(meta);
         int contentLengthOffset = checked(HeaderSize + metaBytes.Length);
         int contentOffset = checked(contentLengthOffset + sizeof(int));
         byte[] data = new byte[checked(contentOffset + content.Length)];

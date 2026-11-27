@@ -2,9 +2,11 @@ using System;
 using System.Buffers;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Threading.Tasks;
 
 namespace Alco.Test;
 
@@ -41,11 +43,11 @@ public class TestPackedBinarySerialization
             "0A00" +                            // Explicit null optional table, not a missing field.
             "0161016201630164016501660167016803E99BAA0141017A");
 
-        Assert.That(PackedBinarySerializer.Encode(source), Is.EqualTo(expected));
+        Assert.That(PackedBinarySerializer.Encode(source, elideDefaults: true), Is.EqualTo(expected));
         var writer = new ArrayBufferWriter<byte>(1);
         writer.GetSpan(1)[0] = 0xFF;
         writer.Advance(1);
-        PackedBinarySerializer.EncodeTo(writer, source);
+        PackedBinarySerializer.EncodeTo(writer, source, elideDefaults: true);
         Assert.That(writer.WrittenSpan[0], Is.EqualTo(0xFF));
         Assert.That(writer.WrittenMemory.Slice(1).ToArray(), Is.EqualTo(expected));
 
@@ -100,7 +102,7 @@ public class TestPackedBinarySerialization
             "0F0E0B01030C070105030C000000" +    // Map: same framing, with factory.
             "01620170017302C3A9017401760161016C014C01690158016A016B016D016E014E");
 
-        Assert.That(PackedBinarySerializer.Encode(source), Is.EqualTo(expected));
+        Assert.That(PackedBinarySerializer.Encode(source, elideDefaults: true), Is.EqualTo(expected));
         var errors = new List<string>();
         Containers result = PackedBinarySerializer.Decode<Containers>(expected, onError: errors.Add);
         Assert.That(errors, Is.Empty);
@@ -238,7 +240,7 @@ public class TestPackedBinarySerialization
         var input = new Callback((node, _) => node.BindMemory("m", source.AsSpan(1, 3)));
         byte[] expected = Convert.FromHexString(
             "41504B42010001002100000001000000" + "01000A0304050000000B00000011000000" + "016D");
-        Assert.That(PackedBinarySerializer.Encode(input), Is.EqualTo(expected));
+        Assert.That(PackedBinarySerializer.Encode(input, elideDefaults: true), Is.EqualTo(expected));
 
         int[] shortSpan = [77, -1, -1, 77];
         int[] longSpan = [88, -1, -1, -1, -1, 88];
@@ -487,6 +489,49 @@ public class TestPackedBinarySerialization
         });
         Assert.That(thrown, Is.SameAs(expected));
         Assert.That(calls, Is.EqualTo(1));
+    }
+
+    /// <summary>Checks that default encoding preserves default bindings with header flag 0 and rejects legacy payloads.</summary>
+    [Test]
+    public void TestDefaultEncodePreservesDefaultBindings_AndRejectsLegacyPayload()
+    {
+        var source = new Scalars { Int = 0, Text = "" };
+        byte[] encoded = PackedBinarySerializer.Encode(source);
+        Assert.That(encoded.AsSpan(0, 4).SequenceEqual("APKB"u8), Is.True);
+        Assert.That(encoded[6], Is.Zero);
+        Assert.That(encoded, Is.EqualTo(PackedBinarySerializer.Encode(source, elideDefaults: false)));
+
+        byte[] legacy = new byte[sizeof(int)];
+        var errors = new List<string>();
+        Assert.Throws<InvalidDataException>(() => PackedBinarySerializer.Decode<Scalars>(legacy, onError: errors.Add));
+        Assert.That(errors, Has.Count.EqualTo(1));
+    }
+
+    /// <summary>Checks that concurrent child-table reads on a single opened document are thread-safe.</summary>
+    [Test]
+    public void TestConcurrentSubtableReadsAreThreadSafe()
+    {
+        const int childCount = 48;
+        byte[] bytes = PackedBinarySerializer.Encode(new Callback((node, _) =>
+        {
+            for (int i = 0; i < childCount; i++)
+                node.BindSerializable($"item_{i}", new Item { Value = i * 7 + 3 });
+        }));
+
+        Assert.That(PackedBinaryReadNode.TryOpen(bytes, out PackedBinaryReadNode? root), Is.True);
+        Parallel.For(0, 8, worker =>
+        {
+            for (int pass = 0; pass < 20; pass++)
+            {
+                int start = (worker * 7 + pass) % childCount;
+                for (int offset = 0; offset < childCount; offset++)
+                {
+                    int idx = (start + offset) % childCount;
+                    Assert.That(root!.TryGetChildNode($"item_{idx}", out SerializeReadNode? child), Is.True);
+                    Assert.That(child!.GetValue<int>("v"), Is.EqualTo(idx * 7 + 3));
+                }
+            }
+        });
     }
 
     private static void AssertItem(Item item, int value, int? factoryValue = null)

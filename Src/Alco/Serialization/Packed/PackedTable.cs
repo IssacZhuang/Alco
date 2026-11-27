@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
+using System.Threading;
 
 namespace Alco;
 
@@ -93,6 +95,13 @@ internal readonly struct PackedTable
         return false;
     }
 
+    public bool TryGetChildTableBytes(string key, PackedStringTable.Reader strings, out ReadOnlyMemory<byte> body)
+    {
+        body = default;
+        return TryGetField(key, strings, out PackedTag tag, out PackedCursor payload) &&
+            tag == PackedTag.Table && payload.TryReadLengthPrefixed(out body);
+    }
+
     public bool TryGetTableArray(string key, PackedStringTable.Reader strings, out PackedCursor elements, out int count)
     {
         count = 0;
@@ -168,7 +177,7 @@ internal struct PackedMapCursor
 
 internal sealed class PackedReadSession(PackedStringTable.Reader strings, ReferenceContext? referenceContext, PackedErrors errors)
 {
-    private HashSet<ReadOnlyMemory<byte>>? _failedItems;
+    private ConcurrentDictionary<ReadOnlyMemory<byte>, byte>? _failedItems;
     private ConditionalWeakTable<object, Dictionary<ReadOnlyMemory<byte>, object>>? _loadedCollections;
 
     public PackedStringTable.Reader Strings { get; } = strings;
@@ -185,9 +194,10 @@ internal sealed class PackedReadSession(PackedStringTable.Reader strings, Refere
         return false;
     }
 
-    public bool MarkFailed(ReadOnlyMemory<byte> body) => (_failedItems ??= new()).Add(body);
+    public bool MarkFailed(ReadOnlyMemory<byte> body) =>
+        (_failedItems ?? LazyInitializer.EnsureInitialized(ref _failedItems, static () => new())).TryAdd(body, 0);
 
-    public bool WasFailed(ReadOnlyMemory<byte> body) => _failedItems?.Contains(body) == true;
+    public bool WasFailed(ReadOnlyMemory<byte> body) => _failedItems?.ContainsKey(body) == true;
 
     public void RecordCollection<T>(ICollection<T> collection, ReadOnlyMemory<byte> origin, List<(T Item, ReadOnlyMemory<byte> Body)> items)
     {

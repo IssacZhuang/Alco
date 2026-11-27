@@ -1,6 +1,4 @@
 using System;
-using System.Buffers;
-using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
@@ -44,10 +42,10 @@ public sealed class SnapshotLoadResult<TMeta> where TMeta : ISerializable, new()
     public SnapshotLoadResult(
         SnapshotId id,
         TMeta meta,
-        byte[] coreBytes,
+        ReadOnlyMemory<byte> coreBytes,
         ChunkCodecId coreCodec,
-        ChunkIndexEntry[] chunkIndex,
-        byte[]? thumbnailBytes)
+        IReadOnlyList<ChunkIndexEntry> chunkIndex,
+        ReadOnlyMemory<byte> thumbnailBytes)
     {
         Id = id;
         Meta = meta;
@@ -64,47 +62,48 @@ public sealed class SnapshotLoadResult<TMeta> where TMeta : ISerializable, new()
     public TMeta Meta { get; }
 
     /// <summary>Gets the decompressed core world state bytes.</summary>
-    public byte[] CoreBytes { get; }
+    public ReadOnlyMemory<byte> CoreBytes { get; }
 
     /// <summary>Gets the compression codec stored in the snapshot for <see cref="CoreBytes"/>.</summary>
     public ChunkCodecId CoreCodec { get; }
 
     /// <summary>Gets the Morton-ordered chunk index entries.</summary>
-    public ChunkIndexEntry[] ChunkIndex { get; }
+    public IReadOnlyList<ChunkIndexEntry> ChunkIndex { get; }
 
-    /// <summary>Gets the embedded PNG thumbnail bytes, or <see langword="null"/> if absent or excluded.</summary>
-    public byte[]? ThumbnailBytes { get; }
+    /// <summary>Gets the embedded PNG thumbnail bytes (empty when absent).</summary>
+    public ReadOnlyMemory<byte> ThumbnailBytes { get; }
 
     /// <summary>Gets whether a thumbnail was loaded.</summary>
-    public bool HasThumbnail => ThumbnailBytes is { Length: > 0 };
+    public bool HasThumbnail => !ThumbnailBytes.IsEmpty;
 }
 
 /// <summary>
-/// Manages atomic <c>.snap</c> slot snapshots, world-level compaction, and <c>.asav</c> archive import/export.
+/// Manages atomic <c>.snap</c> slot snapshots and world-level segment compaction over an <see cref="IRandomAccessStorage"/>.
 /// </summary>
 /// <typeparam name="TMeta">The snapshot metadata type implementing <see cref="ISerializable"/>.</typeparam>
-public sealed class SnapshotStore<TMeta> : IDisposable where TMeta : ISerializable, new()
+public sealed class SnapshotStore<TMeta> where TMeta : ISerializable, new()
 {
     private readonly IRandomAccessStorage _storage;
     private readonly ChunkCodecSet _codecs;
-    private readonly bool _ownsCodecs;
-    private volatile bool _disposed;
 
     /// <summary>
     /// Initializes a snapshot store backed by <paramref name="storage"/>.
     /// </summary>
     /// <param name="storage">The backing storage.</param>
-    /// <param name="codecs">Optional shared codec set; a dedicated set is created and owned when <see langword="null"/>.</param>
-    public SnapshotStore(IRandomAccessStorage storage, ChunkCodecSet? codecs = null)
+    /// <param name="codecs">The shared codec set used for core compression and decompression.</param>
+    public SnapshotStore(IRandomAccessStorage storage, ChunkCodecSet codecs)
     {
         ArgumentNullException.ThrowIfNull(storage);
+        ArgumentNullException.ThrowIfNull(codecs);
         _storage = storage;
-        _ownsCodecs = codecs is null;
-        _codecs = codecs ?? new ChunkCodecSet();
+        _codecs = codecs;
     }
 
+    /// <summary>Gets the underlying random-access storage.</summary>
+    public IRandomAccessStorage Storage => _storage;
+
     /// <summary>Gets or sets the maximum allowed uncompressed core payload size when reading snapshots.</summary>
-    public int MaxUncompressedCoreBytes { get; set; } = StreamingSaveFormat.DefaultMaxUncompressedCoreBytes;
+    public int MaxUncompressedCoreBytes { get; set; } = SnapshotFormat.DefaultMaxUncompressedCoreBytes;
 
     /// <summary>
     /// Atomically writes or replaces a <c>.snap</c> file containing metadata, optional thumbnail, core state, and Morton-sorted chunk index.
@@ -125,12 +124,11 @@ public sealed class SnapshotStore<TMeta> : IDisposable where TMeta : ISerializab
         ChunkCodecId coreCodec = ChunkCodecId.Lz4,
         bool flushToDisk = true)
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentNullException.ThrowIfNull(meta);
 
         string relPath = StreamingSavePaths.SnapshotFilePath(id.WorldGuid, id.SlotId);
-        ChunkIndexEntry[] sortedIndex = SnapshotImageUtility.SortAndValidateChunkIndex(chunkIndex);
-        byte[] image = SnapshotImageUtility.BuildSnapshotImage(
+        ChunkIndexEntry[] sortedIndex = SnapshotFormat.SortAndValidateChunkIndex(chunkIndex);
+        byte[] image = SnapshotFormat.BuildSnapshotImage(
             id.WorldGuid,
             meta,
             coreUncompressed,
@@ -152,8 +150,6 @@ public sealed class SnapshotStore<TMeta> : IDisposable where TMeta : ISerializab
         Guid? worldGuid = null,
         Action<string>? onCorruptSnapshot = null)
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
-
         var results = new List<SnapshotMetaInfo<TMeta>>();
         if (worldGuid.HasValue)
         {
@@ -191,7 +187,6 @@ public sealed class SnapshotStore<TMeta> : IDisposable where TMeta : ISerializab
         out bool hasThumbnail,
         [NotNullWhen(false)] out string? failureReason)
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
         string relPath = StreamingSavePaths.SnapshotFilePath(id.WorldGuid, id.SlotId);
 
         if (!_storage.TryOpenRead(relPath, out IRandomAccessHandle? handle))
@@ -220,7 +215,6 @@ public sealed class SnapshotStore<TMeta> : IDisposable where TMeta : ISerializab
         [NotNullWhen(true)] out byte[]? pngBytes,
         [NotNullWhen(false)] out string? failureReason)
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
         string relPath = StreamingSavePaths.SnapshotFilePath(id.WorldGuid, id.SlotId);
         pngBytes = null;
 
@@ -274,7 +268,6 @@ public sealed class SnapshotStore<TMeta> : IDisposable where TMeta : ISerializab
         [NotNullWhen(false)] out string? failureReason,
         bool includeThumbnail = false)
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
         string relPath = StreamingSavePaths.SnapshotFilePath(id.WorldGuid, id.SlotId);
         result = null;
 
@@ -284,7 +277,7 @@ public sealed class SnapshotStore<TMeta> : IDisposable where TMeta : ISerializab
             return false;
         }
 
-        if (!SnapshotImageUtility.TryParseSnapshotImage<TMeta>(
+        if (!SnapshotFormat.TryParseSnapshotImage(
                 snapBytes,
                 id.WorldGuid,
                 _codecs,
@@ -309,7 +302,7 @@ public sealed class SnapshotStore<TMeta> : IDisposable where TMeta : ISerializab
             coreBytes,
             header.CoreCodec,
             chunkIndex,
-            thumbnailBytes);
+            thumbnailBytes ?? ReadOnlyMemory<byte>.Empty);
         return true;
     }
 
@@ -320,51 +313,59 @@ public sealed class SnapshotStore<TMeta> : IDisposable where TMeta : ISerializab
     /// <returns><see langword="true"/> if deleted; otherwise, <see langword="false"/>.</returns>
     public bool DeleteSnapshot(SnapshotId id)
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
         string relPath = StreamingSavePaths.SnapshotFilePath(id.WorldGuid, id.SlotId);
         return _storage.DeleteFile(relPath);
     }
 
     /// <summary>
-    /// Compacts segments for <paramref name="worldGuid"/> while preserving every chunk referenced by all retained snapshots and optional active sessions.
+    /// Compacts segments for <paramref name="segmentStore"/>'s world while preserving every chunk referenced by retained snapshots
+    /// and optional active sessions, rewriting relocated snapshot indices without decoding metadata or decompressing core payloads.
     /// </summary>
-    /// <param name="worldGuid">The world identifier.</param>
-    /// <param name="segmentStore">The segment store for <paramref name="worldGuid"/>.</param>
+    /// <param name="segmentStore">The segment store for the target world.</param>
     /// <param name="extraLiveEntries">Additional live chunk entries held by active in-memory sessions.</param>
     /// <param name="onEntriesRelocated">Optional callback invoked during atomic commit with relocated physical locations for active sessions.</param>
     /// <param name="options">Optional compaction threshold and codec settings.</param>
     /// <returns>The compaction summary report.</returns>
     public CompactionReport CompactWorld(
-        Guid worldGuid,
         ChunkSegmentStore segmentStore,
         IEnumerable<ChunkIndexEntry>? extraLiveEntries = null,
         Action<IReadOnlyDictionary<ChunkRecordLocation, ChunkIndexEntry>>? onEntriesRelocated = null,
         CompactionOptions? options = null)
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentNullException.ThrowIfNull(segmentStore);
-        if (segmentStore.WorldGuid != worldGuid)
-            throw new ArgumentException("Segment store world GUID does not match compaction world GUID.", nameof(segmentStore));
+        Guid worldGuid = segmentStore.WorldGuid;
 
         IReadOnlyList<string> snapshotFiles = _storage.EnumerateFiles(
             StreamingSavePaths.SnapshotsDirectory(worldGuid),
             StreamingSavePaths.SnapshotFilePattern,
             recursive: false);
 
-        var loadedSnapshots = new List<SnapshotLoadResult<TMeta>>(snapshotFiles.Count);
+        var loadedSnapshots = new List<(string SlotId, RawSnapshotImage Raw)>(snapshotFiles.Count);
         var allLiveEntries = new List<ChunkIndexEntry>();
 
         for (int i = 0; i < snapshotFiles.Count; i++)
         {
-            if (!StreamingSavePaths.TryExtractSlotIdFromSnapshotPath(snapshotFiles[i], out string slotId))
+            string relPath = snapshotFiles[i];
+            if (!StreamingSavePaths.TryExtractSlotIdFromSnapshotPath(relPath, out string slotId))
                 continue;
 
-            var snapId = new SnapshotId(worldGuid, slotId);
-            if (!TryLoadSnapshot(snapId, out SnapshotLoadResult<TMeta>? loaded, out string? failureReason, includeThumbnail: true))
-                throw new InvalidDataException($"Cannot safely compact world {worldGuid:N}: snapshot '{slotId}' is unreadable ({failureReason}).");
+            if (!_storage.TryReadAllBytes(relPath, out byte[]? snapBytes))
+                throw new InvalidDataException($"Cannot safely compact world {worldGuid:N}: snapshot '{slotId}' could not be read.");
 
-            loadedSnapshots.Add(loaded);
-            allLiveEntries.AddRange(loaded.ChunkIndex);
+            if (!SnapshotFormat.TryReadRawSnapshot(
+                    snapBytes,
+                    worldGuid,
+                    verifyWholeImageHash: true,
+                    requireZeroSegmentId: false,
+                    archiveChunkDataLength: 0,
+                    out RawSnapshotImage raw,
+                    out string? failureReason))
+            {
+                throw new InvalidDataException($"Cannot safely compact world {worldGuid:N}: snapshot '{slotId}' is unreadable ({failureReason}).");
+            }
+
+            loadedSnapshots.Add((slotId, raw));
+            allLiveEntries.AddRange(raw.ChunkIndex);
         }
 
         bool hasExtraLive = false;
@@ -386,27 +387,31 @@ public sealed class SnapshotStore<TMeta> : IDisposable where TMeta : ISerializab
                 {
                     for (int i = 0; i < loadedSnapshots.Count; i++)
                     {
-                        SnapshotLoadResult<TMeta> snap = loadedSnapshots[i];
+                        (string slotId, RawSnapshotImage raw) = loadedSnapshots[i];
                         ChunkIndexEntry[]? updatedIndex = null;
-                        for (int j = 0; j < snap.ChunkIndex.Length; j++)
+                        for (int j = 0; j < raw.ChunkIndex.Length; j++)
                         {
-                            if (!relocations.TryGetValue(snap.ChunkIndex[j].Location, out ChunkIndexEntry relocated))
+                            if (!relocations.TryGetValue(raw.ChunkIndex[j].Location, out ChunkIndexEntry relocated))
                                 continue;
 
-                            updatedIndex ??= (ChunkIndexEntry[])snap.ChunkIndex.Clone();
+                            updatedIndex ??= (ChunkIndexEntry[])raw.ChunkIndex.Clone();
                             updatedIndex[j] = relocated;
                         }
 
                         if (updatedIndex is not null)
                         {
-                            WriteSnapshot(
-                                snap.Id,
-                                snap.Meta,
-                                snap.CoreBytes,
-                                updatedIndex,
-                                snap.ThumbnailBytes ?? ReadOnlySpan<byte>.Empty,
-                                snap.CoreCodec,
-                                flushToDisk: flushSnapshots);
+                            byte[] updatedImage = SnapshotFormat.BuildFromRawSections(
+                                worldGuid,
+                                raw.MetaBytes.Span,
+                                raw.ThumbBytes.Span,
+                                raw.CompressedCoreBytes.Span,
+                                raw.Header.CoreUncompressedLength,
+                                raw.Header.CoreCodec,
+                                updatedIndex);
+                            _storage.WriteAtomic(
+                                StreamingSavePaths.SnapshotFilePath(worldGuid, slotId),
+                                updatedImage,
+                                flushSnapshots);
                         }
                     }
                 }
@@ -424,333 +429,6 @@ public sealed class SnapshotStore<TMeta> : IDisposable where TMeta : ISerializab
         }
 
         return report;
-    }
-
-    /// <summary>
-    /// Exports a snapshot and all of its live chunks into a self-contained portable <c>.asav</c> archive file on disk.
-    /// </summary>
-    /// <param name="sourceId">The snapshot to export.</param>
-    /// <param name="segmentStore">The segment store holding the snapshot's chunks.</param>
-    /// <param name="destinationFilePath">The destination <c>.asav</c> file path.</param>
-    /// <param name="chunkCodec">The codec used to encode chunks inside the archive (default <see cref="ChunkCodecId.Zstd"/>).</param>
-    /// <param name="coreCodec">The codec used to encode the embedded core payload (default <see cref="ChunkCodecId.Zstd"/>).</param>
-    public void ExportAsav(
-        SnapshotId sourceId,
-        ChunkSegmentStore segmentStore,
-        string destinationFilePath,
-        ChunkCodecId chunkCodec = ChunkCodecId.Zstd,
-        ChunkCodecId coreCodec = ChunkCodecId.Zstd)
-    {
-        ObjectDisposedException.ThrowIf(_disposed, this);
-        ArgumentException.ThrowIfNullOrWhiteSpace(destinationFilePath);
-
-        string fullDestPath = Path.GetFullPath(destinationFilePath);
-        string tempPath = $"{fullDestPath}.{Guid.NewGuid():N}.tmp";
-        try
-        {
-            using (IRandomAccessHandle tempHandle = DirectoryRandomAccessStorage.CreateExternalTempWrite(tempPath))
-            {
-                ExportAsav(sourceId, segmentStore, tempHandle, chunkCodec, coreCodec, flushToDisk: true);
-            }
-
-            File.Move(tempPath, fullDestPath, overwrite: true);
-        }
-        catch
-        {
-            try
-            {
-                if (File.Exists(tempPath))
-                    File.Delete(tempPath);
-            }
-            catch
-            {
-            }
-
-            throw;
-        }
-    }
-
-    /// <summary>
-    /// Exports a snapshot and all of its live chunks into an open writable <see cref="IRandomAccessHandle"/> in <c>.asav</c> format.
-    /// </summary>
-    /// <param name="sourceId">The snapshot to export.</param>
-    /// <param name="segmentStore">The segment store holding the snapshot's chunks.</param>
-    /// <param name="outputHandle">The writable output handle.</param>
-    /// <param name="chunkCodec">The codec used to encode chunks inside the archive (default <see cref="ChunkCodecId.Zstd"/>).</param>
-    /// <param name="coreCodec">The codec used to encode the embedded core payload (default <see cref="ChunkCodecId.Zstd"/>).</param>
-    /// <param name="flushToDisk">Whether to flush the output handle when complete.</param>
-    public void ExportAsav(
-        SnapshotId sourceId,
-        ChunkSegmentStore segmentStore,
-        IRandomAccessHandle outputHandle,
-        ChunkCodecId chunkCodec = ChunkCodecId.Zstd,
-        ChunkCodecId coreCodec = ChunkCodecId.Zstd,
-        bool flushToDisk = true)
-    {
-        ObjectDisposedException.ThrowIf(_disposed, this);
-        ArgumentNullException.ThrowIfNull(segmentStore);
-        ArgumentNullException.ThrowIfNull(outputHandle);
-        if (segmentStore.WorldGuid != sourceId.WorldGuid)
-            throw new ArgumentException("Segment store world GUID does not match source snapshot.", nameof(segmentStore));
-
-        IChunkCodec targetChunkCodec = _codecs.GetCodec(chunkCodec);
-        IChunkCodec targetCoreCodec = _codecs.GetCodec(coreCodec);
-
-        if (!TryLoadSnapshot(sourceId, out SnapshotLoadResult<TMeta>? snap, out string? failureReason, includeThumbnail: true))
-            throw new InvalidDataException($"Cannot export snapshot '{sourceId.SlotId}': {failureReason}");
-
-        byte[] metaBytes = PackedBinarySerializer.Encode(snap.Meta, elideDefaults: false);
-        int maxCoreComp = targetCoreCodec.GetMaxCompressedLength(snap.CoreBytes.Length);
-        byte[]? compCoreBuf = maxCoreComp > 0 ? ArrayPool<byte>.Shared.Rent(maxCoreComp) : null;
-        try
-        {
-            Span<byte> compCoreSpan = compCoreBuf is not null ? compCoreBuf.AsSpan(0, maxCoreComp) : Span<byte>.Empty;
-            int compCoreLen = targetCoreCodec.Compress(snap.CoreBytes, compCoreSpan);
-
-            int thumbLen = snap.ThumbnailBytes?.Length ?? 0;
-            int snapByteLen = SnapshotImageUtility.ComputeSnapshotByteLength(
-                metaBytes.Length,
-                thumbLen,
-                compCoreLen,
-                snap.ChunkIndex.Length);
-            uint chunkDataOffset = checked((uint)StreamingSaveFormat.Align16((long)StreamingSaveFormat.AsavHeaderSize + snapByteLen));
-
-            var archiveEntries = snap.ChunkIndex.Length == 0 ? [] : new ChunkIndexEntry[snap.ChunkIndex.Length];
-            var scratch = new ArrayBufferWriter<byte>(64 * 1024);
-            long writeCursor = chunkDataOffset;
-
-            for (int i = 0; i < snap.ChunkIndex.Length; i++)
-            {
-                ChunkIndexEntry srcEntry = snap.ChunkIndex[i];
-                scratch.Clear();
-
-                int compChunkLen;
-                byte[]? rentedChunkComp = null;
-                ReadOnlySpan<byte> compressedPayload;
-
-                if (srcEntry.Codec == chunkCodec)
-                {
-                    if (!segmentStore.TryReadCompressedChunk(srcEntry, scratch, out string? readErr))
-                        throw new InvalidDataException($"Failed to read compressed chunk {srcEntry.Key} during ASAV export: {readErr}");
-
-                    compressedPayload = scratch.WrittenSpan;
-                    compChunkLen = compressedPayload.Length;
-                }
-                else
-                {
-                    if (!segmentStore.TryReadChunk(srcEntry, scratch, out string? readErr))
-                        throw new InvalidDataException($"Failed to decode chunk {srcEntry.Key} during ASAV export: {readErr}");
-
-                    ReadOnlySpan<byte> uncompressed = scratch.WrittenSpan;
-                    int maxChunkComp = targetChunkCodec.GetMaxCompressedLength(uncompressed.Length);
-                    rentedChunkComp = maxChunkComp > 0 ? ArrayPool<byte>.Shared.Rent(maxChunkComp) : null;
-                    Span<byte> chunkCompSpan = rentedChunkComp is not null ? rentedChunkComp.AsSpan(0, maxChunkComp) : Span<byte>.Empty;
-                    compChunkLen = targetChunkCodec.Compress(uncompressed, chunkCompSpan);
-                    compressedPayload = chunkCompSpan[..compChunkLen];
-                }
-
-                try
-                {
-                    uint relativeOffset = checked((uint)(writeCursor - chunkDataOffset));
-                    ChunkIndexEntry archiveEntry = srcEntry.WithLocation(0, relativeOffset, checked((uint)compChunkLen), chunkCodec);
-                    archiveEntries[i] = archiveEntry;
-
-                    int alignedLen = checked((int)StreamingSaveFormat.AlignedChunkRecordLength((uint)compChunkLen));
-                    byte[] recordBuf = ArrayPool<byte>.Shared.Rent(alignedLen);
-                    try
-                    {
-                        int written = StreamingSaveFormat.WriteChunkRecord(recordBuf.AsSpan(0, alignedLen), archiveEntry, compressedPayload);
-                        outputHandle.WriteAt(writeCursor, recordBuf.AsSpan(0, written));
-                        writeCursor += written;
-                    }
-                    finally
-                    {
-                        ArrayPool<byte>.Shared.Return(recordBuf);
-                    }
-                }
-                finally
-                {
-                    if (rentedChunkComp is not null)
-                        ArrayPool<byte>.Shared.Return(rentedChunkComp);
-                }
-            }
-
-            byte[] headerBlock = new byte[chunkDataOffset];
-            StreamingSaveFormat.WriteAsavHeader(
-                headerBlock.AsSpan(0, StreamingSaveFormat.AsavHeaderSize),
-                sourceId.WorldGuid,
-                checked((uint)snapByteLen),
-                chunkDataOffset);
-
-            SnapshotImageUtility.WriteSnapshotImageCore(
-                headerBlock.AsSpan(StreamingSaveFormat.AsavHeaderSize, snapByteLen),
-                sourceId.WorldGuid,
-                metaBytes,
-                snap.ThumbnailBytes ?? ReadOnlySpan<byte>.Empty,
-                compCoreSpan[..compCoreLen],
-                checked((uint)snap.CoreBytes.Length),
-                coreCodec,
-                archiveEntries);
-
-            outputHandle.WriteAt(0, headerBlock);
-
-            if (!StreamingSaveFormat.TryComputeStreamingXxHash64(outputHandle, writeCursor, out ulong wholeHash, out string? hashError))
-                throw new IOException($"Failed to compute archive checksum: {hashError}");
-
-            Span<byte> trailer = stackalloc byte[StreamingSaveFormat.WholeFileTrailerSize];
-            BinaryPrimitives.WriteUInt64LittleEndian(trailer, wholeHash);
-            outputHandle.WriteAt(writeCursor, trailer);
-
-            if (flushToDisk)
-                outputHandle.FlushToDisk();
-        }
-        finally
-        {
-            if (compCoreBuf is not null)
-                ArrayPool<byte>.Shared.Return(compCoreBuf);
-        }
-    }
-
-    /// <summary>
-    /// Verifies and imports an external <c>.asav</c> archive file on disk into <paramref name="targetSegmentStore"/> and a target <c>.snap</c> slot.
-    /// </summary>
-    /// <param name="sourceFilePath">The path to the <c>.asav</c> file.</param>
-    /// <param name="targetWorldGuid">The destination world identifier.</param>
-    /// <param name="targetSlotId">The destination snapshot slot identifier.</param>
-    /// <param name="targetSegmentStore">The destination segment store for <paramref name="targetWorldGuid"/>.</param>
-    /// <param name="imported">The imported snapshot metadata summary on success.</param>
-    /// <param name="failureReason">The failure reason when returning <see langword="false"/>.</param>
-    /// <param name="rewriteMeta">Optional transform applied to metadata before saving the imported snapshot.</param>
-    /// <param name="flushToDisk">Whether to flush imported segments and snapshot to durable storage.</param>
-    /// <returns><see langword="true"/> if verified and imported cleanly; otherwise, <see langword="false"/>.</returns>
-    public bool TryImportAsav(
-        string sourceFilePath,
-        Guid targetWorldGuid,
-        string targetSlotId,
-        ChunkSegmentStore targetSegmentStore,
-        out SnapshotMetaInfo<TMeta> imported,
-        [NotNullWhen(false)] out string? failureReason,
-        Func<TMeta, TMeta>? rewriteMeta = null,
-        bool flushToDisk = true)
-    {
-        ObjectDisposedException.ThrowIf(_disposed, this);
-        ArgumentNullException.ThrowIfNull(targetSegmentStore);
-        StreamingSavePaths.ValidateSlotId(targetSlotId);
-        if (targetSegmentStore.WorldGuid != targetWorldGuid)
-            throw new ArgumentException("Target segment store world GUID does not match target world GUID.", nameof(targetSegmentStore));
-
-        if (!DirectoryRandomAccessStorage.TryOpenExternalRead(sourceFilePath, out IRandomAccessHandle? handle))
-        {
-            imported = default;
-            failureReason = $"Archive file '{sourceFilePath}' could not be opened.";
-            return false;
-        }
-
-        using (handle)
-        {
-            return TryImportAsav(
-                handle,
-                targetWorldGuid,
-                targetSlotId,
-                targetSegmentStore,
-                out imported,
-                out failureReason,
-                rewriteMeta,
-                flushToDisk);
-        }
-    }
-
-    /// <summary>
-    /// Verifies and imports an <c>.asav</c> archive from an <see cref="IRandomAccessHandle"/> into <paramref name="targetSegmentStore"/> and a target <c>.snap</c> slot.
-    /// </summary>
-    /// <param name="sourceHandle">The readable archive handle.</param>
-    /// <param name="targetWorldGuid">The destination world identifier.</param>
-    /// <param name="targetSlotId">The destination snapshot slot identifier.</param>
-    /// <param name="targetSegmentStore">The destination segment store for <paramref name="targetWorldGuid"/>.</param>
-    /// <param name="imported">The imported snapshot metadata summary on success.</param>
-    /// <param name="failureReason">The failure reason when returning <see langword="false"/>.</param>
-    /// <param name="rewriteMeta">Optional transform applied to metadata before saving the imported snapshot.</param>
-    /// <param name="flushToDisk">Whether to flush imported segments and snapshot to durable storage.</param>
-    /// <returns><see langword="true"/> if verified and imported cleanly; otherwise, <see langword="false"/>.</returns>
-    public bool TryImportAsav(
-        IRandomAccessHandle sourceHandle,
-        Guid targetWorldGuid,
-        string targetSlotId,
-        ChunkSegmentStore targetSegmentStore,
-        out SnapshotMetaInfo<TMeta> imported,
-        [NotNullWhen(false)] out string? failureReason,
-        Func<TMeta, TMeta>? rewriteMeta = null,
-        bool flushToDisk = true)
-    {
-        ObjectDisposedException.ThrowIf(_disposed, this);
-        ArgumentNullException.ThrowIfNull(sourceHandle);
-        ArgumentNullException.ThrowIfNull(targetSegmentStore);
-        StreamingSavePaths.ValidateSlotId(targetSlotId);
-        if (targetSegmentStore.WorldGuid != targetWorldGuid)
-            throw new ArgumentException("Target segment store world GUID does not match target world GUID.", nameof(targetSegmentStore));
-
-        imported = default;
-        if (!AsavArchiveReader<TMeta>.TryOpenHandle(
-                sourceHandle,
-                ownsHandle: false,
-                out AsavArchiveReader<TMeta>? reader,
-                out failureReason,
-                verifyWholeFileHash: true,
-                _codecs,
-                MaxUncompressedCoreBytes))
-        {
-            return false;
-        }
-
-        using (reader)
-        {
-            IReadOnlyList<ChunkIndexEntry> archiveIndex = reader.ChunkIndex;
-            var batch = archiveIndex.Count == 0 ? [] : new PrecompressedChunkWrite[archiveIndex.Count];
-            var scratch = new ArrayBufferWriter<byte>(64 * 1024);
-
-            for (int i = 0; i < archiveIndex.Count; i++)
-            {
-                ChunkIndexEntry entry = archiveIndex[i];
-                scratch.Clear();
-                if (!reader.TryReadCompressedChunk(entry, scratch, out failureReason))
-                    return false;
-
-                batch[i] = new PrecompressedChunkWrite(
-                    entry.Key,
-                    scratch.WrittenSpan.ToArray(),
-                    entry.UncompressedSize,
-                    entry.Codec,
-                    entry.Flags,
-                    entry.SchemaVersion);
-            }
-
-            ChunkIndexEntry[] committedIndex = targetSegmentStore.AppendPrecompressedBatch(batch, flushToDisk);
-            TMeta finalMeta = rewriteMeta is not null ? rewriteMeta(reader.Meta) : reader.Meta;
-            var targetId = new SnapshotId(targetWorldGuid, targetSlotId);
-            WriteSnapshot(
-                targetId,
-                finalMeta,
-                reader.CoreBytes,
-                committedIndex,
-                reader.ThumbnailBytes ?? ReadOnlySpan<byte>.Empty,
-                reader.CoreCodec,
-                flushToDisk);
-
-            imported = new SnapshotMetaInfo<TMeta>(targetId, finalMeta, reader.ThumbnailBytes is { Length: > 0 });
-            failureReason = null;
-            return true;
-        }
-    }
-
-    /// <inheritdoc/>
-    public void Dispose()
-    {
-        if (_disposed)
-            return;
-
-        _disposed = true;
-        if (_ownsCodecs)
-            _codecs.Dispose();
     }
 
     private void ScanWorldSnapshots(
@@ -794,20 +472,20 @@ public sealed class SnapshotStore<TMeta> : IDisposable where TMeta : ISerializab
     {
         header = default;
         long fileLength = handle.Length;
-        if (fileLength < StreamingSaveFormat.SnapshotHeaderSize + StreamingSaveFormat.WholeFileTrailerSize)
+        if (fileLength < SnapshotFormat.SnapshotHeaderSize + SnapshotFormat.WholeFileTrailerSize)
         {
             failureReason = "Snapshot file is shorter than minimum header and trailer size.";
             return false;
         }
 
-        Span<byte> headerBytes = stackalloc byte[StreamingSaveFormat.SnapshotHeaderSize];
-        if (handle.ReadAt(0, headerBytes) != StreamingSaveFormat.SnapshotHeaderSize)
+        Span<byte> headerBytes = stackalloc byte[SnapshotFormat.SnapshotHeaderSize];
+        if (handle.ReadAt(0, headerBytes) != SnapshotFormat.SnapshotHeaderSize)
         {
             failureReason = "Failed to read 64-byte snapshot header.";
             return false;
         }
 
-        if (!StreamingSaveFormat.TryReadSnapshotHeader(headerBytes, fileLength, out header, out failureReason))
+        if (!SnapshotFormat.TryReadSnapshotHeader(headerBytes, fileLength, out header, out failureReason))
             return false;
 
         if (header.WorldGuid != expectedWorldGuid)
@@ -846,7 +524,7 @@ public sealed class SnapshotStore<TMeta> : IDisposable where TMeta : ISerializab
             return false;
         }
 
-        if (!SnapshotImageUtility.TryDecodeMeta(metaBytes, out meta, out failureReason))
+        if (!SnapshotFormat.TryDecodeMeta(metaBytes, out meta, out failureReason))
             return false;
 
         hasThumbnail = (header.Flags & SnapshotFlags.HasThumbnail) != 0;

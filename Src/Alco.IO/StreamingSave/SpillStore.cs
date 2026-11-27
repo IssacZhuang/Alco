@@ -1,45 +1,30 @@
 using System;
 using System.Buffers;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Threading;
 
 namespace Alco.IO;
 
 /// <summary>
-/// Result status returned by <see cref="SpillStore.TryReadChunk"/>.
-/// </summary>
-public enum SpillReadStatus : byte
-{
-    /// <summary>The requested chunk has not been spilled during this session.</summary>
-    NotFound = 0,
-
-    /// <summary>The spilled chunk was verified and decompressed into the destination buffer.</summary>
-    Success = 1,
-
-    /// <summary>The chunk was present in the spill log, but reading or verifying it failed.</summary>
-    Failed = 2
-}
-
-/// <summary>
 /// Per-session exclusive temporary spill log (<c>spill_&lt;SessionGuid&gt;.tmp</c>) for evicted dirty chunks.
 /// </summary>
 public sealed class SpillStore : IDisposable
 {
+    private const int MaxDrainBatchBytes = 4 * 1024 * 1024;
+
     private readonly IRandomAccessStorage _storage;
     private readonly Guid _worldGuid;
     private readonly Guid _sessionGuid;
-    private readonly ChunkCodecId _codecId;
     private readonly ChunkCodecSet _codecs;
-    private readonly bool _ownsCodecs;
+    private readonly ChunkCodecId _codecId;
     private readonly string _relativePath;
     private readonly ReaderWriterLockSlim _rwLock = new();
     private readonly Dictionary<ChunkKey, ChunkIndexEntry> _latestEntries = new();
 
     private IRandomAccessHandle? _handle;
     private long _cursor;
-    private bool _disposed;
+    private volatile bool _disposed;
 
     /// <summary>
     /// Initializes a session-scoped spill store.
@@ -47,23 +32,25 @@ public sealed class SpillStore : IDisposable
     /// <param name="storage">The backing storage.</param>
     /// <param name="worldGuid">The world identifier.</param>
     /// <param name="sessionGuid">The unique session identifier.</param>
+    /// <param name="codecs">The shared codec set used for compression and decompression.</param>
     /// <param name="codec">The compression codec used for spilled chunks (default <see cref="ChunkCodecId.Lz4"/>).</param>
-    /// <param name="codecs">Optional shared codec set; a dedicated set is created and owned when <see langword="null"/>.</param>
     public SpillStore(
         IRandomAccessStorage storage,
         Guid worldGuid,
         Guid sessionGuid,
-        ChunkCodecId codec = ChunkCodecId.Lz4,
-        ChunkCodecSet? codecs = null)
+        ChunkCodecSet codecs,
+        ChunkCodecId codec = ChunkCodecId.Lz4)
     {
         ArgumentNullException.ThrowIfNull(storage);
+        ArgumentNullException.ThrowIfNull(codecs);
+        if (!ChunkCodecSet.IsValid(codec))
+            throw new ArgumentOutOfRangeException(nameof(codec), $"Unsupported chunk codec {(byte)codec}.");
+
         _storage = storage;
         _worldGuid = worldGuid;
         _sessionGuid = sessionGuid;
+        _codecs = codecs;
         _codecId = codec;
-        _ownsCodecs = codecs is null;
-        _codecs = codecs ?? new ChunkCodecSet();
-        _ = _codecs.GetCodec(codec);
         _relativePath = StreamingSavePaths.SpillFilePath(worldGuid, sessionGuid);
     }
 
@@ -77,7 +64,7 @@ public sealed class SpillStore : IDisposable
     public ChunkCodecId Codec => _codecId;
 
     /// <summary>Gets or sets the maximum allowed uncompressed chunk size when reading spill records.</summary>
-    public int MaxUncompressedChunkBytes { get; set; } = StreamingSaveFormat.DefaultMaxUncompressedChunkBytes;
+    public int MaxUncompressedChunkBytes { get; set; } = ChunkRecordCodec.DefaultMaxUncompressedChunkBytes;
 
     /// <summary>
     /// Gets the number of distinct chunks currently tracked in the spill log.
@@ -110,16 +97,17 @@ public sealed class SpillStore : IDisposable
         ChunkKey key,
         ReadOnlySpan<byte> uncompressedPayload,
         byte flags = 0,
-        byte schemaVersion = StreamingSaveFormat.DefaultChunkSchemaVersion)
+        byte schemaVersion = ChunkRecordCodec.DefaultChunkSchemaVersion)
     {
-        IChunkCodec codec = _codecs.GetCodec(_codecId);
-        int maxCompressed = codec.GetMaxCompressedLength(uncompressedPayload.Length);
+        ObjectDisposedException.ThrowIf(_disposed, this);
+
+        int maxCompressed = _codecs.GetMaxCompressedLength(_codecId, uncompressedPayload.Length);
         byte[]? compBuffer = maxCompressed > 0 ? ArrayPool<byte>.Shared.Rent(maxCompressed) : null;
         try
         {
             Span<byte> compSpan = compBuffer is not null ? compBuffer.AsSpan(0, maxCompressed) : Span<byte>.Empty;
-            int compLength = codec.Compress(uncompressedPayload, compSpan);
-            long alignedLengthLong = StreamingSaveFormat.AlignedChunkRecordLength((uint)compLength);
+            int compLength = _codecs.Compress(_codecId, uncompressedPayload, compSpan);
+            long alignedLengthLong = ChunkRecordCodec.AlignedChunkRecordLength((uint)compLength);
             if (alignedLengthLong > int.MaxValue)
                 throw new IOException($"Spill record for chunk {key} exceeds maximum length.");
 
@@ -149,7 +137,7 @@ public sealed class SpillStore : IDisposable
                         flags,
                         schemaVersion);
 
-                    int written = StreamingSaveFormat.WriteChunkRecord(recordBuffer.AsSpan(0, alignedLength), entry, compSpan[..compLength]);
+                    int written = ChunkRecordCodec.WriteChunkRecord(recordBuffer.AsSpan(0, alignedLength), entry, compSpan[..compLength]);
                     _handle!.WriteAt(_cursor, recordBuffer.AsSpan(0, written));
                     _cursor += written;
                     _latestEntries[key] = entry;
@@ -177,9 +165,9 @@ public sealed class SpillStore : IDisposable
     /// <param name="key">The chunk key to look up.</param>
     /// <param name="uncompressedDestination">The buffer writer receiving the uncompressed chunk bytes.</param>
     /// <param name="entry">The matching spill entry when present.</param>
-    /// <param name="failureReason">The corruption or I/O error reason when returning <see cref="SpillReadStatus.Failed"/>.</param>
-    /// <returns>The read outcome distinguishing missing entries from verification failures.</returns>
-    public SpillReadStatus TryReadChunk(
+    /// <param name="failureReason">The corruption or I/O error reason when returning <see cref="ChunkReadStatus.Failed"/>.</param>
+    /// <returns>The tri-state read outcome distinguishing missing entries from verification failures.</returns>
+    public ChunkReadStatus TryReadChunk(
         ChunkKey key,
         IBufferWriter<byte> uncompressedDestination,
         out ChunkIndexEntry entry,
@@ -194,16 +182,16 @@ public sealed class SpillStore : IDisposable
             if (!_latestEntries.TryGetValue(key, out entry))
             {
                 failureReason = null;
-                return SpillReadStatus.NotFound;
+                return ChunkReadStatus.NotFound;
             }
 
             if (_handle is null)
             {
                 failureReason = $"Spill handle for session {_sessionGuid:N} is unavailable.";
-                return SpillReadStatus.Failed;
+                return ChunkReadStatus.Failed;
             }
 
-            return StreamingSaveFormat.TryReadAndDecompressChunkRecord(
+            return ChunkRecordCodec.TryReadAndDecompressChunkRecord(
                 _handle,
                 entry.RecordOffset,
                 entry,
@@ -211,55 +199,13 @@ public sealed class SpillStore : IDisposable
                 MaxUncompressedChunkBytes,
                 uncompressedDestination,
                 out failureReason)
-                ? SpillReadStatus.Success
-                : SpillReadStatus.Failed;
+                ? ChunkReadStatus.Success
+                : ChunkReadStatus.Failed;
         }
         finally
         {
             _rwLock.ExitReadLock();
         }
-    }
-
-    /// <summary>
-    /// Reads <paramref name="key"/> from this spill log first, falling back to <paramref name="segmentStore"/> only when not spilled.
-    /// </summary>
-    /// <param name="key">The chunk key.</param>
-    /// <param name="baselineIndex">The committed baseline index for the active session.</param>
-    /// <param name="segmentStore">The committed segment store.</param>
-    /// <param name="uncompressedDestination">The destination writer.</param>
-    /// <param name="failureReason">The failure reason when returning <see langword="false"/>.</param>
-    /// <returns><see langword="true"/> if read and verified cleanly; <see langword="false"/> if missing or corrupted.</returns>
-    public bool TryReadChunkOrFallback(
-        ChunkKey key,
-        IReadOnlyDictionary<ChunkKey, ChunkIndexEntry> baselineIndex,
-        ChunkSegmentStore segmentStore,
-        IBufferWriter<byte> uncompressedDestination,
-        [NotNullWhen(false)] out string? failureReason)
-    {
-        ArgumentNullException.ThrowIfNull(baselineIndex);
-        ArgumentNullException.ThrowIfNull(segmentStore);
-        ArgumentNullException.ThrowIfNull(uncompressedDestination);
-
-        SpillReadStatus status = TryReadChunk(key, uncompressedDestination, out _, out string? spillFailure);
-        if (status == SpillReadStatus.Success)
-        {
-            failureReason = null;
-            return true;
-        }
-
-        if (status == SpillReadStatus.Failed)
-        {
-            failureReason = spillFailure ?? $"Failed to read spilled chunk {key}.";
-            return false;
-        }
-
-        if (!baselineIndex.TryGetValue(key, out ChunkIndexEntry baselineEntry))
-        {
-            failureReason = $"Chunk {key} not found in spill store or baseline index.";
-            return false;
-        }
-
-        return segmentStore.TryReadChunk(baselineEntry, uncompressedDestination, out failureReason);
     }
 
     /// <summary>
@@ -325,109 +271,85 @@ public sealed class SpillStore : IDisposable
     }
 
     /// <summary>
-    /// Verifies and transfers spilled chunks (except <paramref name="excludeKeys"/>) into <paramref name="targetStore"/>.
+    /// Verifies and transfers spilled chunks (except <paramref name="excludeKeys"/>) into <paramref name="targetStore"/>
+    /// in bounded memory batches without holding the spill write lock across target I/O.
     /// </summary>
     /// <param name="targetStore">The committed segment store receiving drained chunks.</param>
     /// <param name="targetCodec">Optional target codec; <see langword="null"/> preserves each spilled chunk's codec.</param>
     /// <param name="flushToDisk">Whether to flush target segments to durable storage.</param>
     /// <param name="excludeKeys">Optional keys superseded by newer in-memory state.</param>
     /// <returns>The committed <see cref="ChunkIndexEntry"/> array sorted in <see cref="ChunkKey"/> order.</returns>
-    public ChunkIndexEntry[] DrainDirtyToSegmentStore(
+    public ChunkIndexEntry[] DrainTo(
         ChunkSegmentStore targetStore,
         ChunkCodecId? targetCodec = null,
         bool flushToDisk = true,
         IReadOnlySet<ChunkKey>? excludeKeys = null)
     {
         ArgumentNullException.ThrowIfNull(targetStore);
-        if (targetCodec.HasValue)
-            _ = _codecs.GetCodec(targetCodec.Value);
+        if (targetStore.WorldGuid != _worldGuid)
+            throw new ArgumentException("Target segment store world GUID does not match spill store world GUID.", nameof(targetStore));
+        if (targetCodec.HasValue && !ChunkCodecSet.IsValid(targetCodec.Value))
+            throw new ArgumentOutOfRangeException(nameof(targetCodec), $"Unsupported chunk codec {(byte)targetCodec.Value}.");
 
-        _rwLock.EnterWriteLock();
-        try
+        List<ChunkIndexEntry> toDrain = SnapshotDrainEntries(excludeKeys);
+        if (toDrain.Count == 0)
+            return [];
+
+        toDrain.Sort(static (a, b) => a.Key.CompareTo(b.Key));
+
+        var batchArena = new ArrayBufferWriter<byte>(64 * 1024);
+        var uncompressedScratch = new ArrayBufferWriter<byte>(64 * 1024);
+        var batchMeta = new List<(ChunkIndexEntry Entry, ChunkCodecId Codec, int Start, int Length)>();
+        var committedAll = new List<ChunkIndexEntry>(toDrain.Count);
+        var drainedEntries = new List<ChunkIndexEntry>(toDrain.Count);
+
+        for (int i = 0; i < toDrain.Count; i++)
         {
-            ObjectDisposedException.ThrowIf(_disposed, this);
-            if (_latestEntries.Count == 0)
-                return [];
+            ChunkIndexEntry entry = toDrain[i];
+            ChunkCodecId effectiveCodec = targetCodec ?? entry.Codec;
+            int start = batchArena.WrittenCount;
 
-            var toDrain = new List<ChunkIndexEntry>(_latestEntries.Count);
-            foreach ((ChunkKey key, ChunkIndexEntry entry) in _latestEntries)
+            _rwLock.EnterReadLock();
+            try
             {
-                if (excludeKeys is not null && excludeKeys.Contains(key))
-                    continue;
+                ObjectDisposedException.ThrowIf(_disposed, this);
+                if (_handle is null)
+                    throw new InvalidOperationException("Spill entries exist without an open spill handle.");
 
-                toDrain.Add(entry);
-            }
-
-            if (toDrain.Count == 0)
-                return [];
-
-            if (_handle is null)
-                throw new InvalidOperationException("Spill entries exist without an open spill handle.");
-
-            toDrain.Sort(static (a, b) => a.Key.CompareTo(b.Key));
-            var batch = new PrecompressedChunkWrite[toDrain.Count];
-            var scratch = new ArrayBufferWriter<byte>(64 * 1024);
-
-            for (int i = 0; i < toDrain.Count; i++)
-            {
-                ChunkIndexEntry entry = toDrain[i];
-                scratch.Clear();
-
-                if (targetCodec is null || targetCodec.Value == entry.Codec)
+                if (!ChunkRecordCodec.TryReadForTargetCodec(
+                        _handle,
+                        entry.RecordOffset,
+                        entry,
+                        effectiveCodec,
+                        _codecs,
+                        MaxUncompressedChunkBytes,
+                        uncompressedScratch,
+                        batchArena,
+                        out string? failureReason))
                 {
-                    if (!StreamingSaveFormat.TryReadVerifiedCompressedRecord(_handle, entry.RecordOffset, entry, scratch, out string? failureReason))
-                        throw new InvalidDataException($"Spill record verification failed for {entry.Key}: {failureReason}");
-
-                    batch[i] = new PrecompressedChunkWrite(
-                        entry.Key,
-                        scratch.WrittenSpan.ToArray(),
-                        entry.UncompressedSize,
-                        entry.Codec,
-                        entry.Flags,
-                        entry.SchemaVersion);
-                }
-                else
-                {
-                    if (!StreamingSaveFormat.TryReadAndDecompressChunkRecord(
-                            _handle,
-                            entry.RecordOffset,
-                            entry,
-                            _codecs,
-                            MaxUncompressedChunkBytes,
-                            scratch,
-                            out string? failureReason))
-                    {
-                        throw new InvalidDataException($"Spill record decode failed for {entry.Key}: {failureReason}");
-                    }
-
-                    IChunkCodec codecImpl = _codecs.GetCodec(targetCodec.Value);
-                    ReadOnlySpan<byte> uncompressed = scratch.WrittenSpan;
-                    int maxComp = codecImpl.GetMaxCompressedLength(uncompressed.Length);
-                    byte[] compBuf = maxComp > 0 ? new byte[maxComp] : [];
-                    int compLen = codecImpl.Compress(uncompressed, compBuf);
-                    batch[i] = new PrecompressedChunkWrite(
-                        entry.Key,
-                        compBuf.AsMemory(0, compLen),
-                        entry.UncompressedSize,
-                        targetCodec.Value,
-                        entry.Flags,
-                        entry.SchemaVersion);
+                    throw new InvalidDataException($"Spill record decode failed for {entry.Key}: {failureReason}");
                 }
             }
+            finally
+            {
+                _rwLock.ExitReadLock();
+            }
 
-            ChunkIndexEntry[] committed = targetStore.AppendPrecompressedBatch(batch, flushToDisk);
-            for (int i = 0; i < toDrain.Count; i++)
-                _latestEntries.Remove(toDrain[i].Key);
+            batchMeta.Add((entry, effectiveCodec, start, batchArena.WrittenCount - start));
+            drainedEntries.Add(entry);
 
-            if (_latestEntries.Count == 0)
-                CloseAndDeleteSpillFileLocked();
-
-            return committed;
+            bool isLast = i == toDrain.Count - 1;
+            if (batchArena.WrittenCount >= MaxDrainBatchBytes || isLast)
+            {
+                ChunkIndexEntry[] batchCommitted = FlushDrainBatch(targetStore, batchArena, batchMeta, flushToDisk && isLast);
+                committedAll.AddRange(batchCommitted);
+                batchArena.Clear();
+                batchMeta.Clear();
+            }
         }
-        finally
-        {
-            _rwLock.ExitWriteLock();
-        }
+
+        CommitDrainedRemovals(drainedEntries);
+        return committedAll.ToArray();
     }
 
     /// <inheritdoc/>
@@ -454,10 +376,78 @@ public sealed class SpillStore : IDisposable
             return;
 
         _storage.DeleteDirectoryIfEmpty(StreamingSavePaths.SessionDirectory(_worldGuid));
-        if (_ownsCodecs)
-            _codecs.Dispose();
-
         _rwLock.Dispose();
+    }
+
+    private List<ChunkIndexEntry> SnapshotDrainEntries(IReadOnlySet<ChunkKey>? excludeKeys)
+    {
+        _rwLock.EnterReadLock();
+        try
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (_latestEntries.Count == 0)
+                return [];
+
+            var result = new List<ChunkIndexEntry>(_latestEntries.Count);
+            foreach ((ChunkKey key, ChunkIndexEntry entry) in _latestEntries)
+            {
+                if (excludeKeys is not null && excludeKeys.Contains(key))
+                    continue;
+
+                result.Add(entry);
+            }
+
+            return result;
+        }
+        finally
+        {
+            _rwLock.ExitReadLock();
+        }
+    }
+
+    private static ChunkIndexEntry[] FlushDrainBatch(
+        ChunkSegmentStore targetStore,
+        ArrayBufferWriter<byte> batchArena,
+        List<(ChunkIndexEntry Entry, ChunkCodecId Codec, int Start, int Length)> batchMeta,
+        bool flushToDisk)
+    {
+        var batch = new PrecompressedChunkWrite[batchMeta.Count];
+        ReadOnlyMemory<byte> arenaMemory = batchArena.WrittenMemory;
+        for (int j = 0; j < batchMeta.Count; j++)
+        {
+            (ChunkIndexEntry item, ChunkCodecId codec, int start, int length) = batchMeta[j];
+            batch[j] = new PrecompressedChunkWrite(
+                item.Key,
+                arenaMemory.Slice(start, length),
+                item.UncompressedSize,
+                codec,
+                item.Flags,
+                item.SchemaVersion);
+        }
+
+        return targetStore.AppendPrecompressedBatch(batch, flushToDisk);
+    }
+
+    private void CommitDrainedRemovals(List<ChunkIndexEntry> drainedEntries)
+    {
+        _rwLock.EnterWriteLock();
+        try
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            for (int i = 0; i < drainedEntries.Count; i++)
+            {
+                ChunkIndexEntry drained = drainedEntries[i];
+                if (_latestEntries.TryGetValue(drained.Key, out ChunkIndexEntry current) && current == drained)
+                    _latestEntries.Remove(drained.Key);
+            }
+
+            if (_latestEntries.Count == 0)
+                CloseAndDeleteSpillFileLocked();
+        }
+        finally
+        {
+            _rwLock.ExitWriteLock();
+        }
     }
 
     private void EnsureSpillHandleOpenLocked()
@@ -469,8 +459,8 @@ public sealed class SpillStore : IDisposable
         IRandomAccessHandle handle = _storage.OpenAppendOrCreate(_relativePath);
         try
         {
-            Span<byte> header = stackalloc byte[StreamingSaveFormat.SegmentHeaderSize];
-            StreamingSaveFormat.WriteSegmentHeader(header, SegmentFlags.Spill, 0, _worldGuid, DateTime.UtcNow.Ticks);
+            Span<byte> header = stackalloc byte[ChunkRecordCodec.SegmentHeaderSize];
+            ChunkRecordCodec.WriteSegmentHeader(header, SegmentFlags.Spill, 0, _worldGuid, DateTime.UtcNow.Ticks);
             handle.WriteAt(0, header);
         }
         catch
@@ -481,7 +471,7 @@ public sealed class SpillStore : IDisposable
         }
 
         _handle = handle;
-        _cursor = StreamingSaveFormat.SegmentHeaderSize;
+        _cursor = ChunkRecordCodec.SegmentHeaderSize;
     }
 
     private void CloseAndDeleteSpillFileLocked()

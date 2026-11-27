@@ -10,6 +10,7 @@ namespace Alco;
 /// </summary>
 public class ReferenceContext
 {
+    /// <summary>The reserved serialization field key for object reference identifiers.</summary>
     public const string SerializeKey = "$id";
 
     protected ulong _nextId = 1;

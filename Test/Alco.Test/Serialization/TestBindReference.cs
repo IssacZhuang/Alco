@@ -81,8 +81,8 @@ public class TestBindReference
         container.RefItem1 = container.Items[0];
         container.RefItem2 = container.Items[2];
 
-        ReadOnlyMemory<byte> bytes = BinaryParser.Encode(container, null, new ReferenceContext());
-        var result = BinaryParser.Decode<ExternalRefsToArrayItemsContainer>(bytes, null, new ReferenceContext());
+        ReadOnlyMemory<byte> bytes = PackedBinarySerializer.Encode(container, refCtx: new ReferenceContext());
+        var result = PackedBinarySerializer.Decode<ExternalRefsToArrayItemsContainer>(bytes, refCtx: new ReferenceContext());
 
         Assert.That(result.Items.Count, Is.EqualTo(3));
         Assert.That(result.Items[0].Name, Is.EqualTo("I0"));
@@ -106,8 +106,8 @@ public class TestBindReference
         container.RefItem1 = container.Items[0];
         container.RefItem2 = container.Items[2];
 
-        ReadOnlyMemory<byte> bytes = BinaryParser.Encode(container, null, new ReferenceContext());
-        var result = BinaryParser.Decode<ExternalRefsToArrayItemsContainer>(bytes, static (SerializeReadNode _) => new ExternalRefsToArrayItemsContainer(2), null, new ReferenceContext());
+        ReadOnlyMemory<byte> bytes = PackedBinarySerializer.Encode(container, refCtx: new ReferenceContext());
+        var result = PackedBinarySerializer.Decode<ExternalRefsToArrayItemsContainer>(bytes, static (SerializeReadNode _) => new ExternalRefsToArrayItemsContainer(2), refCtx: new ReferenceContext());
 
         Assert.That(result.Items.Count, Is.EqualTo(2));
         Assert.That(result.Items[0].Name, Is.EqualTo("A"));
@@ -155,8 +155,8 @@ public class TestBindReference
         container.DirectRef = t2;
 
         // Act
-        ReadOnlyMemory<byte> bytes = BinaryParser.Encode(container, null, new ReferenceContext());
-        var result = BinaryParser.Decode<ArrayWithExternalRefsContainer>(bytes, null, new ReferenceContext());
+        ReadOnlyMemory<byte> bytes = PackedBinarySerializer.Encode(container, refCtx: new ReferenceContext());
+        var result = PackedBinarySerializer.Decode<ArrayWithExternalRefsContainer>(bytes, refCtx: new ReferenceContext());
 
         // Assert
         Assert.That(result.TargetObjects.Count, Is.EqualTo(2));
@@ -279,8 +279,8 @@ public class TestBindReference
         saveContext.SetReference(id, referencedObject);
         var loadContext = new ReferenceContext();
 
-        ReadOnlyMemory<byte> serializedData = BinaryParser.Encode(container, referenceContext: saveContext);
-        var deserializedContainer = BinaryParser.Decode<ReferenceContainer>(serializedData, referenceContext: loadContext);
+        ReadOnlyMemory<byte> serializedData = PackedBinarySerializer.Encode(container, refCtx: saveContext);
+        var deserializedContainer = PackedBinarySerializer.Decode<ReferenceContainer>(serializedData, refCtx: loadContext);
 
         Assert.That(loadContext.TryGetReference(id, out object? registered), Is.True);
         Assert.That(registered, Is.SameAs(deserializedContainer.OriginalObject));
@@ -312,11 +312,11 @@ public class TestBindReference
             SharedReference = null
         };
 
-        // Act - Serialize using BinaryParser
-        ReadOnlyMemory<byte> serializedData = BinaryParser.Encode(container, null, new ReferenceContext());
+        // Act - Serialize using PackedBinarySerializer
+        ReadOnlyMemory<byte> serializedData = PackedBinarySerializer.Encode(container, refCtx: new ReferenceContext());
 
-        // Deserialize using BinaryParser
-        var deserializedContainer = BinaryParser.Decode<ReferenceContainer>(serializedData, null, new ReferenceContext());
+        // Deserialize using PackedBinarySerializer
+        var deserializedContainer = PackedBinarySerializer.Decode<ReferenceContainer>(serializedData, refCtx: new ReferenceContext());
 
         // Assert - All references should remain null
         Assert.That(deserializedContainer.ContainerName, Is.EqualTo("Test Container"));
@@ -346,11 +346,11 @@ public class TestBindReference
             SharedReference = sharedObject // Same object instance
         };
 
-        // Act - Serialize using BinaryParser
-        ReadOnlyMemory<byte> serializedData = BinaryParser.Encode(container, null, new ReferenceContext());
+        // Act - Serialize using PackedBinarySerializer
+        ReadOnlyMemory<byte> serializedData = PackedBinarySerializer.Encode(container, refCtx: new ReferenceContext());
 
-        // Deserialize using BinaryParser
-        var deserializedContainer = BinaryParser.Decode<ReferenceContainer>(serializedData, null, new ReferenceContext());
+        // Deserialize using PackedBinarySerializer
+        var deserializedContainer = PackedBinarySerializer.Decode<ReferenceContainer>(serializedData, refCtx: new ReferenceContext());
 
         // Assert - All references should point to the same deserialized object
         Assert.That(deserializedContainer.ContainerName, Is.EqualTo("Shared Reference Test"));
@@ -386,11 +386,11 @@ public class TestBindReference
             ObjectB = objectB
         };
 
-        // Act - Serialize using BinaryParser
-        ReadOnlyMemory<byte> serializedData = BinaryParser.Encode(container, null, new ReferenceContext());
+        // Act - Serialize using PackedBinarySerializer
+        ReadOnlyMemory<byte> serializedData = PackedBinarySerializer.Encode(container, refCtx: new ReferenceContext());
 
-        // Deserialize using BinaryParser
-        var deserializedContainer = BinaryParser.Decode<CircularReferenceContainer>(serializedData, null, new ReferenceContext());
+        // Deserialize using PackedBinarySerializer
+        var deserializedContainer = PackedBinarySerializer.Decode<CircularReferenceContainer>(serializedData, refCtx: new ReferenceContext());
 
         // Assert - Circular references should be preserved
         Assert.That(deserializedContainer.ObjectA, Is.Not.Null);
@@ -431,11 +431,11 @@ public class TestBindReference
             FirstReference = parentObject
         };
 
-        // Act - Serialize using BinaryParser
-        ReadOnlyMemory<byte> serializedData = BinaryParser.Encode(container, null, new ReferenceContext());
+        // Act - Serialize using PackedBinarySerializer
+        ReadOnlyMemory<byte> serializedData = PackedBinarySerializer.Encode(container, refCtx: new ReferenceContext());
 
-        // Deserialize using BinaryParser
-        var deserializedContainer = BinaryParser.Decode<ReferenceContainer>(serializedData, null, new ReferenceContext());
+        // Deserialize using PackedBinarySerializer
+        var deserializedContainer = PackedBinarySerializer.Decode<ReferenceContainer>(serializedData, refCtx: new ReferenceContext());
 
         // Assert - Nested references should be preserved
         Assert.That(deserializedContainer.ContainerName, Is.EqualTo("Nested Reference Test"));
@@ -537,11 +537,11 @@ public class TestBindReference
         complexContainer.Derived1Reference = derivedObject1;
         complexContainer.Derived2Reference = derivedObject2;
 
-        // Act - Serialize using BinaryParser
-        ReadOnlyMemory<byte> serializedData = BinaryParser.Encode(complexContainer, null, new ReferenceContext());
+        // Act - Serialize using PackedBinarySerializer
+        ReadOnlyMemory<byte> serializedData = PackedBinarySerializer.Encode(complexContainer, refCtx: new ReferenceContext());
 
-        // Deserialize using BinaryParser
-        var deserializedContainer = BinaryParser.Decode<ComplexReferenceContainer>(serializedData, null, new ReferenceContext());
+        // Deserialize using PackedBinarySerializer
+        var deserializedContainer = PackedBinarySerializer.Decode<ComplexReferenceContainer>(serializedData, refCtx: new ReferenceContext());
 
         // Assert - All references should be correctly preserved and shared
         Assert.That(deserializedContainer.ContainerName, Is.EqualTo("Complex Reference Test"));
@@ -627,11 +627,11 @@ public class TestBindReference
             ObjectReference = referencedObject  // Reference to the same object
         };
 
-        // Act - Serialize using BinaryParser
-        ReadOnlyMemory<byte> serializedData = BinaryParser.Encode(container, null, new ReferenceContext());
+        // Act - Serialize using PackedBinarySerializer
+        ReadOnlyMemory<byte> serializedData = PackedBinarySerializer.Encode(container, refCtx: new ReferenceContext());
 
-        // Deserialize using BinaryParser
-        var deserializedContainer = BinaryParser.Decode<BindSerializableContainer>(serializedData, null, new ReferenceContext());
+        // Deserialize using PackedBinarySerializer
+        var deserializedContainer = PackedBinarySerializer.Decode<BindSerializableContainer>(serializedData, refCtx: new ReferenceContext());
 
         // Assert - Reference should point to the same object instance
         Assert.That(deserializedContainer.ContainerName, Is.EqualTo("BindSerializable Test"));
@@ -662,11 +662,11 @@ public class TestBindReference
             ThirdObjectRef = object3    // Reference to third object in collection
         };
 
-        // Act - Serialize using BinaryParser
-        ReadOnlyMemory<byte> serializedData = BinaryParser.Encode(container, null, new ReferenceContext());
+        // Act - Serialize using PackedBinarySerializer
+        ReadOnlyMemory<byte> serializedData = PackedBinarySerializer.Encode(container, refCtx: new ReferenceContext());
 
-        // Deserialize using BinaryParser
-        var deserializedContainer = BinaryParser.Decode<CollectionSerializableContainer>(serializedData, null, new ReferenceContext());
+        // Deserialize using PackedBinarySerializer
+        var deserializedContainer = PackedBinarySerializer.Decode<CollectionSerializableContainer>(serializedData, refCtx: new ReferenceContext());
 
         // Assert - References should point to the same object instances in the collection
         Assert.That(deserializedContainer.ContainerName, Is.EqualTo("Collection Serializable Test"));
@@ -710,11 +710,11 @@ public class TestBindReference
             Collection2Ref = collectionObject2
         };
 
-        // Act - Serialize using BinaryParser
-        ReadOnlyMemory<byte> serializedData = BinaryParser.Encode(container, null, new ReferenceContext());
+        // Act - Serialize using PackedBinarySerializer
+        ReadOnlyMemory<byte> serializedData = PackedBinarySerializer.Encode(container, refCtx: new ReferenceContext());
 
-        // Deserialize using BinaryParser
-        var deserializedContainer = BinaryParser.Decode<MixedSerializationContainer>(serializedData, null, new ReferenceContext());
+        // Deserialize using PackedBinarySerializer
+        var deserializedContainer = PackedBinarySerializer.Decode<MixedSerializationContainer>(serializedData, refCtx: new ReferenceContext());
 
         // Assert - All references should point to their respective objects
         Assert.That(deserializedContainer.ContainerName, Is.EqualTo("Mixed Serialization Test"));
@@ -896,11 +896,11 @@ public class TestBindReference
             DirectCollectionRef = collectionObject2  // Direct reference to one of the collection objects
         };
 
-        // Act - Serialize using BinaryParser
-        ReadOnlyMemory<byte> serializedData = BinaryParser.Encode(container, null, new ReferenceContext());
+        // Act - Serialize using PackedBinarySerializer
+        ReadOnlyMemory<byte> serializedData = PackedBinarySerializer.Encode(container, refCtx: new ReferenceContext());
 
-        // Deserialize using BinaryParser  
-        var deserializedContainer = BinaryParser.Decode<CollectionObjectsWithReferencesContainer>(serializedData, null, new ReferenceContext());
+        // Deserialize using PackedBinarySerializer
+        var deserializedContainer = PackedBinarySerializer.Decode<CollectionObjectsWithReferencesContainer>(serializedData, refCtx: new ReferenceContext());
 
         // Assert - All references should be correctly preserved
         Assert.That(deserializedContainer.ContainerName, Is.EqualTo("Collection Objects With References Test"));

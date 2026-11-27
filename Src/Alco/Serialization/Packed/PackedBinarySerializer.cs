@@ -18,7 +18,7 @@ public static class PackedBinarySerializer
     /// <param name="elideDefaults">Whether to omit scalar bindings equal to their defaults.</param>
     /// <param name="onError">The optional error callback.</param>
     /// <returns>The encoded document.</returns>
-    public static byte[] Encode(ISerializable root, ReferenceContext? refCtx = null, bool elideDefaults = true, Action<string>? onError = null)
+    public static byte[] Encode(ISerializable root, ReferenceContext? refCtx = null, bool elideDefaults = false, Action<string>? onError = null)
     {
         var buffer = new ArrayBufferWriter<byte>();
         EncodeTo(buffer, root, refCtx, elideDefaults, onError);
@@ -34,11 +34,11 @@ public static class PackedBinarySerializer
     /// <param name="elideDefaults">Whether to omit scalar bindings equal to their defaults.</param>
     /// <param name="onError">The optional error callback.</param>
     public static void EncodeTo(IBufferWriter<byte> destination, ISerializable root, ReferenceContext? refCtx = null,
-        bool elideDefaults = true, Action<string>? onError = null)
+        bool elideDefaults = false, Action<string>? onError = null)
     {
         ArgumentNullException.ThrowIfNull(destination);
         ArgumentNullException.ThrowIfNull(root);
-        PackedBinaryWriteNode.Encoder.EncodeTo(destination, root, refCtx, elideDefaults, new PackedErrors(onError));
+        PackedBinaryWriteNode.EncodeTo(destination, root, refCtx, elideDefaults, new PackedErrors(onError));
     }
 
     /// <summary>
