@@ -14,6 +14,13 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- The pre-migration pipeline remains on disk until its passes and loaders are replaced. -->
+    <Compile Remove="AssetPipeline\**\*.cs;Rendering\**\*.cs" />
+    <Compile Include="Rendering\Deferred\VoxelGiClipmap.cs;Rendering\World3DRenderPipeline.cs" />
+    <EmbeddedResource Include="Scene\World3DSceneData.slang" LogicalName="World3DSceneData.slang" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Content Include="$(MSBuildThisFileDirectory)Assets\**\*.*">
       <Link>Assets/%(RecursiveDir)%(Filename)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
