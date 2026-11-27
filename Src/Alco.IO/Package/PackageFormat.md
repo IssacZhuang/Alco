@@ -4,15 +4,15 @@ Purpose: compact two-section package (Meta + Content) with a front-loaded entry 
 random/positional access to individual entries. Used by asset bundles (`PackageMeta`, magic `"alco"`)
 and by save files (`SaveMetaData`, magic `"savl"`).
 
-- Meta: serialized with `BinaryParser`. The meta type implements `IPackageMeta` (which supplies the
-  file's magic) and derives from `PackageMetaBase` (which owns the `_entries` directory). A concrete
-  meta may add its own fields beyond the inherited directory.
-- Content: raw entry bytes, concatenated in entry order (no per-entry framing).
+- Meta: a complete PackedBinary document (inner magic `APKB`), written with `elideDefaults: false`.
+  The meta type implements `IPackageMeta` (which supplies the file's magic) and derives from
+  `PackageMetaBase` (which owns the `_entries` directory). Older, non-`APKB` metadata is not supported.
+- Content: raw entry bytes in entry order, with optional alignment padding and no per-entry framing.
 
 Layout (little-endian):
 - [0..3] Magic: 4 ASCII bytes identifying the file type (the concrete meta's `IPackageMeta.Magic`)
 - [4..11] MetaLength: Int64 — size in bytes of Meta Payload
-- [12..12+MetaLength-1] Meta Payload (bytes from `BinaryParser`)
+- [12..12+MetaLength-1] Meta Payload (PackedBinary)
 - [12+MetaLength..end] Content Payload
 
 Meta schema (serialized field names include underscores):
@@ -22,8 +22,8 @@ Meta schema (serialized field names include underscores):
   - `_entries`: list<PackageEntry>
 - PackageEntry
   - `_name`: string
-  - `_start`: uint64 (offset from start of Content)
-  - `_size`: uint64 (length in bytes)
+  - `_start`: int64 (nonnegative offset from start of Content)
+  - `_size`: int64 (nonnegative length in bytes)
 - Concrete metas bind additional fields after `base.OnSerialize(...)`.
 
 Addressing:
@@ -43,9 +43,9 @@ Notes:
 - Magic identifies the file type; each concrete meta declares it directly (see `IPackageMeta` remarks
   on why the interface is declared per concrete type, not via inheritance).
 - Version stored in meta as string field.
-- No footer or alignment.
-- Supports concurrent reads from multiple threads. Readers use positional I/O and do not share
-  mutable state; each thread must provide its own destination buffer.
+- No footer. `EntryAlignment` defaults to 1 byte (no padding) and aligns starts relative to `ContentBase`.
+- File and memory readers support concurrent reads with separate destination buffers. Seekable stream
+  readers require external synchronization.
 
 ## Encrypted packages (v2)
 
@@ -54,12 +54,11 @@ default). Encryption is AES-256-GCM with chunked content so random-offset entry 
 
 Layout (little-endian):
 - [0..3] Magic (unchanged)
-- [4..11] Int64 — **negative** when encrypted: high bit set, low 63 bits = size of the encrypted
-  meta section. The sign of this field is the sole v1/v2 discriminator, so v1 readers reject v2
-  packages via the existing negative-length check.
+- [4..11] Int64 — **negative** when encrypted: high bit set, low 63 bits = `SectionLength`,
+  the total size of the salt, metadata ciphertext, and tag.
 - [12..27] Salt: 16 random bytes, fresh per build
-- [28..28+SectionLength-17] Encrypted meta: meta ciphertext + 16-byte GCM tag
-- [28+SectionLength-16..] Content payload
+- [28..ContentBase-1] Encrypted meta: PackedBinary ciphertext + 16-byte GCM tag
+- [ContentBase..end] Content payload
 - `ContentBase = 12 + SectionLength`
 
 Keys and nonces:

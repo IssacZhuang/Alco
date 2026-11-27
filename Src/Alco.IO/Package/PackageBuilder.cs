@@ -2,15 +2,10 @@ using System.Buffers.Binary;
 using System.IO;
 using System.Security.Cryptography;
 
-using Alco;
-
 namespace Alco.IO;
 
 /// <summary>
-/// Builds an Alco package in-memory following the documented format:
-/// [magic][Int64 LE meta length][meta payload via BinaryParser][content payload].
-/// The meta type <typeparamref name="TMeta"/> supplies the magic number and may carry type-specific
-/// fields beyond the inherited entry directory.
+/// Builds Alco packages with a PackedBinary entry directory and optional encryption.
 /// </summary>
 /// <typeparam name="TMeta">The package metadata type, which must implement <see cref="IPackageMeta"/>.</typeparam>
 public sealed class PackageBuilder<TMeta> where TMeta : PackageMetaBase, IPackageMeta, new()
@@ -254,11 +249,7 @@ public sealed class PackageBuilder<TMeta> where TMeta : PackageMetaBase, IPackag
             throw new InvalidOperationException("Content payload too large.");
         }
 
-        ReadOnlyMemory<byte> metaBytes = BinaryParser.Encode(meta);
-        if (metaBytes.Length > int.MaxValue)
-        {
-            throw new InvalidOperationException("Meta payload too large.");
-        }
+        ReadOnlyMemory<byte> metaBytes = PackedBinarySerializer.Encode(meta, elideDefaults: false);
 
         if (encryptionKey == null)
         {

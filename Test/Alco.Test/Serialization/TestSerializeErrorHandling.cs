@@ -20,6 +20,10 @@ public class TestSerializeErrorHandling
         public bool ShouldThrow = false;
         public string ErrorMessage = "Test error";
 
+        /// <summary>Gets whether post-load completed.</summary>
+        public bool PostLoaded { get; private set; }
+
+        /// <inheritdoc/>
         public void OnSerialize(SerializeNode node, SerializeMode mode)
         {
             node.BindString("name", ref Name);
@@ -27,6 +31,10 @@ public class TestSerializeErrorHandling
             if (ShouldThrow)
             {
                 throw new InvalidOperationException(ErrorMessage);
+            }
+            if (mode == SerializeMode.PostLoad)
+            {
+                PostLoaded = true;
             }
         }
     }
@@ -175,30 +183,29 @@ public class TestSerializeErrorHandling
         };
 
         ReadOnlyMemory<byte> serializedData = BinaryParser.Encode(container);
-        var table = BinaryParser.DecodeTable(serializedData);
-
-        // Act - Deserialize with one object that will throw during deserialization
         var errorCollector = new ErrorCollector();
-        var referenceContext = new ReferenceContext();
-        var readNode = new BinarySerializeReadNode(referenceContext, table, errorCollector.OnError);
+        Assert.That(PackedBinaryReadNode.TryOpen(serializedData, out PackedBinaryReadNode? readNode,
+            onError: errorCollector.OnError), Is.True);
+        var node = readNode!;
         var deserializedContainer = new ContainerObject
         {
             Object2 = new FaultySerializableObject { ShouldThrow = true, ErrorMessage = "Deserialization error" }
         };
-        deserializedContainer.OnSerialize(readNode, SerializeMode.Load);
 
-        // Assert - One error should be collected during deserialization
-        Assert.That(errorCollector.Errors.Count, Is.EqualTo(1));
-        Assert.That(errorCollector.Errors[0], Does.Contain("Failed to bind optional serializable 'object2'"));
-        Assert.That(errorCollector.Errors[0], Does.Contain("Deserialization error"));
+        deserializedContainer.OnSerialize(node, SerializeMode.Load);
+        deserializedContainer.OnSerialize(node.CreatePostLoadNode(), SerializeMode.PostLoad);
 
-        // Container name and other objects should still be deserialized successfully
+        Assert.That(errorCollector.Errors, Has.Count.EqualTo(1));
+        Assert.That(errorCollector.Errors[0], Does.Contain("'object2'").And.Contain("Deserialization error"));
         Assert.That(deserializedContainer.ContainerName, Is.EqualTo("TestContainer"));
         Assert.That(deserializedContainer.Object1?.Name, Is.EqualTo("Object1"));
+        Assert.That(deserializedContainer.Object1?.PostLoaded, Is.True);
+        Assert.That(deserializedContainer.Object2?.PostLoaded, Is.False);
         Assert.That(deserializedContainer.Object3?.Name, Is.EqualTo("Object3"));
+        Assert.That(deserializedContainer.Object3?.PostLoaded, Is.True);
     }
 
-    /// <summary>Tests that list item deserialization errors are reported per index.</summary>
+    /// <summary>Tests that list item load errors are reported without disrupting post-load for other items.</summary>
     [Test]
     public void TestDeserializeWithListItemErrors()
     {
@@ -217,41 +224,30 @@ public class TestSerializeErrorHandling
         };
 
         ReadOnlyMemory<byte> serializedData = BinaryParser.Encode(container);
-        var table = BinaryParser.DecodeTable(serializedData);
-
-        // Act - Deserialize with a custom factory that throws for certain items
-        // Note: We still need to use BinarySerializeReadNode here to test the custom factory error handling
         var errorCollector = new ErrorCollector();
-        var referenceContext = new ReferenceContext();
-        var readNode = new BinarySerializeReadNode(referenceContext, table, errorCollector.OnError);
+        Assert.That(PackedBinaryReadNode.TryOpen(serializedData, out PackedBinaryReadNode? readNode,
+            onError: errorCollector.OnError), Is.True);
+        var node = readNode!;
         var deserializedContainer = new ContainerObject();
 
-        // First bind the container name, then manually bind the list with a custom factory
-        readNode.BindString("containerName", ref deserializedContainer.ContainerName);
-        readNode.BindCollectionSerializable("objectList", deserializedContainer.ObjectList, (SerializeReadNode subNode) =>
+        node.BindString("containerName", ref deserializedContainer.ContainerName);
+        node.BindCollectionSerializable("objectList", deserializedContainer.ObjectList, static subNode =>
         {
             string name = subNode.GetString("name");
-            if (name == "Item1")
+            if (name is "Item1" or "Item3")
             {
-                //it will break the deserialization
                 throw new InvalidOperationException($"Factory error for {name}");
             }
             return new FaultySerializableObject { Name = name };
         });
+        deserializedContainer.OnSerialize(node.CreatePostLoadNode(), SerializeMode.PostLoad);
 
-        // Assert - Two errors should be collected during deserialization
-        Assert.That(errorCollector.Errors.Count, Is.EqualTo(1));
-        Assert.That(errorCollector.Errors[0], Does.Contain("Failed to bind serializable list item at index 1 for key 'objectList'"));
-        Assert.That(errorCollector.Errors[0], Does.Contain("Factory error for Item1"));
-
-        // Container name should be deserialized successfully
+        Assert.That(errorCollector.Errors, Has.Count.EqualTo(2));
+        Assert.That(errorCollector.Errors[0], Does.Contain("'objectList'").And.Contain("Factory error for Item1"));
+        Assert.That(errorCollector.Errors[1], Does.Contain("'objectList'").And.Contain("Factory error for Item3"));
         Assert.That(deserializedContainer.ContainerName, Is.EqualTo("TestContainer"));
-        // All items except the faulty one should be deserialized (Item0, Item2, Item3, Item4)
-        Assert.That(deserializedContainer.ObjectList.Count, Is.EqualTo(4));
-        Assert.That(deserializedContainer.ObjectList[0].Name, Is.EqualTo("Item0"));
-        Assert.That(deserializedContainer.ObjectList[1].Name, Is.EqualTo("Item2"));
-        Assert.That(deserializedContainer.ObjectList[2].Name, Is.EqualTo("Item3"));
-        Assert.That(deserializedContainer.ObjectList[3].Name, Is.EqualTo("Item4"));
+        Assert.That(deserializedContainer.ObjectList.ConvertAll(static item => item.Name), Is.EqualTo(new[] { "Item0", "Item2", "Item4" }));
+        Assert.That(deserializedContainer.ObjectList.TrueForAll(static item => item.PostLoaded), Is.True);
     }
 
     /// <summary>Tests that errors from multiple sources are all reported.</summary>

@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Security.Cryptography.X509Certificates;
 
 #nullable enable
 
@@ -258,20 +257,23 @@ public class TestSerialize
         }
     }
 
+    private enum ByteEnum : byte
+    {
+        None,
+        Example = 255,
+    }
+
     private class TestObjectEnum : ISerializable
     {
         public TestEnum enumValue;
-        public List<TestEnum> enumList;
+        public ByteEnum byteEnumValue;
+        public List<TestEnum> enumList = new();
 
-        public TestObjectEnum()
-        {
-            enumValue = TestEnum.None;
-            enumList = new List<TestEnum>();
-        }
-
+        /// <inheritdoc/>
         public void OnSerialize(SerializeNode node, SerializeMode mode)
         {
             node.BindEnum("enumValue", ref enumValue);
+            node.BindEnum("byteEnumValue", ref byteEnumValue);
             node.BindCollection("enumList", enumList);
         }
     }
@@ -471,13 +473,14 @@ public class TestSerialize
     }
 
     /// <summary>
-    /// Tests round-trip serialization of enum values and enum collections.
+    /// Tests round-trip serialization of byte- and int-backed enums and enum collections.
     /// </summary>
     [Test]
     public void TestSerializeEnum()
     {
         TestObjectEnum obj = new TestObjectEnum();
         obj.enumValue = TestEnum.Two;
+        obj.byteEnumValue = ByteEnum.Example;
         obj.enumList.Add(TestEnum.One);
         obj.enumList.Add(TestEnum.Two);
         obj.enumList.Add(TestEnum.Three);
@@ -486,10 +489,24 @@ public class TestSerialize
         TestObjectEnum obj2 = BinaryParser.Decode<TestObjectEnum>(data, null, new ReferenceContext());
 
         Assert.That(obj2.enumValue, Is.EqualTo(TestEnum.Two));
+        Assert.That(obj2.byteEnumValue, Is.EqualTo(ByteEnum.Example));
         Assert.That(obj2.enumList.Count, Is.EqualTo(3));
         Assert.That(obj2.enumList[0], Is.EqualTo(TestEnum.One));
         Assert.That(obj2.enumList[1], Is.EqualTo(TestEnum.Two));
         Assert.That(obj2.enumList[2], Is.EqualTo(TestEnum.Three));
+    }
+
+    /// <summary>Tests that reading a missing enum or one of a different width returns the requested default.</summary>
+    [Test]
+    public void TestGetEnum_MissingOrDifferentWidthUsesDefault()
+    {
+        ReadOnlyMemory<byte> data = BinaryParser.Encode(new TestObjectEnum { enumValue = TestEnum.Two });
+        Assert.That(PackedBinaryReadNode.TryOpen(data, out PackedBinaryReadNode? readNode), Is.True);
+        var node = readNode!;
+
+        Assert.That(node.GetEnum("enumValue", TestEnum.None), Is.EqualTo(TestEnum.Two));
+        Assert.That(node.GetEnum("enumValue", ByteEnum.Example), Is.EqualTo(ByteEnum.Example));
+        Assert.That(node.GetEnum("missing", TestEnum.One), Is.EqualTo(TestEnum.One));
     }
 
     /// <summary>

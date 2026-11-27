@@ -1,5 +1,5 @@
+using System.Buffers.Binary;
 using System.IO;
-using System.Text;
 using Alco;
 using Alco.IO;
 using NUnit.Framework;
@@ -71,23 +71,17 @@ public class TestStructuredFileBase
 
         byte[] data = StructuredFileUtility.Compose(meta, content);
 
-        using var ms = new MemoryStream(data);
-        using var reader = new BinaryReader(ms);
+        Assert.That(data.AsSpan(0, 4).SequenceEqual("test"u8), Is.True);
+        int metaLength = BinaryPrimitives.ReadInt32LittleEndian(data.AsSpan(4));
+        Assert.That(data.AsSpan(8, 4).SequenceEqual("APKB"u8), Is.True);
+        ReadOnlyMemory<byte> metaBytes = data.AsMemory(8, metaLength);
+        Assert.That(metaBytes.ToArray(), Is.EqualTo(PackedBinarySerializer.Encode(meta, elideDefaults: false)));
 
-        byte[] magic = reader.ReadBytes(4);
-        Assert.That(Encoding.ASCII.GetString(magic), Is.EqualTo("test"));
-
-        int metaLength = reader.ReadInt32();
-        Assert.That(metaLength, Is.GreaterThan(0));
-        byte[] metaBytes = reader.ReadBytes(metaLength);
-        TestStructuredFileMeta readMeta = BinaryParser.Decode<TestStructuredFileMeta>(metaBytes);
+        TestStructuredFileMeta readMeta = PackedBinarySerializer.Decode<TestStructuredFileMeta>(metaBytes);
         Assert.That(readMeta.Name, Is.EqualTo("hello"));
         Assert.That(readMeta.Value, Is.EqualTo(42));
-
-        int contentLength = reader.ReadInt32();
-        Assert.That(contentLength, Is.EqualTo(4));
-        byte[] readContent = reader.ReadBytes(contentLength);
-        Assert.That(readContent, Is.EqualTo(new byte[] { 0x01, 0x02, 0x03, 0x04 }));
+        Assert.That(BinaryPrimitives.ReadInt32LittleEndian(data.AsSpan(8 + metaLength)), Is.EqualTo(content.Length));
+        Assert.That(data.AsSpan(12 + metaLength).ToArray(), Is.EqualTo(content));
     }
 
     /// <summary>
@@ -118,10 +112,13 @@ public class TestStructuredFileBase
         byte[] content = { 0xAA, 0xBB };
         byte[] data = StructuredFileUtility.Compose(meta, content);
 
-        TestStructuredFileMeta readMeta = StructuredFileUtility.ReadMeta<TestStructuredFileMeta>(data);
+        int metaLength = BinaryPrimitives.ReadInt32LittleEndian(data.AsSpan(4));
+        ReadOnlyMemory<byte> headerAndMeta = data.AsMemory(0, 8 + metaLength);
+        TestStructuredFileMeta readMeta = StructuredFileUtility.ReadMeta<TestStructuredFileMeta>(headerAndMeta);
 
         Assert.That(readMeta.Name, Is.EqualTo("meta"));
         Assert.That(readMeta.Value, Is.EqualTo(7));
+        Assert.Throws<InvalidDataException>(() => StructuredFileUtility.Read<TestStructuredFileMeta>(headerAndMeta));
     }
 
     /// <summary>
@@ -141,45 +138,69 @@ public class TestStructuredFileBase
     [Test]
     public void TestRead_TooShort_Throws()
     {
-        byte[] shortData = "test"u8.ToArray(); // only 4 bytes
+        byte[] shortData = "test"u8.ToArray();
 
         Assert.Throws<InvalidDataException>(() => StructuredFileUtility.Read<TestStructuredFileMeta>(shortData));
+        using var stream = new FragmentedReadStream(shortData);
+        Assert.Throws<InvalidDataException>(() => StructuredFileUtility.ReadMeta<TestStructuredFileMeta>(stream));
     }
 
-    /// <summary>
-    /// Tests that a negative metadata length throws.
-    /// </summary>
-    [Test]
-    public void TestRead_NegativeMetaLength_Throws()
+    /// <summary>Tests that negative and oversized metadata lengths are rejected before large allocations.</summary>
+    [TestCase(-1)]
+    [TestCase(int.MaxValue)]
+    [TestCase(int.MaxValue - 4096)]
+    public void TestRead_InvalidMetaLength_Throws(int metaLength)
     {
-        var meta = new TestStructuredFileMeta("x", 1);
-        byte[] content = { 0x01 };
-        byte[] data = StructuredFileUtility.Compose(meta, content);
-
-        // Corrupt metaLength to -1 (offset 4, little-endian)
-        data[4] = 0xFF;
-        data[5] = 0xFF;
-        data[6] = 0xFF;
-        data[7] = 0xFF;
+        byte[] data = StructuredFileUtility.Compose(new TestStructuredFileMeta("x", 1), [0x01]);
+        BinaryPrimitives.WriteInt32LittleEndian(data.AsSpan(4), metaLength);
 
         Assert.Throws<InvalidDataException>(() => StructuredFileUtility.Read<TestStructuredFileMeta>(data));
+        Assert.Throws<InvalidDataException>(() => StructuredFileUtility.ReadMeta<TestStructuredFileMeta>(data));
+        using var seekable = new MemoryStream(data);
+        Assert.Throws<InvalidDataException>(() => StructuredFileUtility.ReadMeta<TestStructuredFileMeta>(seekable));
+        using var fragmented = new FragmentedReadStream(data);
+        Assert.Throws<InvalidDataException>(() => StructuredFileUtility.ReadMeta<TestStructuredFileMeta>(fragmented));
     }
 
-    /// <summary>
-    /// Tests that reading metadata from a stream returns the stored metadata.
-    /// </summary>
-    [Test]
-    public void TestReadMeta_Stream_ReturnsOnlyMeta()
+    /// <summary>Tests that a valid envelope does not make legacy or non-APKB metadata readable.</summary>
+    [TestCase("1400000000050000005F6E616D65060000006C6567616379", TestName = "TestRead_RejectsLegacyMetadata")]
+    [TestCase("4E4F504501000000110000000000000000", TestName = "TestRead_RejectsNonApkbMetadata")]
+    public void TestRead_RejectsNonPackedMetadata(string metadataHex)
     {
-        var meta = new TestStructuredFileMeta("stream", 3);
-        byte[] content = { 0x01, 0x02, 0x03 };
+        byte[] meta = Convert.FromHexString(metadataHex);
+        byte[] data = new byte[12 + meta.Length];
+        "test"u8.CopyTo(data);
+        BinaryPrimitives.WriteInt32LittleEndian(data.AsSpan(4), meta.Length);
+        meta.CopyTo(data, 8);
+
+        Assert.Throws<InvalidDataException>(() => StructuredFileUtility.Read<TestStructuredFileMeta>(data));
+        Assert.Throws<InvalidDataException>(() => StructuredFileUtility.ReadMeta<TestStructuredFileMeta>(data));
+        using var stream = new MemoryStream(data);
+        Assert.Throws<InvalidDataException>(() => StructuredFileUtility.ReadMeta<TestStructuredFileMeta>(stream));
+    }
+
+    /// <summary>Tests that fragmented metadata reads stop before the content length field.</summary>
+    [TestCase(6)]
+    [TestCase(5000)]
+    public void TestReadMeta_Stream_ReturnsOnlyMeta(int nameLength)
+    {
+        string name = new('x', nameLength);
+        var meta = new TestStructuredFileMeta(name, 3);
+        byte[] content = [0x01, 0x02, 0x03];
         byte[] data = StructuredFileUtility.Compose(meta, content);
+        using var stream = new FragmentedReadStream([0xCC, .. data]);
+        Assert.That(stream.ReadByte(), Is.EqualTo(0xCC));
 
-        using var ms = new MemoryStream(data);
-        TestStructuredFileMeta readMeta = StructuredFileUtility.ReadMeta<TestStructuredFileMeta>(ms);
+        TestStructuredFileMeta readMeta = StructuredFileUtility.ReadMeta<TestStructuredFileMeta>(stream);
 
-        Assert.That(readMeta.Name, Is.EqualTo("stream"));
+        Assert.That(readMeta.Name, Is.EqualTo(name));
         Assert.That(readMeta.Value, Is.EqualTo(3));
+        Span<byte> length = stackalloc byte[sizeof(int)];
+        stream.ReadExactly(length);
+        Assert.That(BinaryPrimitives.ReadInt32LittleEndian(length), Is.EqualTo(content.Length));
+        byte[] readContent = new byte[content.Length];
+        stream.ReadExactly(readContent);
+        Assert.That(readContent, Is.EqualTo(content));
     }
 
     /// <summary>
@@ -215,24 +236,56 @@ public class TestStructuredFileBase
         Assert.That(readContent.ToArray(), Is.EqualTo(new byte[] { 0x01, 0x02 }));
     }
 
-    /// <summary>
-    /// Tests that a negative content length throws.
-    /// </summary>
-    [Test]
-    public void TestRead_NegativeContentLength_Throws()
+    /// <summary>Tests that negative and oversized content lengths are rejected.</summary>
+    [TestCase(-1)]
+    [TestCase(int.MaxValue)]
+    public void TestRead_InvalidContentLength_Throws(int contentLength)
     {
-        var meta = new TestStructuredFileMeta("x", 1);
-        byte[] content = { 0x01 };
-        byte[] data = StructuredFileUtility.Compose(meta, content);
-
-        // Corrupt contentLength to -1 (offset = 8 + metaLength)
-        int metaLength = BitConverter.ToInt32(data.AsSpan(4, 4));
-        int contentLengthOffset = 8 + metaLength;
-        data[contentLengthOffset] = 0xFF;
-        data[contentLengthOffset + 1] = 0xFF;
-        data[contentLengthOffset + 2] = 0xFF;
-        data[contentLengthOffset + 3] = 0xFF;
+        byte[] data = StructuredFileUtility.Compose(new TestStructuredFileMeta("x", 1), [0x01]);
+        int metaLength = BinaryPrimitives.ReadInt32LittleEndian(data.AsSpan(4));
+        BinaryPrimitives.WriteInt32LittleEndian(data.AsSpan(8 + metaLength), contentLength);
 
         Assert.Throws<InvalidDataException>(() => StructuredFileUtility.Read<TestStructuredFileMeta>(data));
+    }
+
+    private sealed class FragmentedReadStream(byte[] data) : Stream
+    {
+        private int _offset;
+
+        /// <inheritdoc/>
+        public override bool CanRead => true;
+        /// <inheritdoc/>
+        public override bool CanSeek => false;
+        /// <inheritdoc/>
+        public override bool CanWrite => false;
+        /// <inheritdoc/>
+        public override long Length => throw new NotSupportedException();
+
+        /// <inheritdoc/>
+        public override long Position
+        {
+            get => throw new NotSupportedException();
+            set => throw new NotSupportedException();
+        }
+
+        /// <inheritdoc/>
+        public override int Read(Span<byte> buffer)
+        {
+            int count = Math.Min(Math.Min(3, buffer.Length), data.Length - _offset);
+            data.AsSpan(_offset, count).CopyTo(buffer);
+            _offset += count;
+            return count;
+        }
+
+        /// <inheritdoc/>
+        public override int Read(byte[] buffer, int offset, int count) => Read(buffer.AsSpan(offset, count));
+        /// <inheritdoc/>
+        public override void Flush() => throw new NotSupportedException();
+        /// <inheritdoc/>
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+        /// <inheritdoc/>
+        public override void SetLength(long value) => throw new NotSupportedException();
+        /// <inheritdoc/>
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
     }
 }

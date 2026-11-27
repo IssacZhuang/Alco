@@ -5,19 +5,10 @@ using BenchmarkDotNet.Attributes;
 namespace Alco.Benchmark;
 
 /// <summary>
-/// Benchmarks encoding a small object with XmlDocument, System.Text.Json, and BinaryTable.
+/// Benchmarks encoding a small object with XmlDocument, System.Text.Json, and PackedBinary.
 /// </summary>
 public class BenchmarkSerializationEncoding
 {
-
-    /// <summary>
-    /// Prepares the benchmark state.
-    /// </summary>
-    [GlobalSetup]
-    public void Setup()
-    {
-    }
-
     /// <summary>
     /// Benchmarks encoding an object with XmlDocument.
     /// </summary>
@@ -60,27 +51,22 @@ public class BenchmarkSerializationEncoding
         });
 
     }
-    /// <summary>
-    /// Benchmarks encoding an object with BinaryTable.
-    /// </summary>
-    [Benchmark(Description = "BinaryTable encoding")]
-    public void BinaryTableEncoding(){
-        BinaryTable table = new BinaryTable();
-        table["intVal"] = 1;
-        table["strVal"] = "2";
-        table["floatVal"] = 3.14;
-        table["boolVal"] = true;
-        ReadOnlyMemory<byte> bytes = BinaryParser.EncodeTable(table);
+
+    /// <summary>Benchmarks encoding an object with PackedBinary.</summary>
+    [Benchmark(Description = "PackedBinary encoding")]
+    public byte[] PackedBinaryEncoding()
+    {
+        return PackedBinarySerializer.Encode(new SerializationSample(), elideDefaults: false);
     }
 }
 
 /// <summary>
-/// Benchmarks decoding a small object with XmlDocument, System.Text.Json, and BinaryTable.
+/// Benchmarks decoding a small object with XmlDocument, System.Text.Json, and PackedBinary.
 /// </summary>
 public class BenchmarkSerializationDecoding
 {
-    private string _xmlInput;
-    private string _jsonInput;
+    private string _xmlInput = string.Empty;
+    private string _jsonInput = string.Empty;
     private ReadOnlyMemory<byte> _binaryInput;
 
     /// <summary>
@@ -117,13 +103,7 @@ public class BenchmarkSerializationDecoding
             }
         });
 
-
-        BinaryTable table = new BinaryTable();
-        table["intVal"] = 1;
-        table["strVal"] = "2";
-        table["floatVal"] = 3.14;
-        table["boolVal"] = true;
-        _binaryInput = BinaryParser.EncodeTable(table);
+        _binaryInput = PackedBinarySerializer.Encode(new SerializationSample(), elideDefaults: false);
     }
 
     /// <summary>
@@ -142,15 +122,29 @@ public class BenchmarkSerializationDecoding
     [Benchmark(Description = "JsonDocument decoding")]
     public void JsonDocumentDecoding()
     {
-        JsonDocument doc = JsonDocument.Parse(_jsonInput);
+        using JsonDocument doc = JsonDocument.Parse(_jsonInput);
     }
 
-    /// <summary>
-    /// Benchmarks decoding an object with BinaryTable.
-    /// </summary>
-    [Benchmark(Description = "BinaryTable decoding")]
-    public void BinaryTableDecoding()
+    /// <summary>Benchmarks decoding an object with PackedBinary.</summary>
+    [Benchmark(Description = "PackedBinary decoding")]
+    public ISerializable PackedBinaryDecoding()
     {
-        BinaryTable table = BinaryParser.DecodeTable(_binaryInput);
+        return PackedBinarySerializer.Decode<SerializationSample>(_binaryInput);
+    }
+}
+
+file sealed class SerializationSample : ISerializable
+{
+    private int _intVal = 1;
+    private string _strVal = "2";
+    private double _floatVal = 3.14;
+    private bool _boolVal = true;
+
+    void ISerializable.OnSerialize(SerializeNode node, SerializeMode mode)
+    {
+        node.BindValue("intVal", ref _intVal);
+        node.BindString("strVal", ref _strVal);
+        node.BindValue("floatVal", ref _floatVal);
+        node.BindValue("boolVal", ref _boolVal);
     }
 }

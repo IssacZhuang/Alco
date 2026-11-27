@@ -111,18 +111,24 @@ public class TestMeshAssetFormat
     }
 
     /// <summary>
-    /// Tests that the writer produces an aligned package readable through its metadata.
+    /// Tests the mesh package envelope, PackedBinary metadata, and content-relative alignment.
     /// </summary>
     [Test]
     public void WriterProducesAlignedReadablePackage()
     {
-        byte[] package = WritePackage(CreateBuildData());
+        MeshAssetBuildData data = CreateBuildData();
+        byte[] package = WritePackage(data);
+        int metaLength = checked((int)BinaryPrimitives.ReadInt64LittleEndian(package.AsSpan(4, 8)));
 
         using PackageReader<MeshAssetMeta> reader = PackageReader<MeshAssetMeta>.OpenMemory(package);
         MeshAssetMeta meta = reader.Meta;
 
         Assert.Multiple(() =>
         {
+            Assert.That(package.AsSpan(0, 4).SequenceEqual("amsh"u8), Is.True);
+            Assert.That(package.AsSpan(12, metaLength).StartsWith("APKB"u8), Is.True);
+            Assert.That(package.AsSpan(12 + metaLength, data.Lods[0].Vertices.Length).ToArray(),
+                Is.EqualTo(data.Lods[0].Vertices));
             Assert.That(meta.Name, Is.EqualTo("test_quad"));
             Assert.That(meta.SourceHash, Is.EqualTo(0x0123456789ABCDEF));
             Assert.That(meta.CookerVersion, Is.EqualTo(MeshAssetWriter.CookerVersion));

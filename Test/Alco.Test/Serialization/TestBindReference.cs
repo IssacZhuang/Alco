@@ -256,7 +256,7 @@ public class TestBindReference
         }
     }
 
-    /// <summary>Tests basic reference round-tripping through serialization and deserialization.</summary>
+    /// <summary>Tests reference round-tripping and registration for IDs above UInt32 range.</summary>
     [Test]
     public void TestBasicReferenceSerializationAndDeserialization()
     {
@@ -274,13 +274,16 @@ public class TestBindReference
             FirstReference = referencedObject  // Reference to the same object
         };
 
-        // Act - Serialize using BinaryParser
-        ReadOnlyMemory<byte> serializedData = BinaryParser.Encode(container, null, new ReferenceContext());
+        const ulong id = 0x1_0000_002AUL;
+        var saveContext = new ReferenceContext();
+        saveContext.SetReference(id, referencedObject);
+        var loadContext = new ReferenceContext();
 
-        // Deserialize using BinaryParser
-        var deserializedContainer = BinaryParser.Decode<ReferenceContainer>(serializedData, null, new ReferenceContext());
+        ReadOnlyMemory<byte> serializedData = BinaryParser.Encode(container, referenceContext: saveContext);
+        var deserializedContainer = BinaryParser.Decode<ReferenceContainer>(serializedData, referenceContext: loadContext);
 
-        // Assert
+        Assert.That(loadContext.TryGetReference(id, out object? registered), Is.True);
+        Assert.That(registered, Is.SameAs(deserializedContainer.OriginalObject));
         Assert.That(deserializedContainer.ContainerName, Is.EqualTo("Test Container"));
         Assert.That(deserializedContainer.OriginalObject, Is.Not.Null);
         Assert.That(deserializedContainer.FirstReference, Is.Not.Null);
@@ -456,37 +459,46 @@ public class TestBindReference
     [Test]
     public void TestReferenceErrorHandling()
     {
-        // Arrange - Create a manually corrupted reference scenario
+        const ulong firstId = 0x1_0000_03E7UL;
+        const ulong secondId = 0x2_0000_0378UL;
+        const ulong sharedId = ulong.MaxValue;
+        byte[] bytes = PackedBinarySerializer.Encode(new UnresolvedReferences(firstId, secondId, sharedId));
         var errorCollector = new ErrorCollector();
-        var referenceContext = new ReferenceContext();
-        
-        // Create a binary table with invalid reference IDs
-        var table = new BinaryTable();
-        table.Add("containerName", "Error Test");
-        table.Add("firstReference", (uint)999); // Invalid reference ID
-        table.Add("secondReference", (uint)888); // Another invalid reference ID
-        table.Add("sharedReference", (uint)777); // Yet another invalid reference ID
-        
-        // Act - Try to deserialize with the corrupted data
-        var container = new ReferenceContainer();
-        var readNode = new BinarySerializeReadNode(referenceContext, table, errorCollector.OnError);
-        container.OnSerialize(readNode, SerializeMode.Load);
-        
-        // Post-load phase where references are resolved
-        var postLoadNode = new BinaryPostLoadSerializeNode(referenceContext, table, errorCollector.OnError);
-        container.OnSerialize(postLoadNode, SerializeMode.PostLoad);
+        var context = new ReferenceContext();
+        Assert.That(PackedBinaryReadNode.TryOpen(bytes, out PackedBinaryReadNode? readNode, context, errorCollector.OnError), Is.True);
 
-        // Assert - Errors should be collected for each invalid reference
-        Assert.That(errorCollector.Errors.Count, Is.EqualTo(3));
-        Assert.That(errorCollector.Errors[0], Does.Contain("Failed to resolve reference 'firstReference': 999"));
-        Assert.That(errorCollector.Errors[1], Does.Contain("Failed to resolve reference 'secondReference': 888"));
-        Assert.That(errorCollector.Errors[2], Does.Contain("Failed to resolve reference 'sharedReference': 777"));
-        
-        // All references should remain null
+        var node = readNode!;
+        Assert.That(node.GetValue<ulong>("firstReference"), Is.EqualTo(firstId));
+        var container = new ReferenceContainer();
+        container.OnSerialize(node, SerializeMode.Load);
+        Assert.That(errorCollector.Errors, Is.Empty);
+        container.OnSerialize(node.CreatePostLoadNode(), SerializeMode.PostLoad);
+
+        Assert.That(errorCollector.Errors, Has.Count.EqualTo(3));
+        Assert.That(errorCollector.Errors[0], Does.Contain($"reference 'firstReference': {firstId}"));
+        Assert.That(errorCollector.Errors[1], Does.Contain($"reference 'secondReference': {secondId}"));
+        Assert.That(errorCollector.Errors[2], Does.Contain($"reference 'sharedReference': {sharedId}"));
         Assert.That(container.FirstReference, Is.Null);
         Assert.That(container.SecondReference, Is.Null);
         Assert.That(container.SharedReference, Is.Null);
-        Assert.That(container.ContainerName, Is.EqualTo("Error Test")); // Other fields should still work
+        Assert.That(container.ContainerName, Is.EqualTo("Error Test"));
+    }
+
+    private sealed class UnresolvedReferences(ulong firstId, ulong secondId, ulong sharedId) : ISerializable
+    {
+        /// <inheritdoc/>
+        public void OnSerialize(SerializeNode node, SerializeMode mode)
+        {
+            if (node is not SerializeWriteNode writer)
+            {
+                return;
+            }
+
+            writer.SetString("containerName", "Error Test");
+            writer.SetValue("firstReference", firstId);
+            writer.SetValue("secondReference", secondId);
+            writer.SetValue("sharedReference", sharedId);
+        }
     }
 
     /// <summary>Tests a complex scenario with multiple shared and nested references.</summary>

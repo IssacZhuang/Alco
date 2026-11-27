@@ -1,4 +1,5 @@
 using NUnit.Framework;
+using System.Buffers.Binary;
 using System.Text;
 using System.Threading.Tasks;
 using Alco.IO;
@@ -13,16 +14,19 @@ public sealed class TestPackage
     /// <summary>
     /// Builds a package with a single file and reads it back.
     /// </summary>
-    [Test]
-    public void BuildAndRead_SingleFile()
+    [TestCase(false)]
+    [TestCase(true)]
+    public void BuildAndRead_SingleFile(bool useStream)
     {
         var builder = new PackageBuilder<PackageMeta>();
         byte[] content = Encoding.UTF8.GetBytes("hello");
         builder.AddOrUpdateFile("a.txt", content);
 
         byte[] package = builder.Build();
-
-        using var reader = PackageReader<PackageMeta>.OpenMemory(package);
+        using var stream = useStream ? new MemoryStream(package, writable: false) : null;
+        using var reader = stream == null
+            ? PackageReader<PackageMeta>.OpenMemory(package)
+            : PackageReader<PackageMeta>.OpenStream(stream);
         Assert.That(reader.TryGetEntry("a.txt", out var entry), Is.True);
         Assert.That(entry!.Size, Is.EqualTo(content.Length));
 
@@ -306,6 +310,36 @@ public sealed class TestPackage
         package[3] = (byte)'x';
 
         Assert.Throws<InvalidDataException>(() => PackageReader<PackageMeta>.OpenMemory(package));
+    }
+
+    /// <summary>Rejects legacy or non-APKB metadata even when the plaintext package header is valid.</summary>
+    [TestCase("00000000", TestName = "RejectsLegacyMetadata")]
+    [TestCase("4E4F504501000000110000000000000000", TestName = "RejectsNonApkbMetadata")]
+    public void RejectsNonPackedMetadata(string metadataHex)
+    {
+        byte[] meta = Convert.FromHexString(metadataHex);
+        byte[] package = new byte[12 + meta.Length];
+        "alco"u8.CopyTo(package);
+        BinaryPrimitives.WriteInt64LittleEndian(package.AsSpan(4), meta.Length);
+        meta.CopyTo(package, 12);
+
+        Assert.Throws<InvalidDataException>(() => PackageReader<PackageMeta>.OpenMemory(package));
+        using var stream = new MemoryStream(package, writable: false);
+        Assert.Throws<InvalidDataException>(() => PackageReader<PackageMeta>.OpenStream(stream));
+    }
+
+    /// <summary>Rejects plaintext and encrypted section lengths that overflow offset addition.</summary>
+    [TestCase(long.MaxValue)]
+    [TestCase(-1L)]
+    public void RejectsOversizedMetaSection(long headerField)
+    {
+        byte[] package = new byte[12];
+        "alco"u8.CopyTo(package);
+        BinaryPrimitives.WriteInt64LittleEndian(package.AsSpan(4), headerField);
+
+        InvalidDataException? error = Assert.Throws<InvalidDataException>(
+            () => PackageReader<PackageMeta>.OpenMemory(package, new byte[32]));
+        Assert.That(error!.Message, Does.Contain("Meta section exceeds package length"));
     }
 }
 

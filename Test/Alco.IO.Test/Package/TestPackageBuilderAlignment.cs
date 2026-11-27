@@ -21,25 +21,32 @@ public class TestPackageBuilderAlignment
         return (package, metaLength);
     }
 
-    /// <summary>Tests that entries start at aligned offsets.</summary>
+    /// <summary>Tests PackedBinary metadata framing and alignment relative to the content base.</summary>
     [Test]
     public void AlignmentMovesEntryStarts()
     {
         const int alignment = 16;
         (byte[] package, long metaLength) = BuildPackage(alignment);
-        long contentBase = 12 + metaLength;
+        int contentBase = checked((int)(12 + metaLength));
+        ReadOnlyMemory<byte> metaBytes = package.AsMemory(12, (int)metaLength);
+        byte[] expected = [4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
 
         using PackageReader<PackageMeta> reader = PackageReader<PackageMeta>.OpenMemory(package);
         Assert.Multiple(() =>
         {
+            Assert.That(package.AsSpan(0, 4).SequenceEqual("alco"u8), Is.True);
+            Assert.That(metaBytes.Span[..4].SequenceEqual("APKB"u8), Is.True);
+            Assert.That(metaBytes.ToArray(), Is.EqualTo(PackedBinarySerializer.Encode(reader.Meta, elideDefaults: false)));
             Assert.That(reader.TryGetEntry("a", out PackageEntry? entryA), Is.True);
-            Assert.That(entryA!.Start % alignment, Is.EqualTo(0), "first entry must start aligned");
+            Assert.That(entryA!.Start, Is.Zero);
             Assert.That(reader.TryGetEntry("b", out PackageEntry? entryB), Is.True);
-            Assert.That(entryB!.Start % alignment, Is.EqualTo(0), "second entry must start aligned");
+            Assert.That(entryB!.Start, Is.EqualTo(alignment));
+            Assert.That(package.AsSpan(contentBase, 3).ToArray(), Is.EqualTo(new byte[] { 1, 2, 3 }));
+            Assert.That(package.AsSpan(contentBase + alignment, expected.Length).ToArray(), Is.EqualTo(expected));
 
             byte[] buffer = new byte[entryB.Size];
             reader.ReadByEntry(entryB, buffer);
-            Assert.That(buffer, Is.EqualTo(new byte[] { 4, 5, 6, 7, 8, 9, 10, 11, 12, 13 }), "entry content must round-trip");
+            Assert.That(buffer, Is.EqualTo(expected), "entry content must round-trip");
         });
     }
 

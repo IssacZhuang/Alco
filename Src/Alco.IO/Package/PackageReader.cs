@@ -1,24 +1,24 @@
 using System.Buffers;
 using System.Buffers.Binary;
-using System.Runtime.CompilerServices;
-using Microsoft.Win32.SafeHandles;
 using System.Collections.Frozen;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Text;
-
+using Microsoft.Win32.SafeHandles;
 
 namespace Alco.IO;
 
 /// <summary>
-/// Reads an Alco package over a file, byte array, unmanaged memory, or seekable <see cref="Stream"/>, validating the magic and decoding the entry directory. Supports plaintext (v1) and AES-256-GCM encrypted (v2) packages and concurrent positional reads.
+/// Reads plaintext or encrypted Alco packages with a PackedBinary entry directory.
 /// </summary>
 /// <typeparam name="TMeta">The package metadata type, which must implement <see cref="IPackageMeta"/>.</typeparam>
 public unsafe sealed class PackageReader<TMeta> : AutoDisposable where TMeta : PackageMetaBase, IPackageMeta, new()
 {
     // Only one of the backing stores is used.
     private readonly SafeFileHandle? _file;
+    private readonly byte[]? _data;
     private readonly SafeMemoryHandle? _memory;
     private readonly Stream? _stream;
     private readonly bool _ownsStream;
@@ -44,7 +44,7 @@ public unsafe sealed class PackageReader<TMeta> : AutoDisposable where TMeta : P
     /// </summary>
     /// <param name="path">Package file path</param>
     /// <param name="encryptionKey">Master key for encrypted packages; ignored for plaintext packages</param>
-    internal PackageReader(string path, byte[]? encryptionKey)
+    private PackageReader(string path, byte[]? encryptionKey)
     {
         //open with read
         _file = File.OpenHandle(path, FileMode.Open, FileAccess.Read, FileShare.Read, FileOptions.Asynchronous);
@@ -60,9 +60,10 @@ public unsafe sealed class PackageReader<TMeta> : AutoDisposable where TMeta : P
     /// </summary>
     /// <param name="data">Package bytes</param>
     /// <param name="encryptionKey">Master key for encrypted packages; ignored for plaintext packages</param>
-    internal PackageReader(byte[] data, byte[]? encryptionKey)
+    private PackageReader(byte[] data, byte[]? encryptionKey)
     {
-        _memory = new SafeMemoryHandle(data);
+        ArgumentNullException.ThrowIfNull(data);
+        _data = data;
         _length = data.Length;
         Meta = ReadEntries(out _contentBase, out _cipher, encryptionKey);
         _entries = Meta.Entries.ToFrozenDictionary(entry => entry.Name, entry => entry);
@@ -76,7 +77,7 @@ public unsafe sealed class PackageReader<TMeta> : AutoDisposable where TMeta : P
     /// <param name="data">Pointer to package bytes</param>
     /// <param name="size">Size of the package in bytes</param>
     /// <param name="encryptionKey">Master key for encrypted packages; ignored for plaintext packages</param>
-    internal PackageReader(byte* data, int size, byte[]? encryptionKey)
+    private PackageReader(byte* data, int size, byte[]? encryptionKey)
     {
         _memory = new SafeMemoryHandle(data, size);
         _length = size;
@@ -93,7 +94,7 @@ public unsafe sealed class PackageReader<TMeta> : AutoDisposable where TMeta : P
     /// <param name="stream">Seekable read stream positioned at the package start (offset 0).</param>
     /// <param name="ownsStream">When <see langword="true"/>, the reader disposes the stream.</param>
     /// <param name="encryptionKey">Master key for encrypted packages; ignored for plaintext packages</param>
-    internal PackageReader(Stream stream, bool ownsStream, byte[]? encryptionKey)
+    private PackageReader(Stream stream, bool ownsStream, byte[]? encryptionKey)
     {
         if (!stream.CanRead || !stream.CanSeek)
         {
@@ -264,156 +265,140 @@ public unsafe sealed class PackageReader<TMeta> : AutoDisposable where TMeta : P
         }
     }
 
-    private int Read(Span<byte> buffer, long offset)
+    private void Read(Span<byte> buffer, long offset)
     {
         CheckLength(offset, buffer.Length);
         if (_file != null)
         {
-            return RandomAccess.Read(_file, buffer, offset);
+            while (!buffer.IsEmpty)
+            {
+                int read = RandomAccess.Read(_file, buffer, offset);
+                if (read == 0)
+                {
+                    throw new EndOfStreamException($"Unexpected end of file at offset {offset}.");
+                }
+
+                buffer = buffer[read..];
+                offset += read;
+            }
+            return;
         }
-        else if (_memory != null)
+        if (_data != null)
         {
-            Span<byte> memory = _memory.AsSpan();
-            int offsetInt = checked((int)offset);
-            memory.Slice(offsetInt, buffer.Length).CopyTo(buffer);
-            return buffer.Length;
+            _data.AsSpan((int)offset, buffer.Length).CopyTo(buffer);
+            return;
         }
-        else if (_stream != null)
+        if (_memory != null)
+        {
+            _memory.AsSpan().Slice((int)offset, buffer.Length).CopyTo(buffer);
+            return;
+        }
+        if (_stream != null)
         {
             _stream.Position = offset;
-            int totalRead = 0;
-            while (totalRead < buffer.Length)
-            {
-                int read = _stream.Read(buffer[totalRead..]);
-                if (read <= 0)
-                {
-                    throw new EndOfStreamException($"Unexpected end of stream at offset {offset + totalRead}.");
-                }
-                totalRead += read;
-            }
-            return totalRead;
+            _stream.ReadExactly(buffer);
+            return;
         }
-        else
-        {
-            throw new InvalidOperationException("No file, memory, or stream backing is available");
-        }
-    }
 
-    private int ReadUnsafe(byte* buffer, long offset, int size)
-    {
-        CheckLength(offset, size);
-        if (_file != null)
-        {
-            return RandomAccess.Read(_file, new Span<byte>(buffer, size), offset);
-        }
-        else if (_memory != null)
-        {
-            Span<byte> memory = _memory.AsSpan();
-            int offsetInt = checked((int)offset);
-            memory.Slice(offsetInt, size).CopyTo(new Span<byte>(buffer, size));
-            return size;
-        }
-        else if (_stream != null)
-        {
-            return Read(new Span<byte>(buffer, size), offset);
-        }
-        else
-        {
-            throw new InvalidOperationException("No file, memory, or stream backing is available");
-        }
-    }
-
-    private long ReadInt64LittleEndian(long offset)
-    {
-        byte* ptr = stackalloc byte[8];
-        ReadUnsafe(ptr, offset, 8);
-        return BinaryPrimitives.ReadInt64LittleEndian(new ReadOnlySpan<byte>(ptr, 8));
+        throw new InvalidOperationException("No file, memory, or stream backing is available.");
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void CheckLength(long offset, int size)
     {
-        if (offset + size > _length)
+        if (offset < 0 || size < 0 || offset > _length - size)
         {
             throw new IndexOutOfRangeException($"Offset and size exceed the package length. Offset: {offset}, Size: {size}, Length: {_length}");
         }
     }
 
-    /// <summary>
-    /// Validates the magic and decodes the meta section. A negative header length field marks an
-    /// encrypted (v2) package: the low 63 bits give the size of the salt + encrypted meta section.
-    /// </summary>
     private TMeta ReadEntries(out long contentBase, out PackageCipher? cipher, byte[]? encryptionKey)
     {
-        ReadOnlySpan<byte> expectedMagic = TMeta.Magic;
+        const int headerSize = 12;
+        if (_length < headerSize)
+        {
+            throw new InvalidDataException("Package header is truncated.");
+        }
 
-        // Verify magic number
-        Span<byte> magicBuffer = stackalloc byte[4];
-        Read(magicBuffer, 0);
-        if (!magicBuffer.SequenceEqual(expectedMagic))
+        Span<byte> header = stackalloc byte[headerSize];
+        Read(header, 0);
+        ReadOnlySpan<byte> expectedMagic = TMeta.Magic;
+        if (!header[..4].SequenceEqual(expectedMagic))
         {
             throw new InvalidDataException($"Invalid package magic. Expected '{Encoding.ASCII.GetString(expectedMagic)}'.");
         }
 
-        long headerField = ReadInt64LittleEndian(4);
-        byte[] meta;
-        if (headerField < 0)
+        long headerField = BinaryPrimitives.ReadInt64LittleEndian(header[4..]);
+        long sectionLength = headerField & long.MaxValue;
+        if (sectionLength > _length - headerSize)
         {
-            long sectionLength = headerField & long.MaxValue;
-            if (sectionLength <= PackageCipher.SaltSize + PackageCipher.TagSize)
-            {
-                throw new InvalidDataException($"Encrypted meta section too small: {sectionLength}");
-            }
-            if (12L + sectionLength > _length)
-            {
-                throw new InvalidDataException($"Meta section exceeds package length. MetaLength={sectionLength}, Length={_length}");
-            }
-            if (encryptionKey == null)
-            {
-                throw new InvalidDataException(
-                    "Package is encrypted but no encryption key was provided. Pass the master key when opening the package.");
-            }
-
-            Span<byte> salt = stackalloc byte[PackageCipher.SaltSize];
-            Read(salt, 12L);
-
-            cipher = PackageCipher.Create(encryptionKey, salt);
-            byte[] encryptedMeta = new byte[sectionLength - PackageCipher.SaltSize];
-            Read(encryptedMeta, 12L + PackageCipher.SaltSize);
-            try
-            {
-                meta = cipher.DecryptMeta(encryptedMeta);
-            }
-            catch (CryptographicException ex)
-            {
-                cipher.Dispose();
-                throw new InvalidDataException("Failed to decrypt package metadata (wrong key or corrupted package).", ex);
-            }
-
-            contentBase = 12L + sectionLength;
-        }
-        else
-        {
-            long metaLength = headerField;
-            if (12L + metaLength > _length)
-            {
-                throw new InvalidDataException($"Meta section exceeds package length. MetaLength={metaLength}, Length={_length}");
-            }
-            if (metaLength > int.MaxValue)
-            {
-                throw new InvalidDataException($"Meta length too large (>{int.MaxValue}).");
-            }
-
-            int metaLengthInt = (int)metaLength;
-            meta = new byte[metaLengthInt];
-            Read(meta, 12L);
-            cipher = null;
-            contentBase = 12L + metaLength;
+            throw new InvalidDataException($"Meta section exceeds package length. MetaLength={sectionLength}, Length={_length}");
         }
 
-        return Alco.BinaryParser.Decode<TMeta>(meta);
+        contentBase = headerSize + sectionLength;
+        cipher = null;
+        if (headerField >= 0)
+        {
+            return PackedBinarySerializer.Decode<TMeta>(ReadMetaBytes(headerSize, sectionLength));
+        }
+        if (sectionLength <= PackageCipher.SaltSize + PackageCipher.TagSize)
+        {
+            throw new InvalidDataException($"Encrypted meta section too small: {sectionLength}");
+        }
+        if (encryptionKey == null)
+        {
+            throw new InvalidDataException(
+                "Package is encrypted but no encryption key was provided. Pass the master key when opening the package.");
+        }
+
+        Span<byte> salt = stackalloc byte[PackageCipher.SaltSize];
+        Read(salt, headerSize);
+        ReadOnlyMemory<byte> encryptedMeta = ReadMetaBytes(headerSize + PackageCipher.SaltSize, sectionLength - PackageCipher.SaltSize);
+        PackageCipher metadataCipher = PackageCipher.Create(encryptionKey, salt);
+        try
+        {
+            TMeta meta = PackedBinarySerializer.Decode<TMeta>(DecryptMeta(metadataCipher, encryptedMeta.Span));
+            cipher = metadataCipher;
+            return meta;
+        }
+        finally
+        {
+            if (cipher == null)
+            {
+                metadataCipher.Dispose();
+            }
+        }
     }
 
+    private ReadOnlyMemory<byte> ReadMetaBytes(int offset, long length)
+    {
+        if (length > Array.MaxLength)
+        {
+            throw new InvalidDataException($"Meta length too large (>{Array.MaxLength}).");
+        }
+        if (_data != null)
+        {
+            return _data.AsMemory(offset, (int)length);
+        }
+
+        byte[] bytes = new byte[(int)length];
+        Read(bytes, offset);
+        return bytes;
+    }
+
+    private static byte[] DecryptMeta(PackageCipher cipher, ReadOnlySpan<byte> encryptedMeta)
+    {
+        try
+        {
+            return cipher.DecryptMeta(encryptedMeta);
+        }
+        catch (CryptographicException ex)
+        {
+            throw new InvalidDataException("Failed to decrypt package metadata (wrong key or corrupted package).", ex);
+        }
+    }
+
+    /// <inheritdoc/>
     protected override void Dispose(bool disposing)
     {
         if (disposing)
@@ -440,7 +425,7 @@ public unsafe sealed class PackageReader<TMeta> : AutoDisposable where TMeta : P
     /// <summary>
     /// Opens a package reader over a managed byte array.
     /// </summary>
-    /// <param name="data">Package bytes</param>
+    /// <param name="data">Package bytes; keep them unchanged while using the reader or decoded metadata views.</param>
     /// <param name="encryptionKey">Master key for encrypted packages; ignored for plaintext packages</param>
     public static PackageReader<TMeta> OpenMemory(byte[] data, byte[]? encryptionKey = null)
     {
