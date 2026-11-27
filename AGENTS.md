@@ -94,6 +94,8 @@
 - DirectX Compiler - HLSL shader compilation
 - Slang (2026.19, `Src/Alco.Graphics/runtimes/**/native/slang*`) - shader language compiler bound in-process by Alco.Graphics for slang → SPIR-V/DXIL/MSL/MetalLib; DXIL validation via the bundled dxil.dll on Windows
 - System.IO.Hashing (v9.0.0) - High-performance hashing
+- K4os.Compression.LZ4 (v1.3.8) - Fast compression for streaming storage
+- ZstdSharp.Port (v0.8.1) - Managed Zstandard compression for archives
 - StbSharp - Image and font processing (embedded as source code and modified)
 - ImGui - Immediate Mode Graphical User Interface (embedded as source code and modified)
 - ImGui.NET - ImGui binding for .NET (embedded as source code and modified)

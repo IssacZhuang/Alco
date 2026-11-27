@@ -1,7 +1,7 @@
 
 
 using System;
-using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Alco;
 
@@ -10,16 +10,19 @@ namespace Alco;
 /// </summary>
 public abstract class SerializeReadNode : SerializeNode
 {
+    /// <inheritdoc />
     public override void BindEnum<T>(string key, ref T value, T @default = default)
     {
         value = GetEnum(key, @default);
     }
 
+    /// <inheritdoc />
     public override void BindString(string key, ref string value, string @default = "")
     {
         value = GetString(key, @default);
     }
 
+    /// <inheritdoc />
     public override void BindValue<T>(string key, ref T value, T @default = default)
     {
         value = GetValue(key, @default);
@@ -35,6 +38,18 @@ public abstract class SerializeReadNode : SerializeNode
     public override void BindValue<T>(string key, ref T? value)
     {
         value = GetNullableValue<T>(key);
+    }
+
+    /// <summary>
+    /// Tries to obtain a read node for a child object without deserializing it.
+    /// </summary>
+    /// <param name="key">The key identifying the child object.</param>
+    /// <param name="childNode">The child read node on success; otherwise, <c>null</c>.</param>
+    /// <returns><c>true</c> if a child node is available; otherwise, <c>false</c>.</returns>
+    public virtual bool TryGetChildNode(string key, [NotNullWhen(true)] out SerializeReadNode? childNode)
+    {
+        childNode = null;
+        return false;
     }
 
     /// <summary>

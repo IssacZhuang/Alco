@@ -1,7 +1,6 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.Threading.Tasks;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Alco;
 
@@ -17,6 +16,7 @@ public class BinarySerializeReadNode : SerializeReadNode
     /// </summary>
     public BinaryTable Content => _content;
 
+    /// <inheritdoc />
     public override ReferenceContext? ReferenceContext => _referenceContext;
 
     /// <summary>
@@ -31,6 +31,19 @@ public class BinarySerializeReadNode : SerializeReadNode
         _content = content;
         _referenceContext = referenceContext;
         OnError = onError;
+    }
+
+    /// <inheritdoc />
+    public override bool TryGetChildNode(string key, [NotNullWhen(true)] out SerializeReadNode? childNode)
+    {
+        if (!_content.TryGetTable(key, out BinaryTable? table))
+        {
+            childNode = null;
+            return false;
+        }
+
+        childNode = new BinarySerializeReadNode(_referenceContext, table, OnError);
+        return true;
     }
 
     /// <summary>
@@ -83,6 +96,7 @@ public class BinarySerializeReadNode : SerializeReadNode
         }
     }
 
+    /// <inheritdoc />
     public unsafe override void BindMemory<T>(string key, Span<T> memory)
     {
         if (_content.TryGetBinary(key, out ReadOnlyMemory<byte> binaryValue))
@@ -96,6 +110,7 @@ public class BinarySerializeReadNode : SerializeReadNode
         }
     }
 
+    /// <inheritdoc />
     public override void BindCollection<T>(string key, ICollection<T> value)
     {
         value.Clear();
@@ -111,6 +126,7 @@ public class BinarySerializeReadNode : SerializeReadNode
         }
     }
 
+    /// <inheritdoc />
     public override void BindCollection(string key, ICollection<string> value)
     {
         value.Clear();
@@ -126,6 +142,7 @@ public class BinarySerializeReadNode : SerializeReadNode
         }
     }
 
+    /// <inheritdoc />
     public override void BindArraySerializable<T>(string key, IReadOnlyList<T> value)
     {
         if (_content.TryGetArray(key, out BinaryArray? array))
@@ -217,6 +234,7 @@ public class BinarySerializeReadNode : SerializeReadNode
         }
     }
 
+    /// <inheritdoc />
     public override void BindDictionarySerializable<T>(string key, IDictionary<string, T> value)
     {
         value.Clear();
@@ -243,6 +261,7 @@ public class BinarySerializeReadNode : SerializeReadNode
         }
     }
 
+    /// <inheritdoc />
     public override void BindDictionarySerializable<T>(string key, IDictionary<string, T> value, Func<SerializeReadNode, T> onCreate)
     {
         value.Clear();
@@ -269,6 +288,7 @@ public class BinarySerializeReadNode : SerializeReadNode
         }
     }
 
+    /// <inheritdoc />
     public override T GetValue<T>(string key, T @default = default)
     {
         if (_content.TryGetValue(key, out T v))
@@ -297,6 +317,7 @@ public class BinarySerializeReadNode : SerializeReadNode
         return null;
     }
 
+    /// <inheritdoc />
     public override T GetEnum<T>(string key, T @default = default)
     {
         if (_content.TryGetEnum(key, out T v))
@@ -309,6 +330,7 @@ public class BinarySerializeReadNode : SerializeReadNode
         }
     }
 
+    /// <inheritdoc />
     public override string GetString(string key, string @default = "")
     {
         if (_content.TryGetString(key, out string? stringValue))
@@ -321,6 +343,7 @@ public class BinarySerializeReadNode : SerializeReadNode
         }
     }
 
+    /// <inheritdoc />
     public override void BindDictionary<TValue>(string key, IDictionary<string, TValue> value)
     {
         value.Clear();
@@ -336,6 +359,7 @@ public class BinarySerializeReadNode : SerializeReadNode
         }
     }
 
+    /// <inheritdoc />
     public override void BindDictionary(string key, IDictionary<string, string> value)
     {
         value.Clear();
@@ -351,6 +375,7 @@ public class BinarySerializeReadNode : SerializeReadNode
         }
     }
 
+    /// <inheritdoc />
     public override void BindDictionary(string key, IDictionary<string, ReadOnlyMemory<byte>> value)
     {
         value.Clear();
@@ -366,6 +391,7 @@ public class BinarySerializeReadNode : SerializeReadNode
         }
     }
 
+    /// <inheritdoc />
     public override void BindBinary(string key, ref ReadOnlyMemory<byte> data)
     {
         if (_content.TryGetBinary(key, out ReadOnlyMemory<byte> binaryValue))
