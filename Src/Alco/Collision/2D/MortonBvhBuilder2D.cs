@@ -16,14 +16,19 @@ namespace Alco
         private const int MaxLeafItems = 4;
         private const int MaxBuildDepth = 64;
 
-        private const int BitsPerAxis = 10;
         private const int RadixBits = 10;
         private const int RadixBuckets = 1 << RadixBits;
-        private const int PassCount = (BitsPerAxis * 2 + RadixBits - 1) / RadixBits;
 
         // an inverted box (min greater than max) fails every slab/overlap/contains mask, so unused
         // lanes never produce traversal work; merging it into any real box returns the real box
         private static readonly BoundingBox2D EmptyBox = new(new Vector2(float.MaxValue), new Vector2(float.MinValue));
+
+        /// <summary>
+        /// Gets or sets whether to encode centroids with 30-bit (15 bits per axis) Morton codes
+        /// instead of 20-bit (10 bits per axis). Default is true for better spatial resolution
+        /// on large or sparse scenes.
+        /// </summary>
+        public bool Use30BitMorton { get; set; } = true;
 
         private struct Item
         {
@@ -73,16 +78,19 @@ namespace Alco
             Vector2 extent = sceneMax - sceneMin;
             float invX = extent.X > 0 ? 1f / extent.X : 0f;
             float invY = extent.Y > 0 ? 1f / extent.Y : 0f;
+            bool use30Bit = Use30BitMorton;
+            int bitsPerAxis = use30Bit ? 15 : 10;
             for (int i = 0; i < n; i++)
             {
                 Vector2 center = items[i].Bounds.Min + items[i].Bounds.Max;
                 uint code = MortonCode(
                     (center.X - sceneMin.X) * invX,
-                    (center.Y - sceneMin.Y) * invY);
+                    (center.Y - sceneMin.Y) * invY,
+                    bitsPerAxis);
                 pairs[i] = ((ulong)code << 32) | (uint)i;
             }
 
-            _sorted = RadixSort(pairs, pairs + n, n);
+            _sorted = RadixSort(pairs, pairs + n, n, use30Bit ? 3 : 2);
 
             Item* sortedItems = _sortedItems.UnsafePointer;
             for (int i = 0; i < n; i++)
@@ -299,11 +307,11 @@ namespace Alco
             return lo;
         }
 
-        // LSD radix sort over the 20-bit morton codes; returns a pointer to the sorted half
-        private static ulong* RadixSort(ulong* src, ulong* dst, int n)
+        // LSD radix sort over the 20-bit or 30-bit morton codes; returns a pointer to the sorted half
+        private static ulong* RadixSort(ulong* src, ulong* dst, int n, int passCount)
         {
             int* counts = stackalloc int[RadixBuckets];
-            for (int pass = 0; pass < PassCount; pass++)
+            for (int pass = 0; pass < passCount; pass++)
             {
                 int shift = 32 + pass * RadixBits;
                 for (int i = 0; i < RadixBuckets; i++)
@@ -334,9 +342,9 @@ namespace Alco
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static uint MortonCode(float x, float y)
+        private static uint MortonCode(float x, float y, int bitsPerAxis)
         {
-            const float scale = (1 << BitsPerAxis) - 1;
+            float scale = (1 << bitsPerAxis) - 1;
             uint xi = (uint)Math.Min(Math.Max(x * scale, 0f), scale);
             uint yi = (uint)Math.Min(Math.Max(y * scale, 0f), scale);
             return (Part1By1(xi) << 1) | Part1By1(yi);
@@ -345,6 +353,7 @@ namespace Alco
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static uint Part1By1(uint v)
         {
+            v &= 0xFFFFu;
             v = (v | (v << 8)) & 0x00FF00FFu;
             v = (v | (v << 4)) & 0x0F0F0F0Fu;
             v = (v | (v << 2)) & 0x33333333u;

@@ -2,70 +2,71 @@ using System;
 using System.Collections.Generic;
 using System.Numerics;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics;
 
 namespace Alco
 {
     /// <summary>
-    /// A flat, 4-wide SIMD AABB bounding volume hierarchy for 2D ray, frustum, and visibility queries.
-    /// <see cref="Build"/> is not thread-safe; all query methods are safe for concurrent reads after building.
+    /// A static 4-wide SIMD bounding volume hierarchy over 2D axis-aligned bounding boxes,
+    /// built with a 20-bit or 30-bit Morton LBVH via <see cref="BvhAabb2DBuilder"/> and stored
+    /// in exact-sized unmanaged node and leaf buffers.
     /// </summary>
-    public unsafe class BvhAabb2D : IDisposable
+    public sealed unsafe class BvhAabb2D : IDisposable
     {
         /// <summary>Fanout of every internal node.</summary>
         public const int Width = 4;
 
-        /// <summary>Maximum number of items stored in one leaf block.</summary>
+        /// <summary>Maximum number of items packed into a single leaf block.</summary>
         public const int MaxLeafItems = 4;
 
-        private const int MaxBuildDepth = 64;
-        private const int EmptyRef = int.MinValue;
+        /// <summary>Sentinel child reference representing an empty slot or empty tree.</summary>
+        public const int EmptyRef = int.MinValue;
+
+        /// <summary>Sentinel payload written into unused leaf lanes.</summary>
+        public const int EmptyLeafPayload = int.MinValue;
+
+        private const int StackAllocThreshold = 512;
 
         /// <summary>
-        /// SoA bounds of the (up to) 4 children plus tagged child references, 80 bytes
-        /// (4×16 bounds + 4×4 references); no padding: everything is touched by traversal.
+        /// A 4-wide SoA internal BVH node (80 bytes).
         /// </summary>
-        [StructLayout(LayoutKind.Sequential, Size = 80)]
         public struct Node
         {
-            /// <summary>Child lower bounds, X lane per slot.</summary>
+            /// <summary>Minimum X coordinates of the 4 child boxes.</summary>
             public Vector128<float> LowerX;
-            /// <summary>Child upper bounds, X lane per slot.</summary>
+
+            /// <summary>Maximum X coordinates of the 4 child boxes.</summary>
             public Vector128<float> UpperX;
-            /// <summary>Child lower bounds, Y lane per slot.</summary>
+
+            /// <summary>Minimum Y coordinates of the 4 child boxes.</summary>
             public Vector128<float> LowerY;
-            /// <summary>Child upper bounds, Y lane per slot.</summary>
+
+            /// <summary>Maximum Y coordinates of the 4 child boxes.</summary>
             public Vector128<float> UpperY;
 
-            /// <summary>Child references: &gt;= 0 node index, &lt; 0 leaf block (~v), <see cref="EmptyRef"/> unused slot.</summary>
+            /// <summary>Tagged child references: non-negative for internal node index, negative for bitwise-inverted leaf index, or <see cref="EmptyRef"/>.</summary>
             public fixed int Children[4];
         }
 
         /// <summary>
-        /// Leaf block of up to 4 items packed SoA; unused slots carry empty bounds
-        /// (lower = +inf, upper = -inf) that fail every test.
+        /// A 4-wide SoA leaf block storing up to 4 item AABBs and payloads (80 bytes).
         /// </summary>
-        [StructLayout(LayoutKind.Sequential, Size = 80)]
         public struct Leaf
         {
-            /// <summary>Item lower bounds, X lane per slot.</summary>
+            /// <summary>Minimum X coordinates of the 4 leaf boxes.</summary>
             public Vector128<float> LowerX;
-            /// <summary>Item upper bounds, X lane per slot.</summary>
+
+            /// <summary>Maximum X coordinates of the 4 leaf boxes.</summary>
             public Vector128<float> UpperX;
-            /// <summary>Item lower bounds, Y lane per slot.</summary>
+
+            /// <summary>Minimum Y coordinates of the 4 leaf boxes.</summary>
             public Vector128<float> LowerY;
-            /// <summary>Item upper bounds, Y lane per slot.</summary>
+
+            /// <summary>Maximum Y coordinates of the 4 leaf boxes.</summary>
             public Vector128<float> UpperY;
 
-            /// <summary>User item indices, -1 for unused slots.</summary>
+            /// <summary>Item payloads or <see cref="EmptyLeafPayload"/> for unused lanes.</summary>
             public fixed int Indices[4];
-        }
-
-        private struct Item
-        {
-            public BoundingBox2D Bounds;
-            public int Index;
         }
 
         private struct StackEntry
@@ -74,310 +75,174 @@ namespace Alco
             public float Dist;
         }
 
-        private NativeBuffer<Node> _nodes;
-        private NativeBuffer<Leaf> _leaves;
-        private NativeBuffer<ulong> _pairs;
-        private NativeBuffer<Item> _items;
-        private ulong* _sorted; // radix sort output, valid during Build only
+        private struct ListLeafCollector : IBvhAabb2DLeafVisitor
+        {
+            private readonly List<int> _results;
+
+            public ListLeafCollector(List<int> results) => _results = results;
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public bool OnLeaf(int payload)
+            {
+                _results.Add(payload);
+                return true;
+            }
+        }
+
+        private Node* _nodes;
+        private Leaf* _leaves;
+        private int _nodeCapacity;
+        private int _leafCapacity;
         private int _rootRef = EmptyRef;
         private int _nodeCount;
         private int _leafCount;
         private int _treeDepth;
+        private BvhAabb2DBuilder? _defaultBuilder;
         private bool _isDisposed;
-
-        private const int BitsPerAxis = 10;
-        private const int RadixBits = 10;
-        private const int RadixBuckets = 1 << RadixBits;
-        private const int PassCount = (BitsPerAxis * 2 + RadixBits - 1) / RadixBits; // = 2
-
-        private static readonly BoundingBox2D EmptyBox = new(new Vector2(float.MaxValue), new Vector2(float.MinValue));
 
         /// <summary>Current number of internal nodes in the tree.</summary>
         public int NodeCount => _nodeCount;
 
-        /// <summary>Current tree depth (max stack depth for traversal).</summary>
+        /// <summary>Current number of leaf blocks in the tree.</summary>
+        public int LeafCount => _leafCount;
+
+        /// <summary>Maximum depth of the built tree (0 when empty).</summary>
         public int TreeDepth => _treeDepth;
 
-        // ════════════════════════════════════════════════════════════
-        //  Build
-        // ════════════════════════════════════════════════════════════
+        /// <summary>Exact native unmanaged bytes currently allocated for internal nodes and leaf blocks.</summary>
+        public long NativeMemoryBytes => (long)_nodeCapacity * sizeof(Node) + (long)_leafCapacity * sizeof(Leaf);
 
         /// <summary>
-        /// Builds the tree from a span of bounding boxes using the Morton LBVH pipeline
-        /// (20-bit codes, LSD radix sort, highest-differing-bit splits), emitting 4-wide
-        /// nodes and leaf blocks. Each AABB is referenced by its position in the input span.
+        /// Builds the BVH over <paramref name="bounds"/> using an internal scratch builder and 30-bit Morton codes.
+        /// Not thread-safe against concurrent queries.
         /// </summary>
-        public void Build(ReadOnlySpan<BoundingBox2D> bounds)
+        public void Build(ReadOnlySpan<BoundingBox2D> bounds) => Build(bounds, use30BitMorton: true);
+
+        /// <summary>
+        /// Builds the BVH over <paramref name="bounds"/> using an internal scratch builder and the selected Morton bit width.
+        /// Not thread-safe against concurrent queries.
+        /// </summary>
+        public void Build(ReadOnlySpan<BoundingBox2D> bounds, bool use30BitMorton)
         {
-            int n = bounds.Length;
-            if (n == 0)
+            ObjectDisposedException.ThrowIf(_isDisposed, this);
+            if (bounds.IsEmpty)
             {
-                _rootRef = EmptyRef;
-                _nodeCount = 0;
-                _leafCount = 0;
-                _treeDepth = 0;
+                Clear();
                 return;
             }
 
-            EnsureScratch(n);
-            // leaves hold >= 1 item each (<= n blocks), internal nodes have >= 2 child
-            // subtrees (<= n - 1 blocks); +16 covers rounding and the single-item tree
-            _nodes.SetSizeWithoutCopy(n + 16);
-            _leaves.SetSizeWithoutCopy(n + 16);
-
-            // scene bounds of the 2x centroids (avoids a division per item)
-            Vector2 sceneMin = new(float.MaxValue);
-            Vector2 sceneMax = new(float.MinValue);
-            for (int i = 0; i < n; i++)
-            {
-                Vector2 c2 = bounds[i].Min + bounds[i].Max;
-                sceneMin = Vector2.Min(sceneMin, c2);
-                sceneMax = Vector2.Max(sceneMax, c2);
-            }
-
-            // 20-bit Morton codes packed as (code << 32) | index
-            ulong* pairs = _pairs.UnsafePointer;
-            Vector2 extent = sceneMax - sceneMin;
-            float invX = extent.X > 0 ? 1f / extent.X : 0f;
-            float invY = extent.Y > 0 ? 1f / extent.Y : 0f;
-            for (int i = 0; i < n; i++)
-            {
-                Vector2 c2 = bounds[i].Min + bounds[i].Max;
-                uint code = MortonCode(
-                    (c2.X - sceneMin.X) * invX,
-                    (c2.Y - sceneMin.Y) * invY);
-                pairs[i] = ((ulong)code << 32) | (uint)i;
-            }
-
-            _sorted = RadixSort(pairs, pairs + n, n);
-
-            // gather the items in sorted order so every range of the tree is contiguous
-            Item* items = _items.UnsafePointer;
-            for (int i = 0; i < n; i++)
-            {
-                int index = (int)(uint)_sorted[i];
-                items[i] = new Item { Bounds = bounds[index], Index = index };
-            }
-
-            _nodeCount = 0;
-            _leafCount = 0;
-            _treeDepth = 0;
-            _rootRef = BuildRange(0, n, 1, out _);
-            _sorted = null;
-        }
-
-        private void EnsureScratch(int leafCount)
-        {
-            if (_pairs.Capacity < leafCount * 2)
-            {
-                _pairs.Dispose();
-                _pairs = new NativeBuffer<ulong>(leafCount * 2);
-            }
-            if (_items.Capacity < leafCount)
-            {
-                _items.Dispose();
-                _items = new NativeBuffer<Item>(leafCount);
-            }
+            _defaultBuilder ??= new BvhAabb2DBuilder();
+            Build(bounds, _defaultBuilder, use30BitMorton);
         }
 
         /// <summary>
-        /// Recursively builds a subtree over the sorted item range [start, end); returns the
-        /// tagged root reference and the subtree bounds through <paramref name="bounds"/>.
+        /// Builds the BVH over <paramref name="bounds"/> with sequential payloads <c>0..bounds.Length-1</c>
+        /// using the caller-provided shared <paramref name="builder"/>.
+        /// Not thread-safe against concurrent queries.
         /// </summary>
-        private int BuildRange(int start, int end, int depth, out BoundingBox2D bounds)
+        public void Build(ReadOnlySpan<BoundingBox2D> bounds, BvhAabb2DBuilder builder, bool use30BitMorton = true)
         {
-            if (end - start <= MaxLeafItems)
+            ObjectDisposedException.ThrowIf(_isDisposed, this);
+            ArgumentNullException.ThrowIfNull(builder);
+            if (bounds.IsEmpty)
             {
-                return EmitLeaf(start, end, depth, out bounds);
+                Clear();
+                return;
             }
 
-            // falling split (Embree bvh_builder_morton.h): repeatedly split the largest
-            // subrange with the binary Morton split until the node has up to Width children
-            Span<int> rStart = stackalloc int[Width];
-            Span<int> rEnd = stackalloc int[Width];
-            rStart[0] = start;
-            rEnd[0] = end;
-            int rangeCount = 1;
-
-            while (rangeCount < Width)
-            {
-                int best = -1;
-                int bestSize = MaxLeafItems;
-                for (int i = 0; i < rangeCount; i++)
-                {
-                    int size = rEnd[i] - rStart[i];
-                    if (size > bestSize)
-                    {
-                        bestSize = size;
-                        best = i;
-                    }
-                }
-                if (best < 0)
-                {
-                    break; // every subrange already fits into a leaf block
-                }
-
-                int s = rStart[best];
-                int e = rEnd[best];
-                int split = depth < MaxBuildDepth ? FindSplit(s, e) : (s + e) / 2;
-                rEnd[best] = split;
-                rStart[rangeCount] = split;
-                rEnd[rangeCount] = e;
-                rangeCount++;
-            }
-
-            // children ordered by descending item count: any-hit rays expect the bigger
-            // subtree first (Embree sorts build records "for faster shadow ray traversal")
-            for (int i = 1; i < rangeCount; i++)
-            {
-                int s = rStart[i];
-                int e = rEnd[i];
-                int j = i - 1;
-                while (j >= 0 && rEnd[j] - rStart[j] < e - s)
-                {
-                    rStart[j + 1] = rStart[j];
-                    rEnd[j + 1] = rEnd[j];
-                    j--;
-                }
-                rStart[j + 1] = s;
-                rEnd[j + 1] = e;
-            }
-
-            // recurse first so subtrees are laid out contiguously before their parent
-            BoundingBox2D b0 = EmptyBox, b1 = EmptyBox, b2 = EmptyBox, b3 = EmptyBox;
-            int c0 = BuildRange(rStart[0], rEnd[0], depth + 1, out b0);
-            int c1 = BuildRange(rStart[1], rEnd[1], depth + 1, out b1);
-            int c2 = rangeCount > 2 ? BuildRange(rStart[2], rEnd[2], depth + 1, out b2) : EmptyRef;
-            int c3 = rangeCount > 3 ? BuildRange(rStart[3], rEnd[3], depth + 1, out b3) : EmptyRef;
-
-            int index = _nodeCount++;
-            Node* node = _nodes.UnsafePointer + index;
-            node->LowerX = Vector128.Create(b0.Min.X, b1.Min.X, b2.Min.X, b3.Min.X);
-            node->UpperX = Vector128.Create(b0.Max.X, b1.Max.X, b2.Max.X, b3.Max.X);
-            node->LowerY = Vector128.Create(b0.Min.Y, b1.Min.Y, b2.Min.Y, b3.Min.Y);
-            node->UpperY = Vector128.Create(b0.Max.Y, b1.Max.Y, b2.Max.Y, b3.Max.Y);
-            node->Children[0] = c0;
-            node->Children[1] = c1;
-            node->Children[2] = c2;
-            node->Children[3] = c3;
-
-            bounds = BoundingBox2D.Merge(BoundingBox2D.Merge(b0, b1), BoundingBox2D.Merge(b2, b3));
-            return index;
+            BvhAabb2DBuildResult result = builder.Build(bounds, use30BitMorton, out ReadOnlySpan<Node> builtNodes, out ReadOnlySpan<Leaf> builtLeaves);
+            CommitBuild(result, builtNodes, builtLeaves);
         }
 
-        private int EmitLeaf(int start, int end, int depth, out BoundingBox2D bounds)
+        /// <summary>
+        /// Builds the BVH over <paramref name="bounds"/> and explicit <paramref name="payloads"/>
+        /// using the caller-provided shared <paramref name="builder"/>.
+        /// Not thread-safe against concurrent queries.
+        /// </summary>
+        public void Build(ReadOnlySpan<BoundingBox2D> bounds, ReadOnlySpan<int> payloads, BvhAabb2DBuilder builder, bool use30BitMorton = true)
         {
-            Item* items = _items.UnsafePointer;
-            BoundingBox2D b0 = items[start].Bounds;
-            BoundingBox2D b1 = end - start > 1 ? items[start + 1].Bounds : EmptyBox;
-            BoundingBox2D b2 = end - start > 2 ? items[start + 2].Bounds : EmptyBox;
-            BoundingBox2D b3 = end - start > 3 ? items[start + 3].Bounds : EmptyBox;
-
-            int leafIndex = _leafCount++;
-            Leaf* leaf = _leaves.UnsafePointer + leafIndex;
-            leaf->LowerX = Vector128.Create(b0.Min.X, b1.Min.X, b2.Min.X, b3.Min.X);
-            leaf->UpperX = Vector128.Create(b0.Max.X, b1.Max.X, b2.Max.X, b3.Max.X);
-            leaf->LowerY = Vector128.Create(b0.Min.Y, b1.Min.Y, b2.Min.Y, b3.Min.Y);
-            leaf->UpperY = Vector128.Create(b0.Max.Y, b1.Max.Y, b2.Max.Y, b3.Max.Y);
-            leaf->Indices[0] = items[start].Index;
-            leaf->Indices[1] = end - start > 1 ? items[start + 1].Index : -1;
-            leaf->Indices[2] = end - start > 2 ? items[start + 2].Index : -1;
-            leaf->Indices[3] = end - start > 3 ? items[start + 3].Index : -1;
-
-            if (depth > _treeDepth)
+            ObjectDisposedException.ThrowIf(_isDisposed, this);
+            ArgumentNullException.ThrowIfNull(builder);
+            if (bounds.IsEmpty)
             {
-                _treeDepth = depth;
+                Clear();
+                return;
             }
 
-            bounds = BoundingBox2D.Merge(BoundingBox2D.Merge(b0, b1), BoundingBox2D.Merge(b2, b3));
-            return ~leafIndex;
+            BvhAabb2DBuildResult result = builder.Build(bounds, payloads, use30BitMorton, out ReadOnlySpan<Node> builtNodes, out ReadOnlySpan<Leaf> builtLeaves);
+            CommitBuild(result, builtNodes, builtLeaves);
         }
 
-        /// <summary>Splits the sorted code range at the highest differing bit.</summary>
-        private int FindSplit(int start, int end)
+        /// <summary>
+        /// Releases native node and leaf buffers and resets the tree to empty.
+        /// </summary>
+        public void Clear()
         {
-            uint first = (uint)(_sorted[start] >> 32);
-            uint last = (uint)(_sorted[end - 1] >> 32);
-            uint xor = first ^ last;
-            if (xor == 0)
+            if (_nodes != null)
             {
-                return (start + end) / 2; // identical codes: midpoint fallback
+                MemoryUtility.Free(_nodes);
+                _nodes = null;
+                _nodeCapacity = 0;
+            }
+            if (_leaves != null)
+            {
+                MemoryUtility.Free(_leaves);
+                _leaves = null;
+                _leafCapacity = 0;
             }
 
-            uint splitBit = 0x80000000u >> BitOperations.LeadingZeroCount(xor);
-            int lo = start + 1;
-            int hi = end - 1;
-            while (lo < hi)
+            _rootRef = EmptyRef;
+            _nodeCount = 0;
+            _leafCount = 0;
+            _treeDepth = 0;
+        }
+
+        private void CommitBuild(BvhAabb2DBuildResult result, ReadOnlySpan<Node> builtNodes, ReadOnlySpan<Leaf> builtLeaves)
+        {
+            int nodeCount = result.NodeCount;
+            int leafCount = result.LeafCount;
+
+            if (_nodeCapacity != nodeCount)
             {
-                int mid = (lo + hi) / 2;
-                if (((uint)(_sorted[mid] >> 32) & splitBit) == 0)
+                if (_nodes != null)
                 {
-                    lo = mid + 1;
+                    MemoryUtility.Free(_nodes);
+                    _nodes = null;
                 }
-                else
+                _nodeCapacity = nodeCount;
+                if (nodeCount > 0)
                 {
-                    hi = mid;
+                    _nodes = MemoryUtility.Alloc<Node>(nodeCount);
                 }
             }
-            return lo;
-        }
 
-        // LSD radix sort over the 20-bit codes
-        private static ulong* RadixSort(ulong* src, ulong* dst, int n)
-        {
-            int* counts = stackalloc int[RadixBuckets];
-
-            for (int pass = 0; pass < PassCount; pass++)
+            if (_leafCapacity != leafCount)
             {
-                int shift = 32 + pass * RadixBits;
-
-                for (int i = 0; i < RadixBuckets; i++)
+                if (_leaves != null)
                 {
-                    counts[i] = 0;
+                    MemoryUtility.Free(_leaves);
+                    _leaves = null;
                 }
-                for (int i = 0; i < n; i++)
+                _leafCapacity = leafCount;
+                if (leafCount > 0)
                 {
-                    counts[(int)((src[i] >> shift) & (RadixBuckets - 1))]++;
+                    _leaves = MemoryUtility.Alloc<Leaf>(leafCount);
                 }
-
-                int sum = 0;
-                for (int i = 0; i < RadixBuckets; i++)
-                {
-                    int c = counts[i];
-                    counts[i] = sum;
-                    sum += c;
-                }
-
-                for (int i = 0; i < n; i++)
-                {
-                    ulong pair = src[i];
-                    dst[counts[(int)((pair >> shift) & (RadixBuckets - 1))]++] = pair;
-                }
-
-                ulong* tmp = src;
-                src = dst;
-                dst = tmp;
             }
-            return src;
-        }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static uint MortonCode(float x, float y)
-        {
-            const float scale = (1 << BitsPerAxis) - 1;
-            uint xi = (uint)Math.Min(Math.Max(x * scale, 0f), scale);
-            uint yi = (uint)Math.Min(Math.Max(y * scale, 0f), scale);
-            return (Part1By1(xi) << 1) | Part1By1(yi);
-        }
+            if (nodeCount > 0)
+            {
+                builtNodes.CopyTo(new Span<Node>(_nodes, nodeCount));
+            }
+            if (leafCount > 0)
+            {
+                builtLeaves.CopyTo(new Span<Leaf>(_leaves, leafCount));
+            }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static uint Part1By1(uint v)
-        {
-            v = (v | (v << 8)) & 0x00FF00FFu;
-            v = (v | (v << 4)) & 0x0F0F0F0Fu;
-            v = (v | (v << 2)) & 0x33333333u;
-            v = (v | (v << 1)) & 0x55555555u;
-            return v;
+            _rootRef = result.RootRef;
+            _nodeCount = nodeCount;
+            _leafCount = leafCount;
+            _treeDepth = result.TreeDepth;
         }
 
         // ════════════════════════════════════════════════════════════
@@ -385,19 +250,238 @@ namespace Alco
         // ════════════════════════════════════════════════════════════
 
         /// <summary>
-        /// Finds the closest leaf item whose AABB is entered by the ray segment origin + displacement·t for t in [0,1],
-        /// returning the raw slab entry fraction as <paramref name="hitT"/> (which may be negative when the origin is inside a box).
+        /// Finds the closest leaf item whose AABB is entered by the ray segment <c>origin + displacement * t</c> for <c>t</c> in <c>[0, 1]</c>,
+        /// returning the raw slab entry fraction as <paramref name="hitT"/> (which may be negative when the origin starts inside a box).
         /// Thread-safe for concurrent reads after building.
         /// </summary>
-        /// <returns>True if any leaf was hit; <paramref name="hitT"/> is the entry fraction and <paramref name="hitIndex"/> the item index.</returns>
-        public bool RayCastClosest(Vector2 origin, Vector2 displacement, out int hitIndex, out float hitT)
+        public bool RayCastClosest(Vector2 origin, Vector2 displacement, out int hitIndex, out float hitT) =>
+            RayCastClosest(origin, displacement, 1f, out hitIndex, out hitT);
+
+        /// <summary>
+        /// Finds the closest leaf item whose AABB is entered by the ray segment <c>origin + displacement * t</c> for <c>t</c> in <c>[0, maxT]</c>,
+        /// returning the raw slab entry fraction as <paramref name="hitT"/> (which may be negative when the origin starts inside a box).
+        /// Thread-safe for concurrent reads after building.
+        /// </summary>
+        public bool RayCastClosest(Vector2 origin, Vector2 displacement, float maxT, out int hitIndex, out float hitT)
         {
             hitIndex = -1;
             hitT = 0f;
-            if (_rootRef == EmptyRef)
+            if (_rootRef == EmptyRef || maxT < 0f)
             {
                 return false;
             }
+
+            int stackCap = _treeDepth * (Width - 1) + Width;
+            if (stackCap <= StackAllocThreshold)
+            {
+                StackEntry* stack = stackalloc StackEntry[stackCap];
+                return RayCastClosestCore(origin, displacement, maxT, stack, out hitIndex, out hitT);
+            }
+
+            StackEntry* rented = MemoryUtility.Alloc<StackEntry>(stackCap);
+            try
+            {
+                return RayCastClosestCore(origin, displacement, maxT, rented, out hitIndex, out hitT);
+            }
+            finally
+            {
+                MemoryUtility.Free(rented);
+            }
+        }
+
+        /// <summary>
+        /// Traverses candidate leaf payloads front-to-back along the ray segment up to <paramref name="maxT"/>,
+        /// allowing <paramref name="visitor"/> to tighten the active distance bound dynamically via narrowphase hits.
+        /// Thread-safe for concurrent reads after building.
+        /// </summary>
+        public void VisitRayClosest<TVisitor>(Vector2 origin, Vector2 displacement, float maxT, ref TVisitor visitor)
+            where TVisitor : IBvhAabb2DRayClosestVisitor, allows ref struct =>
+            VisitRayClosest(origin, displacement, maxT, maxT, ref visitor);
+
+        /// <summary>
+        /// Traverses candidate leaf payloads front-to-back along the ray segment <c>[0, segmentMaxT]</c> with an initial
+        /// best fraction bound <paramref name="initialBestT"/> (which may be negative when continuing across chunks
+        /// after an origin-inside slab hit).
+        /// </summary>
+        public void VisitRayClosest<TVisitor>(Vector2 origin, Vector2 displacement, float segmentMaxT, float initialBestT, ref TVisitor visitor)
+            where TVisitor : IBvhAabb2DRayClosestVisitor, allows ref struct
+        {
+            if (_rootRef == EmptyRef || segmentMaxT < 0f)
+            {
+                return;
+            }
+
+            int stackCap = _treeDepth * (Width - 1) + Width;
+            if (stackCap <= StackAllocThreshold)
+            {
+                StackEntry* stack = stackalloc StackEntry[stackCap];
+                VisitRayClosestCore(origin, displacement, segmentMaxT, initialBestT, stack, ref visitor);
+                return;
+            }
+
+            StackEntry* rented = MemoryUtility.Alloc<StackEntry>(stackCap);
+            try
+            {
+                VisitRayClosestCore(origin, displacement, segmentMaxT, initialBestT, rented, ref visitor);
+            }
+            finally
+            {
+                MemoryUtility.Free(rented);
+            }
+        }
+
+        /// <summary>
+        /// Casts a ray segment against the BVH and returns on the first intersecting leaf AABB in <c>[0, 1]</c>.
+        /// Thread-safe for concurrent reads after building.
+        /// </summary>
+        public bool RayCastAny(Vector2 origin, Vector2 displacement) => RayCastAny(origin, displacement, 1f);
+
+        /// <summary>
+        /// Casts a ray segment against the BVH and returns on the first intersecting leaf AABB in <c>[0, maxT]</c>.
+        /// Thread-safe for concurrent reads after building.
+        /// </summary>
+        public bool RayCastAny(Vector2 origin, Vector2 displacement, float maxT)
+        {
+            if (_rootRef == EmptyRef || maxT < 0f)
+            {
+                return false;
+            }
+
+            int stackCap = _treeDepth * (Width - 1) + Width;
+            if (stackCap <= StackAllocThreshold)
+            {
+                int* stack = stackalloc int[stackCap];
+                return RayCastAnyCore(origin, displacement, maxT, stack);
+            }
+
+            int* rented = MemoryUtility.Alloc<int>(stackCap);
+            try
+            {
+                return RayCastAnyCore(origin, displacement, maxT, rented);
+            }
+            finally
+            {
+                MemoryUtility.Free(rented);
+            }
+        }
+
+        /// <summary>
+        /// Visits all leaf payloads whose AABB intersects the ray segment <c>[0, maxT]</c> until <paramref name="visitor"/> returns <c>false</c>.
+        /// Thread-safe for concurrent reads after building.
+        /// </summary>
+        public void VisitRayAll<TVisitor>(Vector2 origin, Vector2 displacement, float maxT, ref TVisitor visitor)
+            where TVisitor : IBvhAabb2DLeafVisitor, allows ref struct
+        {
+            if (_rootRef == EmptyRef || maxT < 0f)
+            {
+                return;
+            }
+
+            int stackCap = _treeDepth * (Width - 1) + Width;
+            if (stackCap <= StackAllocThreshold)
+            {
+                int* stack = stackalloc int[stackCap];
+                VisitRayAllCore(origin, displacement, maxT, stack, ref visitor);
+                return;
+            }
+
+            int* rented = MemoryUtility.Alloc<int>(stackCap);
+            try
+            {
+                VisitRayAllCore(origin, displacement, maxT, rented, ref visitor);
+            }
+            finally
+            {
+                MemoryUtility.Free(rented);
+            }
+        }
+
+        /// <summary>
+        /// Finds all leaf items whose AABB overlaps <paramref name="query"/> and appends their payloads to <paramref name="results"/>.
+        /// Thread-safe for concurrent reads after building.
+        /// </summary>
+        public void OverlapAabb(in BoundingBox2D query, List<int> results)
+        {
+            ListLeafCollector collector = new(results);
+            VisitOverlapAabb(query, ref collector);
+        }
+
+        /// <summary>
+        /// Visits all leaf payloads whose AABB overlaps <paramref name="query"/> without heap allocation.
+        /// Thread-safe for concurrent reads after building.
+        /// </summary>
+        public void VisitOverlapAabb<TVisitor>(in BoundingBox2D query, ref TVisitor visitor)
+            where TVisitor : IBvhAabb2DLeafVisitor, allows ref struct
+        {
+            if (_rootRef == EmptyRef)
+            {
+                return;
+            }
+
+            int stackCap = _treeDepth * (Width - 1) + Width;
+            if (stackCap <= StackAllocThreshold)
+            {
+                int* stack = stackalloc int[stackCap];
+                VisitOverlapAabbCore(query, stack, ref visitor);
+                return;
+            }
+
+            int* rented = MemoryUtility.Alloc<int>(stackCap);
+            try
+            {
+                VisitOverlapAabbCore(query, rented, ref visitor);
+            }
+            finally
+            {
+                MemoryUtility.Free(rented);
+            }
+        }
+
+        /// <summary>
+        /// Finds all leaf items whose AABB contains <paramref name="point"/> and appends their payloads to <paramref name="results"/>.
+        /// Thread-safe for concurrent reads after building.
+        /// </summary>
+        public void QueryPoint(Vector2 point, List<int> results)
+        {
+            ListLeafCollector collector = new(results);
+            VisitPoint(point, ref collector);
+        }
+
+        /// <summary>
+        /// Visits all leaf payloads whose AABB contains <paramref name="point"/> without heap allocation.
+        /// Thread-safe for concurrent reads after building.
+        /// </summary>
+        public void VisitPoint<TVisitor>(Vector2 point, ref TVisitor visitor)
+            where TVisitor : IBvhAabb2DLeafVisitor, allows ref struct
+        {
+            if (_rootRef == EmptyRef)
+            {
+                return;
+            }
+
+            int stackCap = _treeDepth * (Width - 1) + Width;
+            if (stackCap <= StackAllocThreshold)
+            {
+                int* stack = stackalloc int[stackCap];
+                VisitPointCore(point, stack, ref visitor);
+                return;
+            }
+
+            int* rented = MemoryUtility.Alloc<int>(stackCap);
+            try
+            {
+                VisitPointCore(point, rented, ref visitor);
+            }
+            finally
+            {
+                MemoryUtility.Free(rented);
+            }
+        }
+
+        private bool RayCastClosestCore(Vector2 origin, Vector2 displacement, float maxT, StackEntry* stack, out int hitIndex, out float hitT)
+        {
+            hitIndex = -1;
+            hitT = 0f;
 
             float invX = displacement.X != 0f ? 1f / displacement.X : float.MaxValue;
             float invY = displacement.Y != 0f ? 1f / displacement.Y : float.MaxValue;
@@ -408,15 +492,15 @@ namespace Alco
             Vector128<float> rdirX = Vector128.Create(invX);
             Vector128<float> rdirY = Vector128.Create(invY);
             Vector128<float> zero = Vector128<float>.Zero;
-            Vector128<float> one = Vector128.Create(1f);
+            Vector128<float> maxTVec = Vector128.Create(maxT);
 
-            Node* nodes = _nodes.UnsafePointer;
-            Leaf* leaves = _leaves.UnsafePointer;
+            Node* nodes = _nodes;
+            Leaf* leaves = _leaves;
 
-            float bestT = 1f;
-            int bestIndex = -1;
+            bool hasHit = false;
+            float bestT = maxT;
+            int bestIndex = EmptyLeafPayload;
 
-            StackEntry* stack = stackalloc StackEntry[_treeDepth * (Width - 1) + 4];
             int* orderChild = stackalloc int[Width];
             float* orderDist = stackalloc float[Width];
             int sp = 0;
@@ -430,12 +514,11 @@ namespace Alco
                 {
                     if (curDist > bestT)
                     {
-                        break; // stale entry: a nearer hit was found since it was pushed
+                        break;
                     }
 
                     if (cur < 0)
                     {
-                        // leaf block: slab test all items against the segment
                         Leaf* leaf = leaves + ~cur;
                         Vector128<float> t0 = Vector128.Multiply(Vector128.Subtract(leaf->LowerX, orgX), rdirX);
                         Vector128<float> t1 = Vector128.Multiply(Vector128.Subtract(leaf->UpperX, orgX), rdirX);
@@ -445,8 +528,7 @@ namespace Alco
                         t1 = Vector128.Multiply(Vector128.Subtract(leaf->UpperY, orgY), rdirY);
                         tMin = Vector128.Max(tMin, posY ? t0 : t1);
                         tMax = Vector128.Min(tMax, posY ? t1 : t0);
-                        // accept inside the segment, but rank by the raw (unclamped) entry
-                        Vector128<float> leafSeg = Vector128.LessThanOrEqual(Vector128.Max(tMin, zero), Vector128.Min(tMax, one));
+                        Vector128<float> leafSeg = Vector128.LessThanOrEqual(Vector128.Max(tMin, zero), Vector128.Min(tMax, maxTVec));
                         int leafMask = (int)Vector128.BitwiseAnd(leafSeg, Vector128.LessThanOrEqual(tMin, Vector128.Create(bestT))).ExtractMostSignificantBits();
                         if (leafMask != 0)
                         {
@@ -454,11 +536,16 @@ namespace Alco
                             {
                                 if ((leafMask & (1 << i)) != 0)
                                 {
-                                    float t = tMin.GetElement(i);
-                                    if (t < bestT)
+                                    int payload = leaf->Indices[i];
+                                    if (payload != EmptyLeafPayload)
                                     {
-                                        bestT = t;
-                                        bestIndex = leaf->Indices[i];
+                                        float t = tMin.GetElement(i);
+                                        if (t < bestT || (!hasHit && t <= maxT))
+                                        {
+                                            hasHit = true;
+                                            bestT = t;
+                                            bestIndex = payload;
+                                        }
                                     }
                                 }
                             }
@@ -466,7 +553,6 @@ namespace Alco
                         break;
                     }
 
-                    // inner node: one SIMD slab test for all 4 children
                     Node* node = nodes + cur;
                     Vector128<float> s0 = Vector128.Multiply(Vector128.Subtract(node->LowerX, orgX), rdirX);
                     Vector128<float> s1 = Vector128.Multiply(Vector128.Subtract(node->UpperX, orgX), rdirX);
@@ -476,14 +562,13 @@ namespace Alco
                     s1 = Vector128.Multiply(Vector128.Subtract(node->UpperY, orgY), rdirY);
                     sMin = Vector128.Max(sMin, posY ? s0 : s1);
                     sMax = Vector128.Min(sMax, posY ? s1 : s0);
-                    Vector128<float> nodeSeg = Vector128.LessThanOrEqual(Vector128.Max(sMin, zero), Vector128.Min(sMax, one));
+                    Vector128<float> nodeSeg = Vector128.LessThanOrEqual(Vector128.Max(sMin, zero), Vector128.Min(sMax, maxTVec));
                     int nodeMask = (int)Vector128.BitwiseAnd(nodeSeg, Vector128.LessThanOrEqual(sMin, Vector128.Create(bestT))).ExtractMostSignificantBits();
                     if (nodeMask == 0)
                     {
                         break;
                     }
 
-                    // order the surviving children by raw entry distance (insertion sort of <= 4)
                     int count = 0;
                     for (int i = 0; i < Width; i++)
                     {
@@ -503,8 +588,6 @@ namespace Alco
                         }
                     }
 
-                    // descend into the nearest child in place; push the rest so the nearest
-                    // remaining subtree is on top of the stack
                     cur = orderChild[0];
                     curDist = orderDist[0];
                     for (int k = count - 1; k >= 1; k--)
@@ -524,7 +607,7 @@ namespace Alco
                 curDist = stack[sp].Dist;
             }
 
-            if (bestIndex >= 0)
+            if (hasHit)
             {
                 hitIndex = bestIndex;
                 hitT = bestT;
@@ -533,18 +616,9 @@ namespace Alco
             return false;
         }
 
-        /// <summary>
-        /// Casts a ray segment and returns on the first hit (any-hit query). Uses the exact
-        /// SIMD slab test at every node; children are visited largest-subtree first, so the
-        /// result never over-reports (unlike a segment-box overlap prune).
-        /// </summary>
-        public bool RayCastAny(Vector2 origin, Vector2 displacement)
+        private void VisitRayClosestCore<TVisitor>(Vector2 origin, Vector2 displacement, float segmentMaxT, float initialBestT, StackEntry* stack, ref TVisitor visitor)
+            where TVisitor : IBvhAabb2DRayClosestVisitor, allows ref struct
         {
-            if (_rootRef == EmptyRef)
-            {
-                return false;
-            }
-
             float invX = displacement.X != 0f ? 1f / displacement.X : float.MaxValue;
             float invY = displacement.Y != 0f ? 1f / displacement.Y : float.MaxValue;
             bool posX = invX >= 0f;
@@ -554,12 +628,137 @@ namespace Alco
             Vector128<float> rdirX = Vector128.Create(invX);
             Vector128<float> rdirY = Vector128.Create(invY);
             Vector128<float> zero = Vector128<float>.Zero;
-            Vector128<float> one = Vector128.Create(1f);
+            Vector128<float> maxTVec = Vector128.Create(segmentMaxT);
 
-            Node* nodes = _nodes.UnsafePointer;
-            Leaf* leaves = _leaves.UnsafePointer;
+            Node* nodes = _nodes;
+            Leaf* leaves = _leaves;
 
-            int* stack = stackalloc int[_treeDepth * (Width - 1) + 4];
+            float bestT = initialBestT;
+            int* orderChild = stackalloc int[Width];
+            float* orderDist = stackalloc float[Width];
+            int sp = 0;
+
+            int cur = _rootRef;
+            float curDist = 0f;
+
+            while (true)
+            {
+                while (true)
+                {
+                    if (curDist > bestT)
+                    {
+                        break;
+                    }
+
+                    if (cur < 0)
+                    {
+                        Leaf* leaf = leaves + ~cur;
+                        Vector128<float> t0 = Vector128.Multiply(Vector128.Subtract(leaf->LowerX, orgX), rdirX);
+                        Vector128<float> t1 = Vector128.Multiply(Vector128.Subtract(leaf->UpperX, orgX), rdirX);
+                        Vector128<float> tMin = posX ? t0 : t1;
+                        Vector128<float> tMax = posX ? t1 : t0;
+                        t0 = Vector128.Multiply(Vector128.Subtract(leaf->LowerY, orgY), rdirY);
+                        t1 = Vector128.Multiply(Vector128.Subtract(leaf->UpperY, orgY), rdirY);
+                        tMin = Vector128.Max(tMin, posY ? t0 : t1);
+                        tMax = Vector128.Min(tMax, posY ? t1 : t0);
+                        Vector128<float> leafSeg = Vector128.LessThanOrEqual(Vector128.Max(tMin, zero), Vector128.Min(tMax, maxTVec));
+                        int leafMask = (int)Vector128.BitwiseAnd(leafSeg, Vector128.LessThanOrEqual(tMin, Vector128.Create(bestT))).ExtractMostSignificantBits();
+                        if (leafMask != 0)
+                        {
+                            for (int i = 0; i < Width; i++)
+                            {
+                                if ((leafMask & (1 << i)) != 0)
+                                {
+                                    int payload = leaf->Indices[i];
+                                    if (payload != EmptyLeafPayload)
+                                    {
+                                        float entryT = tMin.GetElement(i);
+                                        if (entryT <= bestT)
+                                        {
+                                            float nextBest = visitor.OnLeaf(payload, entryT, bestT);
+                                            if (nextBest < bestT)
+                                            {
+                                                bestT = nextBest;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        break;
+                    }
+
+                    Node* node = nodes + cur;
+                    Vector128<float> s0 = Vector128.Multiply(Vector128.Subtract(node->LowerX, orgX), rdirX);
+                    Vector128<float> s1 = Vector128.Multiply(Vector128.Subtract(node->UpperX, orgX), rdirX);
+                    Vector128<float> sMin = posX ? s0 : s1;
+                    Vector128<float> sMax = posX ? s1 : s0;
+                    s0 = Vector128.Multiply(Vector128.Subtract(node->LowerY, orgY), rdirY);
+                    s1 = Vector128.Multiply(Vector128.Subtract(node->UpperY, orgY), rdirY);
+                    sMin = Vector128.Max(sMin, posY ? s0 : s1);
+                    sMax = Vector128.Min(sMax, posY ? s1 : s0);
+                    Vector128<float> nodeSeg = Vector128.LessThanOrEqual(Vector128.Max(sMin, zero), Vector128.Min(sMax, maxTVec));
+                    int nodeMask = (int)Vector128.BitwiseAnd(nodeSeg, Vector128.LessThanOrEqual(sMin, Vector128.Create(bestT))).ExtractMostSignificantBits();
+                    if (nodeMask == 0)
+                    {
+                        break;
+                    }
+
+                    int count = 0;
+                    for (int i = 0; i < Width; i++)
+                    {
+                        if ((nodeMask & (1 << i)) != 0)
+                        {
+                            int child = node->Children[i];
+                            float dist = sMin.GetElement(i);
+                            int j = count++;
+                            while (j > 0 && orderDist[j - 1] > dist)
+                            {
+                                orderDist[j] = orderDist[j - 1];
+                                orderChild[j] = orderChild[j - 1];
+                                j--;
+                            }
+                            orderDist[j] = dist;
+                            orderChild[j] = child;
+                        }
+                    }
+
+                    cur = orderChild[0];
+                    curDist = orderDist[0];
+                    for (int k = count - 1; k >= 1; k--)
+                    {
+                        stack[sp].Child = orderChild[k];
+                        stack[sp].Dist = orderDist[k];
+                        sp++;
+                    }
+                }
+
+                if (sp == 0)
+                {
+                    break;
+                }
+                sp--;
+                cur = stack[sp].Child;
+                curDist = stack[sp].Dist;
+            }
+        }
+
+        private bool RayCastAnyCore(Vector2 origin, Vector2 displacement, float maxT, int* stack)
+        {
+            float invX = displacement.X != 0f ? 1f / displacement.X : float.MaxValue;
+            float invY = displacement.Y != 0f ? 1f / displacement.Y : float.MaxValue;
+            bool posX = invX >= 0f;
+            bool posY = invY >= 0f;
+            Vector128<float> orgX = Vector128.Create(origin.X);
+            Vector128<float> orgY = Vector128.Create(origin.Y);
+            Vector128<float> rdirX = Vector128.Create(invX);
+            Vector128<float> rdirY = Vector128.Create(invY);
+            Vector128<float> zero = Vector128<float>.Zero;
+            Vector128<float> maxTVec = Vector128.Create(maxT);
+
+            Node* nodes = _nodes;
+            Leaf* leaves = _leaves;
+
             int sp = 0;
             int cur = _rootRef;
 
@@ -578,10 +777,13 @@ namespace Alco
                         t1 = Vector128.Multiply(Vector128.Subtract(leaf->UpperY, orgY), rdirY);
                         tMin = Vector128.Max(tMin, posY ? t0 : t1);
                         tMax = Vector128.Min(tMax, posY ? t1 : t0);
-                        int leafMask = (int)Vector128.LessThanOrEqual(Vector128.Max(tMin, zero), Vector128.Min(tMax, one)).ExtractMostSignificantBits();
-                        if (leafMask != 0)
+                        int leafMask = (int)Vector128.LessThanOrEqual(Vector128.Max(tMin, zero), Vector128.Min(tMax, maxTVec)).ExtractMostSignificantBits();
+                        for (int i = 0; i < Width; i++)
                         {
-                            return true;
+                            if ((leafMask & (1 << i)) != 0 && leaf->Indices[i] != EmptyLeafPayload)
+                            {
+                                return true;
+                            }
                         }
                         break;
                     }
@@ -595,13 +797,12 @@ namespace Alco
                     s1 = Vector128.Multiply(Vector128.Subtract(node->UpperY, orgY), rdirY);
                     sMin = Vector128.Max(sMin, posY ? s0 : s1);
                     sMax = Vector128.Min(sMax, posY ? s1 : s0);
-                    int nodeMask = (int)Vector128.LessThanOrEqual(Vector128.Max(sMin, zero), Vector128.Min(sMax, one)).ExtractMostSignificantBits();
+                    int nodeMask = (int)Vector128.LessThanOrEqual(Vector128.Max(sMin, zero), Vector128.Min(sMax, maxTVec)).ExtractMostSignificantBits();
                     if (nodeMask == 0)
                     {
                         break;
                     }
 
-                    // push in reverse slot order so the largest subtree (slot 0) is visited first
                     for (int i = Width - 1; i >= 0; i--)
                     {
                         if ((nodeMask & (1 << i)) != 0)
@@ -621,26 +822,100 @@ namespace Alco
             return false;
         }
 
-        /// <summary>
-        /// Finds all leaf items whose AABB overlaps <paramref name="query"/>.
-        /// Results are appended to <paramref name="results"/>.
-        /// </summary>
-        public void OverlapAabb(in BoundingBox2D query, List<int> results)
+        private void VisitRayAllCore<TVisitor>(Vector2 origin, Vector2 displacement, float maxT, int* stack, ref TVisitor visitor)
+            where TVisitor : IBvhAabb2DLeafVisitor, allows ref struct
         {
-            if (_rootRef == EmptyRef)
-            {
-                return;
-            }
+            float invX = displacement.X != 0f ? 1f / displacement.X : float.MaxValue;
+            float invY = displacement.Y != 0f ? 1f / displacement.Y : float.MaxValue;
+            bool posX = invX >= 0f;
+            bool posY = invY >= 0f;
+            Vector128<float> orgX = Vector128.Create(origin.X);
+            Vector128<float> orgY = Vector128.Create(origin.Y);
+            Vector128<float> rdirX = Vector128.Create(invX);
+            Vector128<float> rdirY = Vector128.Create(invY);
+            Vector128<float> zero = Vector128<float>.Zero;
+            Vector128<float> maxTVec = Vector128.Create(maxT);
 
+            Node* nodes = _nodes;
+            Leaf* leaves = _leaves;
+
+            int sp = 0;
+            int cur = _rootRef;
+
+            while (true)
+            {
+                while (true)
+                {
+                    if (cur < 0)
+                    {
+                        Leaf* leaf = leaves + ~cur;
+                        Vector128<float> t0 = Vector128.Multiply(Vector128.Subtract(leaf->LowerX, orgX), rdirX);
+                        Vector128<float> t1 = Vector128.Multiply(Vector128.Subtract(leaf->UpperX, orgX), rdirX);
+                        Vector128<float> tMin = posX ? t0 : t1;
+                        Vector128<float> tMax = posX ? t1 : t0;
+                        t0 = Vector128.Multiply(Vector128.Subtract(leaf->LowerY, orgY), rdirY);
+                        t1 = Vector128.Multiply(Vector128.Subtract(leaf->UpperY, orgY), rdirY);
+                        tMin = Vector128.Max(tMin, posY ? t0 : t1);
+                        tMax = Vector128.Min(tMax, posY ? t1 : t0);
+                        int leafMask = (int)Vector128.LessThanOrEqual(Vector128.Max(tMin, zero), Vector128.Min(tMax, maxTVec)).ExtractMostSignificantBits();
+                        for (int i = 0; i < Width; i++)
+                        {
+                            if ((leafMask & (1 << i)) != 0)
+                            {
+                                int payload = leaf->Indices[i];
+                                if (payload != EmptyLeafPayload && !visitor.OnLeaf(payload))
+                                {
+                                    return;
+                                }
+                            }
+                        }
+                        break;
+                    }
+
+                    Node* node = nodes + cur;
+                    Vector128<float> s0 = Vector128.Multiply(Vector128.Subtract(node->LowerX, orgX), rdirX);
+                    Vector128<float> s1 = Vector128.Multiply(Vector128.Subtract(node->UpperX, orgX), rdirX);
+                    Vector128<float> sMin = posX ? s0 : s1;
+                    Vector128<float> sMax = posX ? s1 : s0;
+                    s0 = Vector128.Multiply(Vector128.Subtract(node->LowerY, orgY), rdirY);
+                    s1 = Vector128.Multiply(Vector128.Subtract(node->UpperY, orgY), rdirY);
+                    sMin = Vector128.Max(sMin, posY ? s0 : s1);
+                    sMax = Vector128.Min(sMax, posY ? s1 : s0);
+                    int nodeMask = (int)Vector128.LessThanOrEqual(Vector128.Max(sMin, zero), Vector128.Min(sMax, maxTVec)).ExtractMostSignificantBits();
+                    if (nodeMask == 0)
+                    {
+                        break;
+                    }
+
+                    for (int i = Width - 1; i >= 0; i--)
+                    {
+                        if ((nodeMask & (1 << i)) != 0)
+                        {
+                            stack[sp++] = node->Children[i];
+                        }
+                    }
+                    break;
+                }
+
+                if (sp == 0)
+                {
+                    break;
+                }
+                cur = stack[--sp];
+            }
+        }
+
+        private void VisitOverlapAabbCore<TVisitor>(in BoundingBox2D query, int* stack, ref TVisitor visitor)
+            where TVisitor : IBvhAabb2DLeafVisitor, allows ref struct
+        {
             Vector128<float> qMinX = Vector128.Create(query.Min.X);
             Vector128<float> qMinY = Vector128.Create(query.Min.Y);
             Vector128<float> qMaxX = Vector128.Create(query.Max.X);
             Vector128<float> qMaxY = Vector128.Create(query.Max.Y);
 
-            Node* nodes = _nodes.UnsafePointer;
-            Leaf* leaves = _leaves.UnsafePointer;
+            Node* nodes = _nodes;
+            Leaf* leaves = _leaves;
 
-            int* stack = stackalloc int[_treeDepth * (Width - 1) + 4];
             int sp = 0;
             int cur = _rootRef;
 
@@ -662,10 +937,10 @@ namespace Alco
                         {
                             if ((leafMask & (1 << i)) != 0)
                             {
-                                int index = leaf->Indices[i];
-                                if (index >= 0)
+                                int payload = leaf->Indices[i];
+                                if (payload != EmptyLeafPayload && !visitor.OnLeaf(payload))
                                 {
-                                    results.Add(index);
+                                    return;
                                 }
                             }
                         }
@@ -703,24 +978,15 @@ namespace Alco
             }
         }
 
-        /// <summary>
-        /// Finds all leaf items whose AABB contains <paramref name="point"/>.
-        /// Results are appended to <paramref name="results"/>.
-        /// </summary>
-        public void QueryPoint(Vector2 point, List<int> results)
+        private void VisitPointCore<TVisitor>(Vector2 point, int* stack, ref TVisitor visitor)
+            where TVisitor : IBvhAabb2DLeafVisitor, allows ref struct
         {
-            if (_rootRef == EmptyRef)
-            {
-                return;
-            }
-
             Vector128<float> px = Vector128.Create(point.X);
             Vector128<float> py = Vector128.Create(point.Y);
 
-            Node* nodes = _nodes.UnsafePointer;
-            Leaf* leaves = _leaves.UnsafePointer;
+            Node* nodes = _nodes;
+            Leaf* leaves = _leaves;
 
-            int* stack = stackalloc int[_treeDepth * (Width - 1) + 4];
             int sp = 0;
             int cur = _rootRef;
 
@@ -742,10 +1008,10 @@ namespace Alco
                         {
                             if ((leafMask & (1 << i)) != 0)
                             {
-                                int index = leaf->Indices[i];
-                                if (index >= 0)
+                                int payload = leaf->Indices[i];
+                                if (payload != EmptyLeafPayload && !visitor.OnLeaf(payload))
                                 {
-                                    results.Add(index);
+                                    return;
                                 }
                             }
                         }
@@ -791,10 +1057,9 @@ namespace Alco
                 return;
             }
 
-            _nodes.Dispose();
-            _leaves.Dispose();
-            _pairs.Dispose();
-            _items.Dispose();
+            Clear();
+            _defaultBuilder?.Dispose();
+            _defaultBuilder = null;
             _isDisposed = true;
         }
     }

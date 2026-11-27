@@ -375,5 +375,132 @@ namespace Alco.Test
                 Assert.That(tB, Is.EqualTo(tA));
             }
         }
+
+        private struct CollectingVisitor : IBvhAabb2DLeafVisitor
+        {
+            public readonly List<int> Items;
+            public readonly int StopAfter;
+
+            public CollectingVisitor(List<int> items, int stopAfter = int.MaxValue)
+            {
+                Items = items;
+                StopAfter = stopAfter;
+            }
+
+            public bool OnLeaf(int payload)
+            {
+                Items.Add(payload);
+                return Items.Count < StopAfter;
+            }
+        }
+
+        private struct ClosestVisitor : IBvhAabb2DRayClosestVisitor
+        {
+            public bool HasHit;
+            public int HitPayload;
+            public float BestT;
+
+            public float OnLeaf(int payload, float entryT, float currentBestT)
+            {
+                if (!HasHit || entryT < BestT)
+                {
+                    HasHit = true;
+                    HitPayload = payload;
+                    BestT = entryT;
+                    return entryT;
+                }
+                return currentBestT;
+            }
+        }
+
+        /// <summary>
+        /// Verifies 30-bit vs 20-bit Morton sparse accuracy, shared builder custom/negative payloads,
+        /// exact native memory accounting, maxT ray limits, and zero-alloc visitor traversal.
+        /// </summary>
+        [Test(Description = "BVH AABB 2D: builder reuse, 30-bit Morton sparse scene, maxT, Clear, and visitor traversal")]
+        public void TestBvhAabb2DBuilderPayloadsVisitorsAndMaxT()
+        {
+            FastRandom random = new(9001);
+            BoundingBox2D[] sparseBoxes = new BoundingBox2D[400];
+            int[] payloads = new int[sparseBoxes.Length];
+            for (int i = 0; i < sparseBoxes.Length; i++)
+            {
+                Vector2 center = (i % 10 == 0)
+                    ? new Vector2(-100000f + i, -100000f + i)
+                    : random.NextVector2(-50f, 50f);
+                sparseBoxes[i] = new BoundingBox2D(center - new Vector2(1f), center + new Vector2(1f));
+                payloads[i] = -(i + 10);
+            }
+
+            using BvhAabb2DBuilder builder = new();
+            using BvhAabb2D bvh30 = new();
+            using BvhAabb2D bvh20 = new();
+            bvh30.Build(sparseBoxes, payloads, builder, use30BitMorton: true);
+            bvh20.Build(sparseBoxes, payloads, builder, use30BitMorton: false);
+
+            Assert.That(bvh30.LeafCount, Is.GreaterThan(0));
+            Assert.That(bvh30.NativeMemoryBytes, Is.GreaterThan(0));
+
+            for (int i = 0; i < 200; i++)
+            {
+                Vector2 pt = (i < 20)
+                    ? new Vector2(-100000f + i * 10, -100000f + i * 10)
+                    : random.NextVector2(-60f, 60f);
+
+                List<int> list30 = new();
+                List<int> list20 = new();
+                bvh30.QueryPoint(pt, list30);
+                bvh20.QueryPoint(pt, list20);
+                list30.Sort();
+                list20.Sort();
+                Assert.That(list30, Is.EqualTo(list20));
+
+                List<int> visited = new();
+                CollectingVisitor v = new(visited);
+                bvh30.VisitPoint(pt, ref v);
+                visited.Sort();
+                Assert.That(visited, Is.EqualTo(list30));
+            }
+
+            // Verify maxT < 1 and maxT > 1 against sequential indices
+            BoundingBox2D[] segBoxes =
+            {
+                new(new Vector2(10f, -1f), new Vector2(12f, 1f)),
+                new(new Vector2(20f, -1f), new Vector2(22f, 1f)),
+            };
+            using BvhAabb2D maxTBvh = new();
+            maxTBvh.Build(segBoxes);
+            Assert.That(maxTBvh.RayCastAny(Vector2.Zero, new Vector2(15f, 0f), 0.5f), Is.False);
+            Assert.That(maxTBvh.RayCastClosest(Vector2.Zero, new Vector2(15f, 0f), 1.5f, out int hitIdx, out float hitT), Is.True);
+            Assert.That(hitIdx, Is.EqualTo(0));
+            Assert.That(hitT, Is.EqualTo(10f / 15f).Within(1e-4f));
+
+            Assert.That(maxTBvh.RayCastClosest(new Vector2(13f, 0f), new Vector2(5f, 0f), 1f, out _, out _), Is.False);
+            Assert.That(maxTBvh.RayCastClosest(new Vector2(13f, 0f), new Vector2(5f, 0f), 1.5f, out int hitFarIdx, out float hitFarT), Is.True);
+            Assert.That(hitFarIdx, Is.EqualTo(1));
+            Assert.That(hitFarT, Is.EqualTo(7f / 5f).Within(1e-4f));
+
+            ClosestVisitor closestVisitor = new() { BestT = 2f };
+            maxTBvh.VisitRayClosest(Vector2.Zero, new Vector2(15f, 0f), 1.5f, ref closestVisitor);
+            Assert.That(closestVisitor.HasHit, Is.True);
+            Assert.That(closestVisitor.HitPayload, Is.EqualTo(0));
+            Assert.That(closestVisitor.BestT, Is.EqualTo(10f / 15f).Within(1e-4f));
+
+            // Verify VisitOverlapAabb & VisitRayAll early-out
+            List<int> overlapTwo = new();
+            CollectingVisitor stopOne = new(overlapTwo, stopAfter: 1);
+            maxTBvh.VisitOverlapAabb(new BoundingBox2D(new Vector2(0f, -2f), new Vector2(30f, 2f)), ref stopOne);
+            Assert.That(overlapTwo.Count, Is.EqualTo(1));
+
+            List<int> rayAllOne = new();
+            CollectingVisitor rayStop = new(rayAllOne, stopAfter: 1);
+            maxTBvh.VisitRayAll(Vector2.Zero, new Vector2(30f, 0f), 1f, ref rayStop);
+            Assert.That(rayAllOne.Count, Is.EqualTo(1));
+
+            bvh30.Clear();
+            Assert.That(bvh30.NodeCount, Is.EqualTo(0));
+            Assert.That(bvh30.LeafCount, Is.EqualTo(0));
+            Assert.That(bvh30.NativeMemoryBytes, Is.EqualTo(0));
+        }
     }
 }

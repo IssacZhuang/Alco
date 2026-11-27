@@ -60,9 +60,18 @@ namespace Alco
         /// </summary>
         /// <param name="ray">The ray to cast.</param>
         /// <returns>The result of the ray cast containing hit information.</returns>
-        public RayCastResult3D CastRayClosestHit(Ray3D ray)
+        public RayCastResult3D CastRayClosestHit(Ray3D ray) => CastRayClosestHit(ray, 1f);
+
+        /// <summary>
+        /// Casts a ray against the BVH up to <paramref name="maxT"/> and returns the closest hit within <c>[0, maxT]</c>.
+        /// This method is thread-safe for concurrent queries, but cannot be called concurrently with <see cref="BuildTree(ReadOnlySpan{ColliderRef3D}, IBvhBuilder3D)"/>.
+        /// </summary>
+        /// <param name="ray">The ray to cast.</param>
+        /// <param name="maxT">The maximum allowed hit fraction along <see cref="Ray3D.Displacement"/>.</param>
+        /// <returns>The closest hit result within <paramref name="maxT"/>, or <see cref="RayCastResult3D.none"/> if nothing was hit.</returns>
+        public RayCastResult3D CastRayClosestHit(Ray3D ray, float maxT)
         {
-            if (_root == BvhNode3D.EmptyChild)
+            if (_root == BvhNode3D.EmptyChild || maxT <= 0f)
             {
                 return RayCastResult3D.none;
             }
@@ -82,12 +91,12 @@ namespace Alco
             Vector128<float> rdirY = Vector128.Create(invY);
             Vector128<float> rdirZ = Vector128.Create(invZ);
             Vector128<float> zero = Vector128<float>.Zero;
-            Vector128<float> one = Vector128.Create(1f);
+            Vector128<float> maxTVec = Vector128.Create(maxT);
 
             BvhNode3D* nodes = _nodes.UnsafePointer;
             BvhLeaf3D* leaves = _leaves.UnsafePointer;
 
-            float bestT = 1f;
+            float bestT = maxT;
             RayCastResult3D result = RayCastResult3D.none;
 
             int* stackChild = stackalloc int[_treeDepth * (Width - 1) + Width];
@@ -126,7 +135,7 @@ namespace Alco
                         tMax = Vector128.Min(tMax, posZ ? t1 : t0);
                         // segment acceptance is independent of the running best (an origin inside
                         // a box yields negative entries); the best fraction only ranks the entry
-                        Vector128<float> leafSeg = Vector128.LessThanOrEqual(Vector128.Max(tMin, zero), Vector128.Min(tMax, one));
+                        Vector128<float> leafSeg = Vector128.LessThanOrEqual(Vector128.Max(tMin, zero), Vector128.Min(tMax, maxTVec));
                         int leafMask = (int)Vector128.BitwiseAnd(leafSeg, Vector128.LessThanOrEqual(tMin, Vector128.Create(bestT))).ExtractMostSignificantBits();
                         if (leafMask != 0)
                         {
@@ -167,7 +176,7 @@ namespace Alco
                     s1 = Vector128.Multiply(Vector128.Subtract(node->UpperZ, orgZ), rdirZ);
                     sMin = Vector128.Max(sMin, posZ ? s0 : s1);
                     sMax = Vector128.Min(sMax, posZ ? s1 : s0);
-                    Vector128<float> nodeSeg = Vector128.LessThanOrEqual(Vector128.Max(sMin, zero), Vector128.Min(sMax, one));
+                    Vector128<float> nodeSeg = Vector128.LessThanOrEqual(Vector128.Max(sMin, zero), Vector128.Min(sMax, maxTVec));
                     int nodeMask = (int)Vector128.BitwiseAnd(nodeSeg, Vector128.LessThanOrEqual(sMin, Vector128.Create(bestT))).ExtractMostSignificantBits();
                     if (nodeMask == 0)
                     {
@@ -307,6 +316,122 @@ namespace Alco
                     sMin = Vector128.Max(sMin, posZ ? s0 : s1);
                     sMax = Vector128.Min(sMax, posZ ? s1 : s0);
                     int nodeMask = (int)Vector128.LessThanOrEqual(Vector128.Max(sMin, zero), Vector128.Min(sMax, one)).ExtractMostSignificantBits();
+                    if (nodeMask == 0)
+                    {
+                        break;
+                    }
+
+                    for (int i = Width - 1; i >= 0; i--)
+                    {
+                        if ((nodeMask & (1 << i)) != 0)
+                        {
+                            stack[sp++] = node->Children[i];
+                        }
+                    }
+                    break;
+                }
+
+                if (sp == 0)
+                {
+                    break;
+                }
+                cur = stack[--sp];
+            }
+        }
+
+        /// <summary>
+        /// Casts a ray against the BVH up to <paramref name="maxT"/> and collects hits with <c>0 &lt;= hit.Fraction &lt;= maxT</c>;
+        /// the collector stops the traversal by returning false.
+        /// This method is thread-safe for concurrent queries, but cannot be called concurrently with <see cref="BuildTree(ReadOnlySpan{ColliderRef3D}, IBvhBuilder3D)"/>.
+        /// </summary>
+        /// <typeparam name="TCollector">The type of the collision collector.</typeparam>
+        /// <param name="ray">The ray to cast.</param>
+        /// <param name="collector">The collector to gather hit results.</param>
+        /// <param name="maxT">The maximum allowed hit fraction along <see cref="Ray3D.Displacement"/>.</param>
+        public void CastRay<TCollector>(Ray3D ray, ref TCollector collector, float maxT) where TCollector : struct, IBvhRayCastCollector3D
+        {
+            if (_root == BvhNode3D.EmptyChild || maxT < 0f)
+            {
+                return;
+            }
+
+            Vector3 origin = ray.Origin;
+            Vector3 displacement = ray.Displacement;
+            float invX = displacement.X != 0f ? 1f / displacement.X : float.MaxValue;
+            float invY = displacement.Y != 0f ? 1f / displacement.Y : float.MaxValue;
+            float invZ = displacement.Z != 0f ? 1f / displacement.Z : float.MaxValue;
+            bool posX = invX >= 0f;
+            bool posY = invY >= 0f;
+            bool posZ = invZ >= 0f;
+            Vector128<float> orgX = Vector128.Create(origin.X);
+            Vector128<float> orgY = Vector128.Create(origin.Y);
+            Vector128<float> orgZ = Vector128.Create(origin.Z);
+            Vector128<float> rdirX = Vector128.Create(invX);
+            Vector128<float> rdirY = Vector128.Create(invY);
+            Vector128<float> rdirZ = Vector128.Create(invZ);
+            Vector128<float> zero = Vector128<float>.Zero;
+            Vector128<float> maxTVec = Vector128.Create(maxT);
+
+            BvhNode3D* nodes = _nodes.UnsafePointer;
+            BvhLeaf3D* leaves = _leaves.UnsafePointer;
+
+            int* stack = stackalloc int[_treeDepth * (Width - 1) + Width];
+            int sp = 0;
+            int cur = _root;
+
+            while (true)
+            {
+                while (true)
+                {
+                    if (cur < 0)
+                    {
+                        BvhLeaf3D* leaf = leaves + BvhNode3D.DecodeLeaf(cur);
+                        Vector128<float> t0 = Vector128.Multiply(Vector128.Subtract(leaf->LowerX, orgX), rdirX);
+                        Vector128<float> t1 = Vector128.Multiply(Vector128.Subtract(leaf->UpperX, orgX), rdirX);
+                        Vector128<float> tMin = posX ? t0 : t1;
+                        Vector128<float> tMax = posX ? t1 : t0;
+                        t0 = Vector128.Multiply(Vector128.Subtract(leaf->LowerY, orgY), rdirY);
+                        t1 = Vector128.Multiply(Vector128.Subtract(leaf->UpperY, orgY), rdirY);
+                        tMin = Vector128.Max(tMin, posY ? t0 : t1);
+                        tMax = Vector128.Min(tMax, posY ? t1 : t0);
+                        t0 = Vector128.Multiply(Vector128.Subtract(leaf->LowerZ, orgZ), rdirZ);
+                        t1 = Vector128.Multiply(Vector128.Subtract(leaf->UpperZ, orgZ), rdirZ);
+                        tMin = Vector128.Max(tMin, posZ ? t0 : t1);
+                        tMax = Vector128.Min(tMax, posZ ? t1 : t0);
+                        int leafMask = (int)Vector128.LessThanOrEqual(Vector128.Max(tMin, zero), Vector128.Min(tMax, maxTVec)).ExtractMostSignificantBits();
+                        if ((leafMask & 1) != 0 && leaf->C0.HasCollider && leaf->C0.IntersectRay(ray, out RaycastHit3D hit0) && hit0.Fraction >= 0f && hit0.Fraction <= maxT)
+                        {
+                            if (!collector.OnHit(new RayCastResult3D { Hit = true, HitInfo = hit0, Collider = leaf->C0 })) return;
+                        }
+                        if ((leafMask & 2) != 0 && leaf->C1.HasCollider && leaf->C1.IntersectRay(ray, out RaycastHit3D hit1) && hit1.Fraction >= 0f && hit1.Fraction <= maxT)
+                        {
+                            if (!collector.OnHit(new RayCastResult3D { Hit = true, HitInfo = hit1, Collider = leaf->C1 })) return;
+                        }
+                        if ((leafMask & 4) != 0 && leaf->C2.HasCollider && leaf->C2.IntersectRay(ray, out RaycastHit3D hit2) && hit2.Fraction >= 0f && hit2.Fraction <= maxT)
+                        {
+                            if (!collector.OnHit(new RayCastResult3D { Hit = true, HitInfo = hit2, Collider = leaf->C2 })) return;
+                        }
+                        if ((leafMask & 8) != 0 && leaf->C3.HasCollider && leaf->C3.IntersectRay(ray, out RaycastHit3D hit3) && hit3.Fraction >= 0f && hit3.Fraction <= maxT)
+                        {
+                            if (!collector.OnHit(new RayCastResult3D { Hit = true, HitInfo = hit3, Collider = leaf->C3 })) return;
+                        }
+                        break;
+                    }
+
+                    BvhNode3D* node = nodes + cur;
+                    Vector128<float> s0 = Vector128.Multiply(Vector128.Subtract(node->LowerX, orgX), rdirX);
+                    Vector128<float> s1 = Vector128.Multiply(Vector128.Subtract(node->UpperX, orgX), rdirX);
+                    Vector128<float> sMin = posX ? s0 : s1;
+                    Vector128<float> sMax = posX ? s1 : s0;
+                    s0 = Vector128.Multiply(Vector128.Subtract(node->LowerY, orgY), rdirY);
+                    s1 = Vector128.Multiply(Vector128.Subtract(node->UpperY, orgY), rdirY);
+                    sMin = Vector128.Max(sMin, posY ? s0 : s1);
+                    sMax = Vector128.Min(sMax, posY ? s1 : s0);
+                    s0 = Vector128.Multiply(Vector128.Subtract(node->LowerZ, orgZ), rdirZ);
+                    s1 = Vector128.Multiply(Vector128.Subtract(node->UpperZ, orgZ), rdirZ);
+                    sMin = Vector128.Max(sMin, posZ ? s0 : s1);
+                    sMax = Vector128.Min(sMax, posZ ? s1 : s0);
+                    int nodeMask = (int)Vector128.LessThanOrEqual(Vector128.Max(sMin, zero), Vector128.Min(sMax, maxTVec)).ExtractMostSignificantBits();
                     if (nodeMask == 0)
                     {
                         break;
@@ -473,8 +598,17 @@ namespace Alco
         /// <param name="builder">The build algorithm to use.</param>
         public void BuildTree(ReadOnlySpan<ColliderRef3D> colliders, IBvhBuilder3D builder)
         {
-            _nodes.SetSizeWithoutCopy(colliders.Length + 16);
-            _leaves.SetSizeWithoutCopy(colliders.Length + 16);
+            if (colliders.IsEmpty)
+            {
+                _root = BvhNode3D.EmptyChild;
+                _nodeCount = 0;
+                _leafCount = 0;
+                _treeDepth = 0;
+                return;
+            }
+
+            _nodes.SetSizeWithoutCopy(colliders.Length);
+            _leaves.SetSizeWithoutCopy(colliders.Length);
             BvhBuildResult3D result = builder.Build(colliders, _nodes.AsSpan(), _leaves.AsSpan());
             _root = result.Root;
             _nodeCount = result.NodeCount;

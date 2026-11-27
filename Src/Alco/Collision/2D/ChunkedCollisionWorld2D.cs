@@ -1,1160 +1,558 @@
 using System;
 using System.Collections.Generic;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 
-namespace Alco;
-
-/// <summary>
-/// A chunked collision world for static or rarely-mutating free-position colliders, promoting per-chunk buckets above <see cref="TreeBuildThreshold"/> to mini <see cref="NativeBvh2D"/> trees and routing oversized colliders to a big-object bucket.
-/// Mutations are main-thread only; once no mutations are pending, cast queries are read-only and safe to call concurrently.
-/// </summary>
-public unsafe class ChunkedCollisionWorld2D : AutoDisposable
+namespace Alco
 {
     /// <summary>
-    /// Bucket size at which a chunk (or the big-object bucket) is promoted to a mini BVH during
-    /// the next <see cref="RebuildDirtyTrees"/>. Any mutation of the bucket demotes it back to
-    /// a linear scan until it reaches the threshold again.
+    /// Unbounded two-level static/semi-static 2D collision broadphase built on <see cref="ChunkedBvhAabb2D"/>
+    /// with single-owner signed <c>int2</c> chunks, immediate pre-commit query visibility,
+    /// generation-guarded handle disposal, and <see cref="UnloadChunk"/> streaming eviction.
     /// </summary>
-    public int TreeBuildThreshold { get; set; } = 64;
-
-    /// <summary>
-    /// Gets the AABB span, as a multiple of the chunk size, above which colliders are routed to
-    /// the big-object bucket instead of every overlapped per-chunk bucket.
-    /// </summary>
-    public float BigBucketSpanFactor { get; set; } = 2f;
-
-    private readonly float _gridMinX;
-    private readonly float _gridMinY;
-    private readonly int _chunkCountX;
-    private readonly int _chunkCountY;
-    private readonly int _chunkSize;
-
-    private Leaf[] _leaves;
-    private int _freeHead;
-    private int _count;
-
-    private readonly List<int>?[] _chunkBuckets;
-    private readonly List<int> _bigBucket = new List<int>(64);
-    private readonly ChunkTree?[] _chunkTrees;
-    private readonly HashSet<int> _pendingChunks = new HashSet<int>();
-    private ChunkTree? _bigTree;
-    private bool _pendingBig;
-
-    private MortonBvhBuilder2D _builder = new MortonBvhBuilder2D();
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="ChunkedCollisionWorld2D"/> class over a
-    /// fixed axis-aligned grid of square chunks. Collider AABBs are clamped into the grid, so a
-    /// target may extend past the border as long as part of its AABB lies inside.
-    /// </summary>
-    /// <param name="gridMinX">The world X coordinate of the grid origin (left border).</param>
-    /// <param name="gridMinY">The world Y coordinate of the grid origin (bottom border).</param>
-    /// <param name="chunkCountX">The number of chunks along the X axis.</param>
-    /// <param name="chunkCountY">The number of chunks along the Y axis.</param>
-    /// <param name="chunkSize">The chunk edge length in world units.</param>
-    public ChunkedCollisionWorld2D(float gridMinX, float gridMinY, int chunkCountX, int chunkCountY, int chunkSize)
+    /// <remarks>
+    /// Mutation methods (<see cref="Add(object, in ShapeBox2D)"/>, <see cref="Add(object, in ShapeSphere2D)"/>,
+    /// <see cref="TargetRegistration.Dispose"/>, <see cref="UnloadChunk"/>, <see cref="Clear"/>,
+    /// <see cref="RebuildDirtyTrees"/>) must run exclusively from query methods.
+    /// Once <see cref="RebuildDirtyTrees"/> has committed pending edits, read queries are thread-safe.
+    /// </remarks>
+    public sealed unsafe class ChunkedCollisionWorld2D : AutoDisposable
     {
-        if (chunkCountX <= 0 || chunkCountY <= 0)
+        private struct RegistrationData
         {
-            throw new ArgumentException("chunk counts must be positive");
-        }
-
-        if (chunkSize <= 0)
-        {
-            throw new ArgumentException("chunk size must be positive");
-        }
-
-        _gridMinX = gridMinX;
-        _gridMinY = gridMinY;
-        _chunkCountX = chunkCountX;
-        _chunkCountY = chunkCountY;
-        _chunkSize = chunkSize;
-        _leaves = new Leaf[64];
-        _chunkBuckets = new List<int>?[chunkCountX * chunkCountY];
-        _chunkTrees = new ChunkTree?[chunkCountX * chunkCountY];
-
-        for (int i = 0; i < _leaves.Length; i++)
-        {
-            _leaves[i].FreeNext = i + 1;
-        }
-
-        _freeHead = 0;
-    }
-
-    /// <summary>
-    /// Gets the number of alive targets currently registered in this world.
-    /// </summary>
-    public int Count => _count;
-
-    /// <summary>
-    /// Gets the number of buckets currently promoted to a mini BVH (big-object tree included).
-    /// Intended for diagnostics and debugging overlays.
-    /// </summary>
-    public int TreeCount
-    {
-        get
-        {
-            int trees = _bigTree != null ? 1 : 0;
-            for (int i = 0; i < _chunkTrees.Length; i++)
-            {
-                if (_chunkTrees[i] != null)
-                {
-                    trees++;
-                }
-            }
-
-            return trees;
-        }
-    }
-
-    /// <summary>
-    /// Gets the number of colliders routed to the big-object bucket.
-    /// Intended for diagnostics and debugging overlays.
-    /// </summary>
-    public int BigBucketCount => _bigBucket.Count;
-
-    /// <summary>
-    /// Adds a box-shaped target at its exact free position and returns a registration whose
-    /// disposal removes it again. Main thread only.
-    /// </summary>
-    /// <param name="target">The payload object reported back by all queries.</param>
-    /// <param name="shape">The precise box shape of the target.</param>
-    /// <returns>A registration handle; dispose it to remove the target.</returns>
-    public TargetRegistration Add(object target, in ShapeBox2D shape)
-    {
-        int leafIndex = AddLeaf(target, ColliderType2D.Box, shape, default, shape.GetBoundingBox());
-        return new TargetRegistration(this, leafIndex);
-    }
-
-    /// <summary>
-    /// Adds a sphere-shaped target at its exact free position and returns a registration whose
-    /// disposal removes it again. Main thread only.
-    /// </summary>
-    /// <param name="target">The payload object reported back by all queries.</param>
-    /// <param name="shape">The precise sphere shape of the target.</param>
-    /// <returns>A registration handle; dispose it to remove the target.</returns>
-    public TargetRegistration Add(object target, in ShapeSphere2D shape)
-    {
-        int leafIndex = AddLeaf(target, ColliderType2D.Sphere, default, shape, shape.GetBoundingBox());
-        return new TargetRegistration(this, leafIndex);
-    }
-
-    /// <summary>
-    /// Removes all targets and returns the world to its freshly constructed state (threshold
-    /// properties are preserved). Main thread only.
-    /// </summary>
-    public void Clear()
-    {
-        for (int i = 0; i < _chunkBuckets.Length; i++)
-        {
-            _chunkBuckets[i]?.Clear();
-            _chunkTrees[i]?.Dispose();
-            _chunkTrees[i] = null;
-        }
-
-        _bigBucket.Clear();
-        _bigTree?.Dispose();
-        _bigTree = null;
-        _pendingChunks.Clear();
-        _pendingBig = false;
-
-        for (int i = 0; i < _leaves.Length; i++)
-        {
-            _leaves[i] = default;
-            _leaves[i].FreeNext = i + 1;
-        }
-
-        _freeHead = 0;
-        _count = 0;
-    }
-
-    /// <summary>
-    /// Re-promotes buckets mutated since the last call into mini BVHs. Call on the main thread
-    /// after a batch of adds/removals and before the parallel query phase of the frame,
-    /// mirroring the rebuild-then-cast ordering of a per-tick collision service.
-    /// </summary>
-    public void RebuildDirtyTrees()
-    {
-        foreach (int chunkIndex in _pendingChunks)
-        {
-            PromoteBucket(_chunkBuckets[chunkIndex], chunkIndex);
-        }
-
-        _pendingChunks.Clear();
-
-        if (_pendingBig)
-        {
-            _pendingBig = false;
-            PromoteBucket(_bigBucket, -1);
-        }
-    }
-
-    /// <summary>
-    /// Casts a point against the world and collects all overlapping targets.
-    /// </summary>
-    /// <typeparam name="TCollector">The collector type gathering the hit targets.</typeparam>
-    /// <param name="collector">The collector to gather hit results.</param>
-    /// <param name="point">The point to test.</param>
-    public void CastPoint<TCollector>(ref TCollector collector, Vector2 point) where TCollector : ICollisionCastCollector
-    {
-        if (_count == 0)
-        {
-            return;
-        }
-
-        int chunkIndex = ChunkIndexOf(point);
-        if (_chunkTrees[chunkIndex] is { } tree)
-        {
-            CastTreePoint(tree, ref collector, point);
-        }
-        else
-        {
-            CastBucketPoint(_chunkBuckets[chunkIndex], ref collector, point);
-        }
-
-        if (_bigTree is { } bigTree)
-        {
-            CastTreePoint(bigTree, ref collector, point);
-        }
-        else
-        {
-            CastBucketPoint(_bigBucket, ref collector, point);
-        }
-    }
-
-    /// <summary>
-    /// Casts a box collider against the world and collects all overlapping targets.
-    /// </summary>
-    /// <typeparam name="TCollector">The collector type gathering the hit targets.</typeparam>
-    /// <param name="collector">The collector to gather hit results.</param>
-    /// <param name="shape">The box shape to cast.</param>
-    public void CastBox<TCollector>(ref TCollector collector, in ShapeBox2D shape) where TCollector : ICollisionCastCollector
-    {
-        if (_count == 0)
-        {
-            return;
-        }
-
-        ColliderBox2D caster = new ColliderBox2D { Shape = shape };
-        ColliderRef2D casterRef = ColliderRef2D.Create(&caster);
-        BoundingBox2D queryBounds = shape.GetBoundingBox();
-
-        int x0 = ClampChunkX(queryBounds.Min.X);
-        int y0 = ClampChunkY(queryBounds.Min.Y);
-        int x1 = ClampChunkX(queryBounds.Max.X);
-        int y1 = ClampChunkY(queryBounds.Max.Y);
-        for (int x = x0; x <= x1; x++)
-        {
-            for (int y = y0; y <= y1; y++)
-            {
-                int chunkIndex = y * _chunkCountX + x;
-                bool continueQuery;
-                if (_chunkTrees[chunkIndex] is { } tree)
-                {
-                    continueQuery = CastTreeBox(tree, ref collector, shape);
-                }
-                else
-                {
-                    continueQuery = CastBucketCaster(_chunkBuckets[chunkIndex], ref collector, casterRef);
-                }
-
-                if (!continueQuery)
-                {
-                    return;
-                }
-            }
-        }
-
-        if (_bigTree is { } bigTree)
-        {
-            CastTreeBox(bigTree, ref collector, shape);
-        }
-        else
-        {
-            CastBucketCaster(_bigBucket, ref collector, casterRef);
-        }
-    }
-
-    /// <summary>
-    /// Casts a sphere collider against the world and collects all overlapping targets.
-    /// </summary>
-    /// <typeparam name="TCollector">The collector type gathering the hit targets.</typeparam>
-    /// <param name="collector">The collector to gather hit results.</param>
-    /// <param name="shape">The sphere shape to cast.</param>
-    public void CastSphere<TCollector>(ref TCollector collector, in ShapeSphere2D shape) where TCollector : ICollisionCastCollector
-    {
-        if (_count == 0)
-        {
-            return;
-        }
-
-        ColliderSphere2D caster = new ColliderSphere2D { Shape = shape };
-        ColliderRef2D casterRef = ColliderRef2D.Create(&caster);
-        BoundingBox2D queryBounds = shape.GetBoundingBox();
-
-        int x0 = ClampChunkX(queryBounds.Min.X);
-        int y0 = ClampChunkY(queryBounds.Min.Y);
-        int x1 = ClampChunkX(queryBounds.Max.X);
-        int y1 = ClampChunkY(queryBounds.Max.Y);
-        for (int x = x0; x <= x1; x++)
-        {
-            for (int y = y0; y <= y1; y++)
-            {
-                int chunkIndex = y * _chunkCountX + x;
-                bool continueQuery;
-                if (_chunkTrees[chunkIndex] is { } tree)
-                {
-                    continueQuery = CastTreeSphere(tree, ref collector, shape);
-                }
-                else
-                {
-                    continueQuery = CastBucketCaster(_chunkBuckets[chunkIndex], ref collector, casterRef);
-                }
-
-                if (!continueQuery)
-                {
-                    return;
-                }
-            }
-        }
-
-        if (_bigTree is { } bigTree)
-        {
-            CastTreeSphere(bigTree, ref collector, shape);
-        }
-        else
-        {
-            CastBucketCaster(_bigBucket, ref collector, casterRef);
-        }
-    }
-
-    /// <summary>
-    /// Casts a ray segment against the world and collects all targets hit within
-    /// <paramref name="maxT"/> displacement units.
-    /// </summary>
-    /// <typeparam name="TCollector">The collector type gathering the hit targets.</typeparam>
-    /// <param name="collector">The collector to gather hit results.</param>
-    /// <param name="ray">The ray to cast; the default segment spans Origin to Origin + Displacement.</param>
-    /// <param name="maxT">The hit fraction limit in displacement units; 1 casts the full segment.</param>
-    public void CastRay<TCollector>(ref TCollector collector, in Ray2D ray, float maxT = 1f) where TCollector : IRayCastCollector2D
-    {
-        if (_count == 0)
-        {
-            return;
-        }
-
-        RayChunkWalker walker = RayChunkWalker.Create(this, ray, maxT);
-        while (walker.MoveNext(out int chunkIndex))
-        {
-            bool continueQuery;
-            if (_chunkTrees[chunkIndex] is { } tree)
-            {
-                continueQuery = CastTreeRay(tree, ref collector, ray, maxT);
-            }
-            else
-            {
-                continueQuery = CastBucketRay(_chunkBuckets[chunkIndex], ref collector, ray, maxT);
-            }
-
-            if (!continueQuery)
-            {
-                return;
-            }
-        }
-
-        if (_bigTree is { } bigTree)
-        {
-            CastTreeRay(bigTree, ref collector, ray, maxT);
-        }
-        else
-        {
-            CastBucketRay(_bigBucket, ref collector, ray, maxT);
-        }
-    }
-
-    /// <summary>
-    /// Casts a ray segment against the world and returns the closest hit target.
-    /// </summary>
-    /// <typeparam name="TTarget">The expected payload type of the hit target.</typeparam>
-    /// <param name="ray">The ray to cast; the default segment spans Origin to Origin + Displacement.</param>
-    /// <param name="hitTarget">The closest hit target, or null when none is found.</param>
-    /// <param name="hit">The precise hit information of the closest hit.</param>
-    /// <param name="maxT">The hit fraction limit in displacement units; 1 casts the full segment.</param>
-    /// <returns>True when a target of type <typeparamref name="TTarget"/> was hit.</returns>
-    public bool TryCastRayClosestHit<TTarget>(in Ray2D ray, out TTarget? hitTarget, out RaycastHit2D hit, float maxT = 1f) where TTarget : class
-    {
-        hitTarget = null;
-        hit = default;
-
-        if (_count == 0)
-        {
-            return false;
-        }
-
-        RayBest best = default;
-        RayChunkWalker walker = RayChunkWalker.Create(this, ray, maxT);
-        while (walker.MoveNext(out int chunkIndex))
-        {
-            if (_chunkTrees[chunkIndex] is { } tree)
-            {
-                VisitTreeClosest(tree, ray, maxT, ref best);
-            }
-            else
-            {
-                VisitBucketClosest(_chunkBuckets[chunkIndex], ray, maxT, ref best);
-            }
-        }
-
-        if (_bigTree is { } bigTree)
-        {
-            VisitTreeClosest(bigTree, ray, maxT, ref best);
-        }
-        else
-        {
-            VisitBucketClosest(_bigBucket, ray, maxT, ref best);
-        }
-
-        if (!best.Hit)
-        {
-            return false;
-        }
-
-        if (_leaves[best.LeafIndex].Target is not TTarget typed)
-        {
-            return false;
-        }
-
-        hitTarget = typed;
-        hit = best.HitInfo;
-        return true;
-    }
-
-    /// <summary>
-    /// Collects all targets whose AABB overlaps the given bounds. This is a broadphase-only
-    /// query (no precise shape test); use it for region enumeration and culling-style consumers.
-    /// </summary>
-    /// <param name="bounds">The bounds to test against.</param>
-    /// <param name="collector">The collector receiving the overlapping targets.</param>
-    public void CollectTargets(BoundingBox2D bounds, ICollection<object> collector)
-    {
-        if (_count == 0)
-        {
-            return;
-        }
-
-        int x0 = ClampChunkX(bounds.Min.X);
-        int y0 = ClampChunkY(bounds.Min.Y);
-        int x1 = ClampChunkX(bounds.Max.X);
-        int y1 = ClampChunkY(bounds.Max.Y);
-        for (int x = x0; x <= x1; x++)
-        {
-            for (int y = y0; y <= y1; y++)
-            {
-                CollectBucketBounds(_chunkBuckets[y * _chunkCountX + x], bounds, collector);
-            }
-        }
-
-        CollectBucketBounds(_bigBucket, bounds, collector);
-    }
-
-    /// <summary>
-    /// A registration handle for a target added to a <see cref="ChunkedCollisionWorld2D"/>.
-    /// Disposing removes the target; disposing twice is a no-op.
-    /// </summary>
-    public readonly struct TargetRegistration : IDisposable
-    {
-        private readonly ChunkedCollisionWorld2D? _world;
-        private readonly int _leafIndex;
-
-        internal TargetRegistration(ChunkedCollisionWorld2D world, int leafIndex)
-        {
-            _world = world;
-            _leafIndex = leafIndex;
+            public ColliderType2D Type;
+            public bool Allocated;
+            public int Generation;
+            public ChunkedEntryHandle2D BvhHandle;
+            public object? Target;
+            public BoundingBox2D Bounds;
+            public ShapeBox2D Box;
+            public ShapeSphere2D Sphere;
+            public int FreeNext;
         }
 
         /// <summary>
-        /// Removes the registered target from its world. Main thread only.
+        /// Generation-guarded registration handle for a collider registered in <see cref="ChunkedCollisionWorld2D"/>.
+        /// Disposing after <see cref="UnloadChunk"/> or <see cref="Clear"/> is safely a no-op.
         /// </summary>
-        public void Dispose()
+        public readonly struct TargetRegistration : IDisposable
         {
-            _world?.RemoveLeaf(_leafIndex);
+            private readonly ChunkedCollisionWorld2D? _world;
+            private readonly int _regIndex;
+            private readonly int _generation;
+
+            /// <summary>Gets whether this handle was constructed with a valid registration slot.</summary>
+            public bool IsValid => _world != null && _generation > 0;
+
+            /// <summary>
+            /// Initializes a registration handle bound to a world slot and generation.
+            /// </summary>
+            public TargetRegistration(ChunkedCollisionWorld2D world, int regIndex, int generation)
+            {
+                _world = world;
+                _regIndex = regIndex;
+                _generation = generation;
+            }
+
+            /// <summary>
+            /// Removes the collider from the world if this handle is still active.
+            /// </summary>
+            public void Dispose()
+            {
+                _world?.RemoveRegistration(_regIndex, _generation);
+            }
         }
-    }
 
-    private struct Leaf
-    {
-        public ColliderType2D Type;
-        public bool Allocated;
-        public object? Target;
-        public BoundingBox2D Bounds;
-        public ShapeBox2D Box;
-        public ShapeSphere2D Sphere;
-        public int FreeNext;
-    }
-
-    private struct RayBest
-    {
-        public bool Hit;
-        public RaycastHit2D HitInfo;
-        public int LeafIndex;
-    }
-
-    // adapts the bvh collider-level collectors back to payload objects; Stopped remembers an
-    // early-out requested by the user collector so the outer walk can stop as well
-    private struct TreeCastAdapter<TCollector> : IBvhCollisionCastCollector2D where TCollector : ICollisionCastCollector
-    {
-        public ChunkedCollisionWorld2D World;
-        public TCollector UserCollector;
-        public bool Stopped;
-
-        public bool OnHit(ColliderCastResult2D result)
+        private struct PointNarrowphaseVisitor<TCollector> : IBvhAabb2DLeafVisitor<TCollector>
+            where TCollector : ICollisionCastCollector
         {
-            object? target = World._leaves[result.Collider.UserData].Target;
-            if (target == null || Stopped)
+            private readonly ChunkedCollisionWorld2D _world;
+            private readonly Vector2 _point;
+
+            public PointNarrowphaseVisitor(ChunkedCollisionWorld2D world, Vector2 point)
             {
-                return !Stopped;
+                _world = world;
+                _point = point;
             }
 
-            if (!UserCollector.OnHit(target))
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public bool OnLeaf(int regIndex, ref TCollector collector)
             {
-                Stopped = true;
-                return false;
-            }
+                if (!_world.LeafContainsPoint(regIndex, _point))
+                {
+                    return true;
+                }
 
-            return true;
+                object? target = _world._registrations[regIndex].Target;
+                return target == null || collector.OnHit(target);
+            }
         }
-    }
 
-    private struct TreeRayAdapter<TCollector> : IBvhRayCastCollector2D where TCollector : IRayCastCollector2D
-    {
-        public ChunkedCollisionWorld2D World;
-        public TCollector UserCollector;
-        public float MaxT;
-        public bool Stopped;
-
-        public bool OnHit(RayCastResult2D result)
+        private struct ShapeNarrowphaseVisitor<TCollector> : IBvhAabb2DLeafVisitor<(ChunkedCollisionWorld2D World, ColliderRef2D Caster, TCollector Collector)>
+            where TCollector : ICollisionCastCollector
         {
-            if (Stopped)
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public bool OnLeaf(int regIndex, ref (ChunkedCollisionWorld2D World, ColliderRef2D Caster, TCollector Collector) state)
             {
-                return false;
-            }
+                if (!state.World.LeafCollidesWith(regIndex, state.Caster))
+                {
+                    return true;
+                }
 
-            if (result.HitInfo.Fraction > MaxT)
+                object? target = state.World._registrations[regIndex].Target;
+                return target == null || state.Collector.OnHit(target);
+            }
+        }
+
+        private struct RayAllNarrowphaseVisitor<TCollector> : IBvhAabb2DLeafVisitor<(ChunkedCollisionWorld2D World, Ray2D Ray, float MaxT, TCollector Collector)>
+            where TCollector : IRayCastCollector2D
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public bool OnLeaf(int regIndex, ref (ChunkedCollisionWorld2D World, Ray2D Ray, float MaxT, TCollector Collector) state)
             {
+                if (!state.World.LeafIntersectRay(regIndex, state.Ray, state.MaxT, out RaycastHit2D hit))
+                {
+                    return true;
+                }
+
+                object? target = state.World._registrations[regIndex].Target;
+                return target == null || state.Collector.OnHit(target, hit);
+            }
+        }
+
+        private struct RayClosestState
+        {
+            public readonly ChunkedCollisionWorld2D World;
+            public readonly Ray2D Ray;
+            public bool Hit;
+            public RaycastHit2D BestHit;
+            public int BestRegIndex;
+
+            public RayClosestState(ChunkedCollisionWorld2D world, in Ray2D ray)
+            {
+                World = world;
+                Ray = ray;
+                Hit = false;
+                BestHit = default;
+                BestRegIndex = -1;
+            }
+        }
+
+        private struct RayClosestNarrowphaseVisitor : IBvhAabb2DRayClosestVisitor<RayClosestState>
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public float OnLeaf(int regIndex, float entryT, float currentBestT, ref RayClosestState state)
+            {
+                if (!state.World.LeafIntersectRay(regIndex, state.Ray, currentBestT, out RaycastHit2D hit))
+                {
+                    return currentBestT;
+                }
+
+                if (state.World._registrations[regIndex].Target == null)
+                {
+                    return currentBestT;
+                }
+
+                if (!state.Hit || hit.Fraction < state.BestHit.Fraction)
+                {
+                    state.Hit = true;
+                    state.BestHit = hit;
+                    state.BestRegIndex = regIndex;
+                    return hit.Fraction;
+                }
+
+                return currentBestT;
+            }
+        }
+
+        private struct BoundsCollectorVisitor<TCollector> : IBvhAabb2DLeafVisitor<TCollector>
+            where TCollector : ICollisionCastCollector
+        {
+            private readonly ChunkedCollisionWorld2D _world;
+
+            public BoundsCollectorVisitor(ChunkedCollisionWorld2D world) => _world = world;
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public bool OnLeaf(int regIndex, ref TCollector collector)
+            {
+                object? target = _world._registrations[regIndex].Target;
+                return target == null || collector.OnHit(target);
+            }
+        }
+
+        private readonly struct ICollectionCastAdapter(ICollection<object> collector) : ICollisionCastCollector
+        {
+            private readonly ICollection<object> _collector = collector;
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public bool OnHit(object target)
+            {
+                _collector.Add(target);
                 return true;
             }
+        }
 
-            object? target = World._leaves[result.Collider.UserData].Target;
-            if (target == null)
+        private readonly ChunkedBvhAabb2D _bvh;
+        private readonly Action<int> _onBvhEntryRemoved;
+        private RegistrationData[] _registrations = new RegistrationData[128];
+        private int _highWaterMark;
+        private int _freeHead = -1;
+
+        /// <summary>Gets the world-space edge length of each square owner chunk.</summary>
+        public int ChunkSize => _bvh.ChunkSize;
+
+        /// <summary>Gets the entry count threshold above which chunks build a 20-bit BVH instead of a flat SIMD bucket.</summary>
+        public int TreeBuildThreshold => _bvh.TreeBuildThreshold;
+
+        /// <summary>Gets the top-level TLAS strategy used across chunks.</summary>
+        public ChunkedTlasMode2D TlasMode => _bvh.TlasMode;
+
+        /// <summary>Gets the number of active collider registrations currently in the world.</summary>
+        public int Count => _bvh.EntryCount;
+
+        /// <summary>Gets the number of non-empty spatial chunks currently loaded.</summary>
+        public int ChunkCount => _bvh.ChunkCount;
+
+        /// <summary>Gets the number of chunks with pending un-rebuilt edits.</summary>
+        public int DirtyChunkCount => _bvh.DirtyChunkCount;
+
+        /// <summary>Gets total unmanaged memory bytes used by backing BVH structures.</summary>
+        public long NativeMemoryBytes => _bvh.NativeMemoryBytes;
+
+        /// <summary>
+        /// Initializes an unbounded <see cref="ChunkedCollisionWorld2D"/> backed by <see cref="ChunkedBvhAabb2D"/>.
+        /// </summary>
+        public ChunkedCollisionWorld2D(
+            int chunkSize = ChunkUtility.DefaultChunkSize,
+            int treeBuildThreshold = 16,
+            ChunkedTlasMode2D tlasMode = ChunkedTlasMode2D.MortonSimd)
+        {
+            _bvh = new ChunkedBvhAabb2D(chunkSize, treeBuildThreshold, tlasMode);
+            _onBvhEntryRemoved = ReleaseSlotOnUnload;
+        }
+
+        /// <summary>
+        /// Registers a static oriented box collider in the world and returns its disposal handle.
+        /// </summary>
+        public TargetRegistration Add(object target, in ShapeBox2D shape)
+        {
+            BoundingBox2D bounds = shape.GetBoundingBox();
+            int regIndex = AllocateSlot(out int generation);
+            ChunkedEntryHandle2D handle = _bvh.Add(bounds, regIndex);
+
+            _registrations[regIndex] = new RegistrationData
             {
-                return true;
+                Type = ColliderType2D.Box,
+                Allocated = true,
+                Generation = generation,
+                BvhHandle = handle,
+                Target = target,
+                Bounds = bounds,
+                Box = shape,
+                Sphere = default,
+                FreeNext = -1,
+            };
+
+            return new TargetRegistration(this, regIndex, generation);
+        }
+
+        /// <summary>
+        /// Registers a static circle collider in the world and returns its disposal handle.
+        /// </summary>
+        public TargetRegistration Add(object target, in ShapeSphere2D shape)
+        {
+            BoundingBox2D bounds = shape.GetBoundingBox();
+            int regIndex = AllocateSlot(out int generation);
+            ChunkedEntryHandle2D handle = _bvh.Add(bounds, regIndex);
+
+            _registrations[regIndex] = new RegistrationData
+            {
+                Type = ColliderType2D.Sphere,
+                Allocated = true,
+                Generation = generation,
+                BvhHandle = handle,
+                Target = target,
+                Bounds = bounds,
+                Box = default,
+                Sphere = shape,
+                FreeNext = -1,
+            };
+
+            return new TargetRegistration(this, regIndex, generation);
+        }
+
+        /// <summary>
+        /// Rebuilds only dirty chunk acceleration structures and the SIMD TLAS if needed.
+        /// Queries remain accurate even before calling this method.
+        /// </summary>
+        public void RebuildDirtyTrees()
+        {
+            _bvh.CommitDirty();
+        }
+
+        /// <summary>
+        /// Unloads an entire owner chunk at <paramref name="chunkCoord"/>, removing all colliders owned by that chunk
+        /// and safely invalidating their outstanding <see cref="TargetRegistration"/> handles.
+        /// Returns the number of colliders removed.
+        /// </summary>
+        public int UnloadChunk(int2 chunkCoord)
+        {
+            return _bvh.UnloadChunk(chunkCoord, _onBvhEntryRemoved);
+        }
+
+        /// <summary>
+        /// Removes all registrations and resets chunk storage while invalidating any active handles.
+        /// </summary>
+        public void Clear()
+        {
+            _bvh.Clear();
+            for (int i = 0; i < _highWaterMark; i++)
+            {
+                if (_registrations[i].Allocated)
+                {
+                    int nextGen = _registrations[i].Generation + 1;
+                    _registrations[i].Generation = nextGen > 0 ? nextGen : 1;
+                    _registrations[i].Allocated = false;
+                    _registrations[i].Target = null;
+                }
+            }
+            _highWaterMark = 0;
+            _freeHead = -1;
+        }
+
+        /// <summary>Tests a world-space point against all static colliders and delivers exact hits to <paramref name="collector"/>.</summary>
+        public void CastPoint<TCollector>(ref TCollector collector, Vector2 point) where TCollector : ICollisionCastCollector
+        {
+            if (_bvh.EntryCount == 0)
+            {
+                return;
             }
 
-            if (!UserCollector.OnHit(target, result.HitInfo))
+            PointNarrowphaseVisitor<TCollector> visitor = new(this, point);
+            _bvh.VisitPoint(point, ref visitor, ref collector);
+        }
+
+        /// <summary>Tests an oriented box shape against all static colliders and delivers exact hits to <paramref name="collector"/>.</summary>
+        public void CastBox<TCollector>(ref TCollector collector, in ShapeBox2D shape) where TCollector : ICollisionCastCollector
+        {
+            if (_bvh.EntryCount == 0)
             {
-                Stopped = true;
+                return;
+            }
+
+            BoundingBox2D bounds = shape.GetBoundingBox();
+            ColliderBox2D queryBox = new() { Shape = shape };
+            ColliderRef2D caster = ColliderRef2D.Create(&queryBox);
+            ShapeNarrowphaseVisitor<TCollector> visitor = default;
+            var state = (World: this, Caster: caster, Collector: collector);
+            _bvh.VisitOverlapAabb(bounds, ref visitor, ref state);
+            collector = state.Collector;
+        }
+
+        /// <summary>Tests a circle shape against all static colliders and delivers exact hits to <paramref name="collector"/>.</summary>
+        public void CastSphere<TCollector>(ref TCollector collector, in ShapeSphere2D shape) where TCollector : ICollisionCastCollector
+        {
+            if (_bvh.EntryCount == 0)
+            {
+                return;
+            }
+
+            BoundingBox2D bounds = shape.GetBoundingBox();
+            ColliderSphere2D querySphere = new() { Shape = shape };
+            ColliderRef2D caster = ColliderRef2D.Create(&querySphere);
+            ShapeNarrowphaseVisitor<TCollector> visitor = default;
+            var state = (World: this, Caster: caster, Collector: collector);
+            _bvh.VisitOverlapAabb(bounds, ref visitor, ref state);
+            collector = state.Collector;
+        }
+
+        /// <summary>Casts a ray segment up to <paramref name="maxT"/> and delivers all exact hits to <paramref name="collector"/>.</summary>
+        public void CastRay<TCollector>(ref TCollector collector, in Ray2D ray, float maxT = 1f) where TCollector : IRayCastCollector2D
+        {
+            if (_bvh.EntryCount == 0 || maxT < 0f)
+            {
+                return;
+            }
+
+            RayAllNarrowphaseVisitor<TCollector> visitor = default;
+            var state = (World: this, Ray: ray, MaxT: maxT, Collector: collector);
+            _bvh.VisitRayAll(ray.Origin, ray.Displacement, maxT, ref visitor, ref state);
+            collector = state.Collector;
+        }
+
+        /// <summary>Casts a ray segment up to <paramref name="maxT"/> and returns the closest hit target of type <typeparamref name="TTarget"/>.</summary>
+        public bool TryCastRayClosestHit<TTarget>(in Ray2D ray, out TTarget? hitTarget, out RaycastHit2D hit, float maxT = 1f) where TTarget : class
+        {
+            hitTarget = null;
+            hit = default;
+            if (_bvh.EntryCount == 0 || maxT < 0f)
+            {
                 return false;
             }
 
-            return true;
-        }
-    }
+            RayClosestState state = new(this, ray);
+            RayClosestNarrowphaseVisitor visitor = default;
+            _bvh.VisitRayClosest(ray.Origin, ray.Displacement, maxT, ref visitor, ref state);
 
-    // a mini BVH over one bucket; the stable native staging buffers (copied from the managed
-    // leaves at build time) are owned and disposed together with the tree, so the collider
-    // pointers inside the tree stay valid for as long as the tree exists
-    private sealed class ChunkTree : IDisposable
-    {
-        public NativeArrayList<ColliderBox2D> Boxes;
-        public NativeArrayList<ColliderSphere2D> Spheres;
-        public NativeArrayList<ColliderRef2D> Refs;
-        public NativeBvh2D Tree = new NativeBvh2D();
-
-        public void Dispose()
-        {
-            Boxes.Dispose();
-            Spheres.Dispose();
-            Refs.Dispose();
-            Tree.Dispose();
-        }
-    }
-
-    // walks the chunks crossed by a ray segment clipped to the grid bounds (Amanatides-Woo)
-    private struct RayChunkWalker
-    {
-        private int _cx;
-        private int _cy;
-        private int _stepX;
-        private int _stepY;
-        private float _tMaxX;
-        private float _tMaxY;
-        private float _tDeltaX;
-        private float _tDeltaY;
-        private float _tExit;
-        private int _chunkCountX;
-        private int _chunkCountY;
-        private bool _valid;
-
-        public static RayChunkWalker Create(ChunkedCollisionWorld2D world, in Ray2D ray, float maxT)
-        {
-            RayChunkWalker walker = default;
-            float gridMaxX = world._gridMinX + world._chunkCountX * world._chunkSize;
-            float gridMaxY = world._gridMinY + world._chunkCountY * world._chunkSize;
-
-            float tEnter = 0f;
-            float tExit = maxT;
-            if (!ClipAxis(ray.Origin.X, ray.Displacement.X, world._gridMinX, gridMaxX, ref tEnter, ref tExit)
-                || !ClipAxis(ray.Origin.Y, ray.Displacement.Y, world._gridMinY, gridMaxY, ref tEnter, ref tExit)
-                || tEnter > tExit)
-            {
-                return walker;
-            }
-
-            Vector2 entry = ray.Origin + ray.Displacement * tEnter;
-            walker._cx = world.ClampChunkX(entry.X);
-            walker._cy = world.ClampChunkY(entry.Y);
-            walker._stepX = Math.Sign(ray.Displacement.X);
-            walker._stepY = Math.Sign(ray.Displacement.Y);
-            walker._tDeltaX = walker._stepX != 0 ? world._chunkSize / MathF.Abs(ray.Displacement.X) : float.PositiveInfinity;
-            walker._tDeltaY = walker._stepY != 0 ? world._chunkSize / MathF.Abs(ray.Displacement.Y) : float.PositiveInfinity;
-            walker._tMaxX = walker._stepX != 0
-                ? (world._gridMinX + (walker._cx + (walker._stepX > 0 ? 1 : 0)) * world._chunkSize - ray.Origin.X) / ray.Displacement.X
-                : float.PositiveInfinity;
-            walker._tMaxY = walker._stepY != 0
-                ? (world._gridMinY + (walker._cy + (walker._stepY > 0 ? 1 : 0)) * world._chunkSize - ray.Origin.Y) / ray.Displacement.Y
-                : float.PositiveInfinity;
-            walker._tExit = tExit;
-            walker._chunkCountX = world._chunkCountX;
-            walker._chunkCountY = world._chunkCountY;
-            walker._valid = true;
-            return walker;
-        }
-
-        public bool MoveNext(out int chunkIndex)
-        {
-            chunkIndex = _cy * _chunkCountX + _cx;
-            if (!_valid)
+            if (!state.Hit)
             {
                 return false;
             }
 
-            Advance();
+            if (_registrations[state.BestRegIndex].Target is not TTarget typed)
+            {
+                return false;
+            }
+
+            hitTarget = typed;
+            hit = state.BestHit;
             return true;
         }
 
-        private void Advance()
+        /// <summary>
+        /// Collects all targets whose AABB overlaps <paramref name="bounds"/> without performing exact narrowphase shape tests.
+        /// </summary>
+        public void CollectTargets(BoundingBox2D bounds, ICollection<object> collector)
         {
-            if (_tMaxX < _tMaxY)
+            if (_bvh.EntryCount == 0)
             {
-                if (_tMaxX > _tExit)
-                {
-                    _valid = false;
-                    return;
-                }
+                return;
+            }
 
-                _cx += _stepX;
-                _tMaxX += _tDeltaX;
-                if (_cx < 0 || _cx >= _chunkCountX)
-                {
-                    _valid = false;
-                }
+            ICollectionCastAdapter adapter = new(collector);
+            CollectTargets(bounds, ref adapter);
+        }
+
+        /// <summary>
+        /// Zero-allocation generic overload collecting all targets whose AABB overlaps <paramref name="bounds"/>.
+        /// </summary>
+        public void CollectTargets<TCollector>(in BoundingBox2D bounds, ref TCollector collector) where TCollector : struct, ICollisionCastCollector
+        {
+            if (_bvh.EntryCount == 0)
+            {
+                return;
+            }
+
+            BoundsCollectorVisitor<TCollector> visitor = new(this);
+            _bvh.VisitOverlapAabb(bounds, ref visitor, ref collector);
+        }
+
+        private void RemoveRegistration(int regIndex, int generation)
+        {
+            if ((uint)regIndex >= (uint)_highWaterMark)
+            {
+                return;
+            }
+
+            ref RegistrationData reg = ref _registrations[regIndex];
+            if (!reg.Allocated || reg.Generation != generation)
+            {
+                return;
+            }
+
+            _bvh.Remove(reg.BvhHandle);
+            ReleaseSlot(regIndex);
+        }
+
+        private void ReleaseSlotOnUnload(int regIndex)
+        {
+            if ((uint)regIndex < (uint)_highWaterMark && _registrations[regIndex].Allocated)
+            {
+                ReleaseSlot(regIndex);
+            }
+        }
+
+        private void ReleaseSlot(int regIndex)
+        {
+            int nextGen = _registrations[regIndex].Generation + 1;
+            _registrations[regIndex].Generation = nextGen > 0 ? nextGen : 1;
+            _registrations[regIndex].Allocated = false;
+            _registrations[regIndex].Target = null;
+            _registrations[regIndex].BvhHandle = default;
+            _registrations[regIndex].FreeNext = _freeHead;
+            _freeHead = regIndex;
+        }
+
+        private int AllocateSlot(out int generation)
+        {
+            if (_freeHead >= 0)
+            {
+                int idx = _freeHead;
+                _freeHead = _registrations[idx].FreeNext;
+                generation = _registrations[idx].Generation > 0 ? _registrations[idx].Generation : 1;
+                return idx;
+            }
+
+            if (_highWaterMark == _registrations.Length)
+            {
+                Array.Resize(ref _registrations, _registrations.Length * 2);
+            }
+
+            int slot = _highWaterMark++;
+            generation = _registrations[slot].Generation > 0 ? _registrations[slot].Generation : 1;
+            return slot;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private bool LeafContainsPoint(int regIndex, Vector2 point)
+        {
+            ref readonly RegistrationData reg = ref _registrations[regIndex];
+            if (reg.Type == ColliderType2D.Box)
+            {
+                ColliderBox2D box = new() { Shape = reg.Box };
+                return box.IntersectPoint(point);
+            }
+
+            ColliderSphere2D sphere = new() { Shape = reg.Sphere };
+            return sphere.IntersectPoint(point);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private bool LeafCollidesWith(int regIndex, ColliderRef2D caster)
+        {
+            ref readonly RegistrationData reg = ref _registrations[regIndex];
+            if (reg.Type == ColliderType2D.Box)
+            {
+                ColliderBox2D box = new() { Shape = reg.Box };
+                ColliderRef2D leafRef = ColliderRef2D.Create(&box);
+                return leafRef.CollidesWith(caster);
+            }
+
+            ColliderSphere2D sphere = new() { Shape = reg.Sphere };
+            ColliderRef2D sphereRef = ColliderRef2D.Create(&sphere);
+            return sphereRef.CollidesWith(caster);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private bool LeafIntersectRay(int regIndex, in Ray2D ray, float maxT, out RaycastHit2D hit)
+        {
+            ref readonly RegistrationData reg = ref _registrations[regIndex];
+            bool hitResult;
+            if (reg.Type == ColliderType2D.Box)
+            {
+                ColliderBox2D box = new() { Shape = reg.Box };
+                hitResult = box.IntersectRay(ray, out hit);
             }
             else
             {
-                if (_tMaxY > _tExit)
-                {
-                    _valid = false;
-                    return;
-                }
-
-                _cy += _stepY;
-                _tMaxY += _tDeltaY;
-                if (_cy < 0 || _cy >= _chunkCountY)
-                {
-                    _valid = false;
-                }
+                ColliderSphere2D sphere = new() { Shape = reg.Sphere };
+                hitResult = sphere.IntersectRay(ray, out hit);
             }
+
+            return hitResult && hit.Fraction <= maxT;
         }
 
-        private static bool ClipAxis(float origin, float displacement, float min, float max, ref float tEnter, ref float tExit)
+        /// <summary>
+        /// Disposes managed and unmanaged resources held by the backing spatial index.
+        /// </summary>
+        /// <param name="disposing">True when called from <see cref="IDisposable.Dispose"/>.</param>
+        protected override void Dispose(bool disposing)
         {
-            if (MathF.Abs(displacement) < 1e-20f)
+            if (disposing)
             {
-                return origin >= min && origin <= max;
-            }
-
-            float t0 = (min - origin) / displacement;
-            float t1 = (max - origin) / displacement;
-            if (t0 > t1)
-            {
-                (t0, t1) = (t1, t0);
-            }
-
-            tEnter = MathF.Max(tEnter, t0);
-            tExit = MathF.Min(tExit, t1);
-            return tEnter <= tExit;
-        }
-    }
-
-    private int AddLeaf(object target, ColliderType2D type, in ShapeBox2D box, in ShapeSphere2D sphere, BoundingBox2D bounds)
-    {
-        if (_freeHead >= _leaves.Length)
-        {
-            GrowLeaves();
-        }
-
-        int leafIndex = _freeHead;
-        ref Leaf leaf = ref _leaves[leafIndex];
-        _freeHead = leaf.FreeNext;
-        leaf.Type = type;
-        leaf.Allocated = true;
-        leaf.Target = target;
-        leaf.Bounds = bounds;
-        leaf.Box = box;
-        leaf.Sphere = sphere;
-        _count++;
-
-        float span = MathF.Max(bounds.Size.X, bounds.Size.Y);
-        if (span > _chunkSize * BigBucketSpanFactor)
-        {
-            _bigBucket.Add(leafIndex);
-            MarkBigDirty();
-            return leafIndex;
-        }
-
-        int x0 = ClampChunkX(bounds.Min.X);
-        int y0 = ClampChunkY(bounds.Min.Y);
-        int x1 = ClampChunkX(bounds.Max.X);
-        int y1 = ClampChunkY(bounds.Max.Y);
-        for (int x = x0; x <= x1; x++)
-        {
-            for (int y = y0; y <= y1; y++)
-            {
-                Bucket(x, y).Add(leafIndex);
-                MarkChunkDirty(y * _chunkCountX + x);
+                Clear();
+                _bvh.Dispose();
             }
         }
-
-        return leafIndex;
-    }
-
-    private void RemoveLeaf(int leafIndex)
-    {
-        if (leafIndex < 0 || leafIndex >= _leaves.Length || !_leaves[leafIndex].Allocated)
-        {
-            return;
-        }
-
-        ref Leaf leaf = ref _leaves[leafIndex];
-        float span = MathF.Max(leaf.Bounds.Size.X, leaf.Bounds.Size.Y);
-        if (span > _chunkSize * BigBucketSpanFactor)
-        {
-            _bigBucket.Remove(leafIndex);
-            MarkBigDirty();
-        }
-        else
-        {
-            int x0 = ClampChunkX(leaf.Bounds.Min.X);
-            int y0 = ClampChunkY(leaf.Bounds.Min.Y);
-            int x1 = ClampChunkX(leaf.Bounds.Max.X);
-            int y1 = ClampChunkY(leaf.Bounds.Max.Y);
-            for (int x = x0; x <= x1; x++)
-            {
-                for (int y = y0; y <= y1; y++)
-                {
-                    int chunkIndex = y * _chunkCountX + x;
-                    _chunkBuckets[chunkIndex]?.Remove(leafIndex);
-                    MarkChunkDirty(chunkIndex);
-                }
-            }
-        }
-
-        leaf.Allocated = false;
-        leaf.Target = null;
-        leaf.FreeNext = _freeHead;
-        _freeHead = leafIndex;
-        _count--;
-    }
-
-    private void GrowLeaves()
-    {
-        Leaf[] grown = new Leaf[_leaves.Length * 2];
-        Array.Copy(_leaves, grown, _leaves.Length);
-        for (int i = _leaves.Length; i < grown.Length; i++)
-        {
-            grown[i].FreeNext = i + 1;
-        }
-
-        _leaves = grown;
-    }
-
-    private List<int> Bucket(int x, int y)
-    {
-        int index = y * _chunkCountX + x;
-        List<int>? bucket = _chunkBuckets[index];
-        if (bucket == null)
-        {
-            bucket = new List<int>(64);
-            _chunkBuckets[index] = bucket;
-        }
-
-        return bucket;
-    }
-
-    private void MarkChunkDirty(int chunkIndex)
-    {
-        _pendingChunks.Add(chunkIndex);
-        if (_chunkTrees[chunkIndex] != null)
-        {
-            _chunkTrees[chunkIndex]!.Dispose();
-            _chunkTrees[chunkIndex] = null;
-        }
-    }
-
-    private void MarkBigDirty()
-    {
-        _pendingBig = true;
-        if (_bigTree != null)
-        {
-            _bigTree.Dispose();
-            _bigTree = null;
-        }
-    }
-
-    private void PromoteBucket(List<int>? bucket, int chunkIndex)
-    {
-        if (bucket == null || bucket.Count < TreeBuildThreshold)
-        {
-            return;
-        }
-
-        ChunkTree tree = BuildTree(bucket);
-        if (chunkIndex < 0)
-        {
-            _bigTree = tree;
-        }
-        else
-        {
-            _chunkTrees[chunkIndex] = tree;
-        }
-    }
-
-    private ChunkTree BuildTree(List<int> bucket)
-    {
-        ChunkTree tree = new ChunkTree();
-
-        // the staging lists must be pre-sized to their final count before any collider pointer is
-        // taken: growing a NativeArrayList reallocates and frees its buffer, which would dangle
-        // every ColliderRef2D created so far
-        int boxCount = 0;
-        int sphereCount = 0;
-        for (int i = 0; i < bucket.Count; i++)
-        {
-            if (_leaves[bucket[i]].Type == ColliderType2D.Box)
-            {
-                boxCount++;
-            }
-            else
-            {
-                sphereCount++;
-            }
-        }
-
-        tree.Boxes = new NativeArrayList<ColliderBox2D>(Math.Max(boxCount, 1));
-        tree.Spheres = new NativeArrayList<ColliderSphere2D>(Math.Max(sphereCount, 1));
-        tree.Refs = new NativeArrayList<ColliderRef2D>(bucket.Count);
-
-        for (int i = 0; i < bucket.Count; i++)
-        {
-            int leafIndex = bucket[i];
-            Leaf leaf = _leaves[leafIndex];
-            if (leaf.Type == ColliderType2D.Box)
-            {
-                tree.Boxes.Add(new ColliderBox2D { Shape = leaf.Box });
-                ColliderRef2D collider = ColliderRef2D.Create(tree.Boxes.UnsafePointer + tree.Boxes.Length - 1);
-                collider.UserData = leafIndex;
-                tree.Refs.Add(collider);
-            }
-            else
-            {
-                tree.Spheres.Add(new ColliderSphere2D { Shape = leaf.Sphere });
-                ColliderRef2D collider = ColliderRef2D.Create(tree.Spheres.UnsafePointer + tree.Spheres.Length - 1);
-                collider.UserData = leafIndex;
-                tree.Refs.Add(collider);
-            }
-        }
-
-        tree.Tree.BuildTree(tree.Refs.AsSpan(), _builder);
-        return tree;
-    }
-
-    private int ChunkIndexOf(Vector2 position)
-    {
-        int x = Math.Clamp((int)MathF.Floor((position.X - _gridMinX) / _chunkSize), 0, _chunkCountX - 1);
-        int y = Math.Clamp((int)MathF.Floor((position.Y - _gridMinY) / _chunkSize), 0, _chunkCountY - 1);
-        return y * _chunkCountX + x;
-    }
-
-    private int ClampChunkX(float coordinate)
-    {
-        return Math.Clamp((int)MathF.Floor((coordinate - _gridMinX) / _chunkSize), 0, _chunkCountX - 1);
-    }
-
-    private int ClampChunkY(float coordinate)
-    {
-        return Math.Clamp((int)MathF.Floor((coordinate - _gridMinY) / _chunkSize), 0, _chunkCountY - 1);
-    }
-
-    private bool LeafCollidesWith(int leafIndex, ColliderRef2D caster)
-    {
-        Leaf leaf = _leaves[leafIndex];
-        if (leaf.Type == ColliderType2D.Box)
-        {
-            ColliderBox2D box = new ColliderBox2D { Shape = leaf.Box };
-            ColliderRef2D leafRef = ColliderRef2D.Create(&box);
-            return leafRef.CollidesWith(caster);
-        }
-
-        ColliderSphere2D sphere = new ColliderSphere2D { Shape = leaf.Sphere };
-        ColliderRef2D sphereRef = ColliderRef2D.Create(&sphere);
-        return sphereRef.CollidesWith(caster);
-    }
-
-    private bool LeafIntersectRay(int leafIndex, in Ray2D ray, float maxT, out RaycastHit2D hit)
-    {
-        hit = default;
-        Leaf leaf = _leaves[leafIndex];
-        bool hitResult;
-        if (leaf.Type == ColliderType2D.Box)
-        {
-            ColliderBox2D box = new ColliderBox2D { Shape = leaf.Box };
-            hitResult = box.IntersectRay(ray, out hit);
-        }
-        else
-        {
-            ColliderSphere2D sphere = new ColliderSphere2D { Shape = leaf.Sphere };
-            hitResult = sphere.IntersectRay(ray, out hit);
-        }
-
-        return hitResult && hit.Fraction <= maxT;
-    }
-
-    private bool LeafContainsPoint(int leafIndex, Vector2 point)
-    {
-        Leaf leaf = _leaves[leafIndex];
-        if (leaf.Type == ColliderType2D.Box)
-        {
-            ColliderBox2D box = new ColliderBox2D { Shape = leaf.Box };
-            return box.IntersectPoint(point);
-        }
-
-        ColliderSphere2D sphere = new ColliderSphere2D { Shape = leaf.Sphere };
-        return sphere.IntersectPoint(point);
-    }
-
-    private bool CastBucketCaster<TCollector>(List<int>? bucket, ref TCollector collector, ColliderRef2D caster)
-        where TCollector : ICollisionCastCollector
-    {
-        if (bucket == null)
-        {
-            return true;
-        }
-
-        for (int i = 0; i < bucket.Count; i++)
-        {
-            if (!LeafCollidesWith(bucket[i], caster) || _leaves[bucket[i]].Target == null)
-            {
-                continue;
-            }
-
-            if (!collector.OnHit(_leaves[bucket[i]].Target!))
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    private bool CastBucketPoint<TCollector>(List<int>? bucket, ref TCollector collector, Vector2 point)
-        where TCollector : ICollisionCastCollector
-    {
-        if (bucket == null)
-        {
-            return true;
-        }
-
-        for (int i = 0; i < bucket.Count; i++)
-        {
-            if (!LeafContainsPoint(bucket[i], point) || _leaves[bucket[i]].Target == null)
-            {
-                continue;
-            }
-
-            if (!collector.OnHit(_leaves[bucket[i]].Target!))
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    private bool CastBucketRay<TCollector>(List<int>? bucket, ref TCollector collector, in Ray2D ray, float maxT)
-        where TCollector : IRayCastCollector2D
-    {
-        if (bucket == null)
-        {
-            return true;
-        }
-
-        for (int i = 0; i < bucket.Count; i++)
-        {
-            if (!LeafIntersectRay(bucket[i], ray, maxT, out RaycastHit2D hit) || _leaves[bucket[i]].Target == null)
-            {
-                continue;
-            }
-
-            if (!collector.OnHit(_leaves[bucket[i]].Target!, hit))
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    private void VisitBucketClosest(List<int>? bucket, in Ray2D ray, float maxT, ref RayBest best)
-    {
-        if (bucket == null)
-        {
-            return;
-        }
-
-        for (int i = 0; i < bucket.Count; i++)
-        {
-            if (!LeafIntersectRay(bucket[i], ray, maxT, out RaycastHit2D hit))
-            {
-                continue;
-            }
-
-            if (!best.Hit || hit.Fraction < best.HitInfo.Fraction)
-            {
-                best.Hit = true;
-                best.HitInfo = hit;
-                best.LeafIndex = bucket[i];
-            }
-        }
-    }
-
-    private bool CastTreeBox<TCollector>(ChunkTree? tree, ref TCollector collector, in ShapeBox2D shape)
-        where TCollector : ICollisionCastCollector
-    {
-        if (tree == null)
-        {
-            return true;
-        }
-
-        TreeCastAdapter<TCollector> adapter = new TreeCastAdapter<TCollector> { World = this, UserCollector = collector };
-        tree.Tree.CastBox(shape, ref adapter);
-        collector = adapter.UserCollector;
-        return !adapter.Stopped;
-    }
-
-    private bool CastTreeSphere<TCollector>(ChunkTree? tree, ref TCollector collector, in ShapeSphere2D shape)
-        where TCollector : ICollisionCastCollector
-    {
-        if (tree == null)
-        {
-            return true;
-        }
-
-        TreeCastAdapter<TCollector> adapter = new TreeCastAdapter<TCollector> { World = this, UserCollector = collector };
-        tree.Tree.CastSphere(shape, ref adapter);
-        collector = adapter.UserCollector;
-        return !adapter.Stopped;
-    }
-
-    private bool CastTreePoint<TCollector>(ChunkTree? tree, ref TCollector collector, Vector2 point)
-        where TCollector : ICollisionCastCollector
-    {
-        if (tree == null)
-        {
-            return true;
-        }
-
-        TreeCastAdapter<TCollector> adapter = new TreeCastAdapter<TCollector> { World = this, UserCollector = collector };
-        tree.Tree.CastPoint(point, ref adapter);
-        collector = adapter.UserCollector;
-        return !adapter.Stopped;
-    }
-
-    private bool CastTreeRay<TCollector>(ChunkTree? tree, ref TCollector collector, in Ray2D ray, float maxT)
-        where TCollector : IRayCastCollector2D
-    {
-        if (tree == null)
-        {
-            return true;
-        }
-
-        TreeRayAdapter<TCollector> adapter = new TreeRayAdapter<TCollector> { World = this, UserCollector = collector, MaxT = maxT };
-        tree.Tree.CastRay(ray, ref adapter);
-        collector = adapter.UserCollector;
-        return !adapter.Stopped;
-    }
-
-    private void VisitTreeClosest(ChunkTree? tree, in Ray2D ray, float maxT, ref RayBest best)
-    {
-        if (tree == null)
-        {
-            return;
-        }
-
-        RayCastResult2D result = tree.Tree.CastRayClosestHit(ray);
-        if (!result.Hit || result.HitInfo.Fraction > maxT)
-        {
-            return;
-        }
-
-        if (!best.Hit || result.HitInfo.Fraction < best.HitInfo.Fraction)
-        {
-            best.Hit = true;
-            best.HitInfo = result.HitInfo;
-            best.LeafIndex = result.Collider.UserData;
-        }
-    }
-
-    private void CollectBucketBounds(List<int>? bucket, in BoundingBox2D bounds, ICollection<object> collector)
-    {
-        if (bucket == null)
-        {
-            return;
-        }
-
-        for (int i = 0; i < bucket.Count; i++)
-        {
-            Leaf leaf = _leaves[bucket[i]];
-            if (leaf.Allocated && leaf.Bounds.Intersects(bounds))
-            {
-                collector.Add(leaf.Target!);
-            }
-        }
-    }
-
-    /// <summary>
-    /// Releases all native buffers owned by this world.
-    /// </summary>
-    /// <param name="disposing">True when called from <see cref="Dispose()"/>.</param>
-    protected override void Dispose(bool disposing)
-    {
-        for (int i = 0; i < _chunkTrees.Length; i++)
-        {
-            _chunkTrees[i]?.Dispose();
-            _chunkTrees[i] = null;
-        }
-
-        _bigTree?.Dispose();
-        _bigTree = null;
-        _builder.Dispose();
     }
 }

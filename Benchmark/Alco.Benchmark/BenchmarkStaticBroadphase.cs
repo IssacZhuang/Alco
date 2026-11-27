@@ -66,11 +66,8 @@ public unsafe class BenchmarkStaticBroadphase
         _singleBvh = new NativeBvh2D();
         _singleBvh.BuildTree(_colliders.AsSpan(), _mortonBuilder);
 
-        _chunkedLinear = new ChunkedCollisionWorld2D(-MapHalf, -MapHalf, GridDim, GridDim, ChunkSize)
-        {
-            TreeBuildThreshold = int.MaxValue,
-        };
-        _chunkedAdaptive = new ChunkedCollisionWorld2D(-MapHalf, -MapHalf, GridDim, GridDim, ChunkSize);
+        _chunkedLinear = new ChunkedCollisionWorld2D(ChunkSize, treeBuildThreshold: int.MaxValue);
+        _chunkedAdaptive = new ChunkedCollisionWorld2D(ChunkSize);
         _linearRegistrations = new IDisposable[_colliders.Length];
         _adaptiveRegistrations = new IDisposable[_colliders.Length];
         for (int i = 0; i < _colliders.Length; i++)
@@ -235,7 +232,7 @@ public unsafe class BenchmarkStaticBroadphase
     private void PrintStats()
     {
         Console.WriteLine($"[Stats] colliders={_colliders.Length} map={MapHalf * 2}x{MapHalf * 2} chunk={ChunkSize} " +
-            $"linear(trees={_chunkedLinear.TreeCount}) adaptive(trees={_chunkedAdaptive.TreeCount} bigBucket={_chunkedAdaptive.BigBucketCount})");
+            $"linear(chunks={_chunkedLinear.ChunkCount} nativeKB={_chunkedLinear.NativeMemoryBytes / 1024.0:F1}) adaptive(chunks={_chunkedAdaptive.ChunkCount} nativeKB={_chunkedAdaptive.NativeMemoryBytes / 1024.0:F1})");
     }
 
     private void Verify()

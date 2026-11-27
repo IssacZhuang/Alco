@@ -114,30 +114,65 @@ namespace Alco
         public static bool RaySphere(Vector3 rayOrigin, Vector3 rayDisplacement, Vector3 sphereCenter, float sphereRadius, ref float fraction, out Vector3 normal)
         {
             normal = Vector3.Zero;
-            Vector3 diff = rayOrigin - sphereCenter;
-            float a = math.dot(rayDisplacement, rayDisplacement);
-            float b = 2f * math.dot(rayDisplacement, diff);
-            float c = math.dot(diff, diff) - sphereRadius * sphereRadius;
-            float discriminant = b * b - 4f * a * c;
-            // Ray origin is inside the sphere (c < 0).
+            if (sphereRadius <= 0f)
+            {
+                return false;
+            }
+
+            double dx = rayDisplacement.X;
+            double dy = rayDisplacement.Y;
+            double dz = rayDisplacement.Z;
+            double lenSq = dx * dx + dy * dy + dz * dz;
+            if (lenSq <= 1e-20)
+            {
+                return false;
+            }
+
+            double ocX = (double)sphereCenter.X - rayOrigin.X;
+            double ocY = (double)sphereCenter.Y - rayOrigin.Y;
+            double ocZ = (double)sphereCenter.Z - rayOrigin.Z;
+            double r = sphereRadius;
+            double rSq = r * r;
+            double ocSq = ocX * ocX + ocY * ocY + ocZ * ocZ;
+            // Ray origin is inside the sphere (ocSq < rSq).
             // Consistent with RayBox: no hit when ray starts inside the shape.
-            if (c < 0f)
+            if (ocSq < rSq)
             {
                 return false;
             }
-            if (discriminant < 0f)
+
+            double bProj = ocX * dx + ocY * dy + ocZ * dz;
+            if (bProj < 0.0)
             {
                 return false;
             }
-            float sqrtDiscriminant = math.sqrt(discriminant);
-            float invDenom = 0.5f / a;
-            float t0 = (sqrtDiscriminant - b) * invDenom;
-            float t1 = (0f - sqrtDiscriminant - b) * invDenom;
-            float tMin = math.min(t0, t1);
-            if (tMin >= 0f && tMin < fraction)
+
+            // Geometric projection in double precision avoids catastrophic cancellation in b^2 - 4ac
+            // and float32 drift in disp * tc for long rays or large coordinates.
+            double invLenSq = 1.0 / lenSq;
+            double tc = bProj * invLenSq;
+            double mX = dx * tc - ocX;
+            double mY = dy * tc - ocY;
+            double mZ = dz * tc - ocZ;
+            double halfChordSq = rSq - (mX * mX + mY * mY + mZ * mZ);
+            if (halfChordSq < 0.0)
             {
-                fraction = tMin;
-                normal = (rayOrigin + rayDisplacement * fraction - sphereCenter) / sphereRadius;
+                return false;
+            }
+
+            double dt = Math.Sqrt(halfChordSq * invLenSq);
+            double tMin = tc - dt;
+            if (tMin < 0.0)
+            {
+                tMin = 0.0;
+                dt = tc;
+            }
+            float t = (float)tMin;
+            if (t < fraction)
+            {
+                fraction = t;
+                double invR = 1.0 / r;
+                normal = new Vector3((float)((mX - dx * dt) * invR), (float)((mY - dy * dt) * invR), (float)((mZ - dz * dt) * invR));
                 return true;
             }
             return false;

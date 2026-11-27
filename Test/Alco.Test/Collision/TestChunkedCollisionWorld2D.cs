@@ -121,14 +121,8 @@ public unsafe class TestChunkedCollisionWorld2D
     {
         FastRandom random = new FastRandom(20260817);
 
-        ChunkedCollisionWorld2D linearWorld = new ChunkedCollisionWorld2D(GridMin, GridMin, ChunkCount, ChunkCount, ChunkSize)
-        {
-            TreeBuildThreshold = int.MaxValue,
-        };
-        ChunkedCollisionWorld2D treeWorld = new ChunkedCollisionWorld2D(GridMin, GridMin, ChunkCount, ChunkCount, ChunkSize)
-        {
-            TreeBuildThreshold = 6,
-        };
+        ChunkedCollisionWorld2D linearWorld = new ChunkedCollisionWorld2D(ChunkSize, treeBuildThreshold: int.MaxValue);
+        ChunkedCollisionWorld2D treeWorld = new ChunkedCollisionWorld2D(ChunkSize, treeBuildThreshold: 6);
 
         List<ReferenceCollider> reference = new List<ReferenceCollider>();
         List<DualRegistration> registrations = new List<DualRegistration>();
@@ -159,8 +153,13 @@ public unsafe class TestChunkedCollisionWorld2D
             VerifyQueries(random, treeWorld, reference, $"tree round {round}");
         }
 
-        Assert.That(treeWorld.TreeCount, Is.GreaterThan(0), "tree world should have promoted buckets");
-        Assert.That(linearWorld.TreeCount, Is.EqualTo(0), "linear world must never promote");
+        Assert.That(treeWorld.ChunkCount, Is.GreaterThan(0), "tree world should have populated chunks");
+        Assert.That(treeWorld.DirtyChunkCount, Is.EqualTo(0), "rebuild should clear dirty chunks");
+        Assert.That(treeWorld.NativeMemoryBytes, Is.GreaterThan(0));
+        Assert.That(linearWorld.ChunkCount, Is.GreaterThan(0));
+        Assert.That(linearWorld.DirtyChunkCount, Is.GreaterThan(0), "linearWorld never called RebuildDirtyTrees");
+        linearWorld.RebuildDirtyTrees();
+        Assert.That(linearWorld.DirtyChunkCount, Is.EqualTo(0));
 
         linearWorld.Dispose();
         treeWorld.Dispose();
@@ -170,7 +169,7 @@ public unsafe class TestChunkedCollisionWorld2D
     [Test(Description = "chunked world empty and edge-case queries")]
     public void TestEdgeCases()
     {
-        ChunkedCollisionWorld2D world = new ChunkedCollisionWorld2D(GridMin, GridMin, ChunkCount, ChunkCount, ChunkSize);
+        ChunkedCollisionWorld2D world = new ChunkedCollisionWorld2D(ChunkSize);
         ListCollector collector = new ListCollector { HitIds = new List<int>() };
 
         world.CastPoint(ref collector, Vector2.Zero);
@@ -253,7 +252,7 @@ public unsafe class TestChunkedCollisionWorld2D
     [Test(Description = "chunked world collect-by-bounds region enumeration")]
     public void TestCollectTargets()
     {
-        ChunkedCollisionWorld2D world = new ChunkedCollisionWorld2D(GridMin, GridMin, ChunkCount, ChunkCount, ChunkSize);
+        ChunkedCollisionWorld2D world = new ChunkedCollisionWorld2D(ChunkSize);
         Target small = new Target(1);
         Target huge = new Target(2);
         world.Add(small, new ShapeSphere2D(new Vector2(10, 10), 1f));
@@ -454,5 +453,101 @@ public unsafe class TestChunkedCollisionWorld2D
             reference.Remove(registration.Collider!);
             registration.Dispose();
         }
+    }
+
+    /// <summary>Tests Dynamic TLAS mode against brute force.</summary>
+    [Test(Description = "chunked world fuzz against brute force in Dynamic TLAS mode")]
+    public void TestFuzzDynamicTlasMode()
+    {
+        FastRandom random = new FastRandom(20260999);
+        ChunkedCollisionWorld2D world = new ChunkedCollisionWorld2D(ChunkSize, treeBuildThreshold: 6, tlasMode: ChunkedTlasMode2D.Dynamic);
+
+        List<ReferenceCollider> reference = new List<ReferenceCollider>();
+        List<IDisposable> registrations = new List<IDisposable>();
+        int nextId = 0;
+        for (int round = 0; round < 3; round++)
+        {
+            if (round > 0)
+            {
+                for (int i = 0; i < 40 && registrations.Count > 80; i++)
+                {
+                    int index = (int)random.NextFloat(0, registrations.Count);
+                    IDisposable reg = registrations[index];
+                    registrations.RemoveAt(index);
+                    reference.RemoveAt(index);
+                    reg.Dispose();
+                }
+            }
+
+            while (registrations.Count < TargetCount)
+            {
+                Target target = new Target(nextId++);
+                ReferenceCollider collider = CreateRandomCollider(random, target);
+                registrations.Add(AddTo(collider, world));
+                reference.Add(collider);
+            }
+
+            VerifyQueries(random, world, reference, $"dynamic pre-rebuild round {round}");
+            world.RebuildDirtyTrees();
+            VerifyQueries(random, world, reference, $"dynamic post-rebuild round {round}");
+        }
+
+        world.Dispose();
+    }
+
+    /// <summary>Tests unbounded signed coordinates, UnloadChunk, stale handle safety, and multi-chunk early-out.</summary>
+    [Test(Description = "chunked world unbounded +-50000 coordinates, UnloadChunk, and multi-chunk early-out")]
+    public void TestUnboundedCoordinatesUnloadAndEarlyOut()
+    {
+        using ChunkedCollisionWorld2D world = new ChunkedCollisionWorld2D(chunkSize: 32, treeBuildThreshold: 4);
+        ListCollector collector = new ListCollector { HitIds = new List<int>() };
+
+        Target negFar = new Target(10);
+        Target posFar = new Target(20);
+        Target originBox = new Target(30);
+        IDisposable negReg = world.Add(negFar, new ShapeBox2D(new Vector2(-50000f, -50000f), new Vector2(4f, 4f), Rotation2D.Identity));
+        IDisposable posReg = world.Add(posFar, new ShapeSphere2D(new Vector2(50000f, 50000f), 2f));
+        IDisposable orgReg = world.Add(originBox, new ShapeBox2D(new Vector2(5f, 5f), new Vector2(2f, 2f), Rotation2D.Identity));
+
+        collector.HitIds.Clear();
+        world.CastPoint(ref collector, new Vector2(-50000f, -50000f));
+        Assert.That(collector.HitIds, Is.EqualTo(new List<int> { 10 }));
+        Assert.That(world.TryCastRayClosestHit<Target>(new Ray2D(new Vector2(49990f, 50000f), new Vector2(20f, 0f)), out Target? sphereHit, out _), Is.True);
+        Assert.That(sphereHit, Is.EqualTo(posFar));
+
+        world.RebuildDirtyTrees();
+        Assert.That(world.DirtyChunkCount, Is.EqualTo(0));
+        collector.HitIds.Clear();
+        world.CastBox(ref collector, new ShapeBox2D(new Vector2(-50001f, -50001f), new Vector2(2f, 2f), Rotation2D.Identity));
+        Assert.That(collector.HitIds, Is.EqualTo(new List<int> { 10 }));
+
+        world.Add(new Target(40), new ShapeBox2D(new Vector2(100f, 5f), new Vector2(2f, 2f), Rotation2D.Identity));
+        world.Add(new Target(50), new ShapeBox2D(new Vector2(150f, 5f), new Vector2(2f, 2f), Rotation2D.Identity));
+        world.Add(new Target(60), new ShapeBox2D(new Vector2(200f, 5f), new Vector2(2f, 2f), Rotation2D.Identity));
+        world.RebuildDirtyTrees();
+
+        CountingCollector stopAfterTwo = new CountingCollector();
+        world.CastBox(ref stopAfterTwo, new ShapeBox2D(new Vector2(150f, 5f), new Vector2(120f, 10f), Rotation2D.Identity));
+        Assert.That(stopAfterTwo.Count, Is.EqualTo(2), "multi-chunk CastBox must honor collector early-out");
+
+        int2 negChunk = ChunkUtility.CellToChunk(new int2(-50000, -50000), ChunkUtility.DefaultChunkShift);
+        Assert.That(world.UnloadChunk(negChunk), Is.EqualTo(1));
+        Assert.That(world.UnloadChunk(negChunk), Is.EqualTo(0));
+
+        IDisposable replacement = world.Add(new Target(70), new ShapeBox2D(new Vector2(-50000f, -50000f), new Vector2(2f, 2f), Rotation2D.Identity));
+        negReg.Dispose();
+        collector.HitIds.Clear();
+        world.CastPoint(ref collector, new Vector2(-50000f, -50000f));
+        Assert.That(collector.HitIds, Is.EqualTo(new List<int> { 70 }), "disposing stale pre-unload registration must not remove replacement");
+
+        world.Clear();
+        IDisposable postClear = world.Add(new Target(80), new ShapeBox2D(new Vector2(5f, 5f), new Vector2(2f, 2f), Rotation2D.Identity));
+        orgReg.Dispose();
+        posReg.Dispose();
+        replacement.Dispose();
+        collector.HitIds.Clear();
+        world.CastPoint(ref collector, new Vector2(5f, 5f));
+        Assert.That(collector.HitIds, Is.EqualTo(new List<int> { 80 }));
+        postClear.Dispose();
     }
 }

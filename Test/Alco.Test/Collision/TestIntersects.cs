@@ -158,6 +158,75 @@ namespace Alco.Test
 
             Assert.IsTrue(CollisionUtility3D.PointBox(point, box));
         }
+
+        /// <summary>
+        /// Regression tests for float32 catastrophic cancellation in 2D and 3D RaySphere
+        /// across very long rays, large world coordinates, tiny radii, inside starts, and behind-ray spheres.
+        /// </summary>
+        [Test(Description = "long-ray and large-coordinate RaySphere precision in 2D and 3D")]
+        public void TestRaySphereNumericalPrecision2DAnd3D()
+        {
+            // 2D: 60000-unit ray grazing/hitting a tiny r=0.15 sphere near midpoint and at +/-50000
+            float fraction2D = 1f;
+            Assert.IsTrue(CollisionUtility2D.RaySphere(
+                new Vector2(0f, 0f),
+                new Vector2(60000f, 0f),
+                new Vector2(30000f, 0.05f),
+                0.15f,
+                ref fraction2D,
+                out Vector2 n2D));
+            Assert.That(fraction2D, Is.InRange(0.49f, 0.501f));
+            Assert.That(n2D.Length(), Is.EqualTo(1f).Within(1e-3f));
+
+            // 2D narrow miss at long distance
+            float missFraction2D = 1f;
+            Assert.IsFalse(CollisionUtility2D.RaySphere(
+                new Vector2(-50000f, -50000f),
+                new Vector2(100000f, 0f),
+                new Vector2(0f, -50000f + 0.25f),
+                0.15f,
+                ref missFraction2D,
+                out _));
+
+            // 2D inside sphere -> miss, behind ray -> miss
+            float inside2D = 1f;
+            Assert.IsFalse(CollisionUtility2D.RaySphere(
+                new Vector2(50000f, 50000f),
+                new Vector2(100f, 0f),
+                new Vector2(50000.05f, 50000f),
+                0.2f,
+                ref inside2D,
+                out _));
+            Assert.IsFalse(CollisionUtility2D.RaySphere(
+                new Vector2(50000f, 50000f),
+                new Vector2(100f, 0f),
+                new Vector2(49990f, 50000f),
+                0.2f,
+                ref inside2D,
+                out _));
+
+            // 3D: 60000-unit ray hitting tiny r=0.15 sphere at +/-50000 coordinates
+            float fraction3D = 1f;
+            Assert.IsTrue(CollisionUtility3D.RaySphere(
+                new Vector3(-50000f, 50000f, -25000f),
+                new Vector3(100000f, 0f, 0f),
+                new Vector3(0f, 50000f + 0.05f, -25000f),
+                0.15f,
+                ref fraction3D,
+                out Vector3 n3D));
+            Assert.That(fraction3D, Is.InRange(0.49f, 0.501f));
+            Assert.That(n3D.Length(), Is.EqualTo(1f).Within(1e-3f));
+
+            // 3D narrow miss at large coordinates
+            float missFraction3D = 1f;
+            Assert.IsFalse(CollisionUtility3D.RaySphere(
+                new Vector3(-50000f, 50000f, -25000f),
+                new Vector3(100000f, 0f, 0f),
+                new Vector3(0f, 50000f + 0.25f, -25000f),
+                0.15f,
+                ref missFraction3D,
+                out _));
+        }
     }
 }
 
