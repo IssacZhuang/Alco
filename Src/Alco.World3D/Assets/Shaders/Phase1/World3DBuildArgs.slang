@@ -33,9 +33,12 @@ public struct BuildArgsRoot
     public GPUBufferView Selection;
     public GPUBufferView Args;
     public GPUBufferView DrawRefs;
+    public GPUBufferView TargetViewSlots;
+    public GPUBufferView Phase2Args;
     public uint InstanceCount;
     public uint CandidateCount;
     public uint GroupsX;
+    public uint Flags; // bit 0 = DirectZeroBase (Phase 2 single view), bit 1 = ClearPhase2Args when viewSlot == 0
 };
 
 [shader("compute")]
@@ -47,13 +50,16 @@ public void MainCS(uint3 group : SV_GroupID, uint lane : SV_GroupIndex)
     if (i >= root.CandidateCount)
         return;
 
+    bool directZeroBase = (root.Flags & 1u) != 0u;
+    uint viewSlot = directZeroBase ? 0u : gpu_load<uint>(root.TargetViewSlots, group.z);
+
     DrawCandidate candidate = gpu_load<DrawCandidate>(root.Candidates, i);
     IndexedDrawArgs args = (IndexedDrawArgs)0;
     DrawRef drawRef = (DrawRef)0;
     if (candidate.InstanceSlotPlusOne != 0u)
     {
         uint slot = candidate.InstanceSlotPlusOne - 1u;
-        uint selected = gpu_load<uint>(root.Selection, group.z * root.InstanceCount + slot);
+        uint selected = gpu_load<uint>(root.Selection, viewSlot * root.InstanceCount + slot);
         if (selected < WORLD3D_MAX_GEOMETRY_LODS)
         {
             World3DInstanceGpu instance = world3d_load_instance(root.Directory, slot);
@@ -68,7 +74,11 @@ public void MainCS(uint3 group : SV_GroupID, uint lane : SV_GroupIndex)
             }
         }
     }
-    uint dst = group.z * root.CandidateCount + i;
+
+    uint dst = viewSlot * root.CandidateCount + i;
     gpu_store<IndexedDrawArgs>(root.Args, dst, args);
     gpu_store<DrawRef>(root.DrawRefs, dst, drawRef);
+
+    if (!directZeroBase && (root.Flags & 2u) != 0u && viewSlot == 0u)
+        gpu_store<IndexedDrawArgs>(root.Phase2Args, i, (IndexedDrawArgs)0);
 }

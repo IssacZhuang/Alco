@@ -56,8 +56,9 @@ public sealed class TestWorld3DPhase1
             Assert.Ignore($"The bundled shader compiler cannot emit {target} on this host.");
 
         using ShaderCompiler compiler = new(target, new ShaderCompilerOptions { SearchPaths = [] });
-        ReadOnlySpan<string> modules = ["World3DSceneData", "World3DCullSelect", "World3DBuildArgs",
-            "World3DAtmosphere", "World3DDeferredLighting", "World3DSurface", "World3DPbrStandard", "World3DGBuffer"];
+        ReadOnlySpan<string> modules = ["World3DSceneData", "World3DOcclusionCommon", "World3DShadowSample",
+            "World3DCullSelect", "World3DBuildArgs", "World3DAtmosphere", "World3DDeferredLighting",
+            "World3DSurface", "World3DPbrStandard", "World3DGBuffer"];
         foreach (string module in modules)
         {
             string file = module + ".slang";
@@ -68,7 +69,7 @@ public sealed class TestWorld3DPhase1
         compiler.RegisterVirtualModule(SurfaceModule, SurfaceModule + ".slang", SurfaceSource);
 
         ReadOnlySpan<(string Module, uint RootBytes)> kernels =
-            [("World3DCullSelect", 36), ("World3DBuildArgs", 52), ("World3DDeferredLighting", 128)];
+            [("World3DCullSelect", 100), ("World3DBuildArgs", 72), ("World3DDeferredLighting", 144)];
         foreach ((string module, uint bytes) in kernels)
             Assert.That(compiler.Compile(module, ShaderPipelineKind.Compute).Reflection.Root?.SizeBytes, Is.EqualTo(bytes), module);
 
@@ -357,6 +358,8 @@ public sealed class TestWorld3DPhase1
                     bufferHeapByteCount: 2 * 1024 * 1024, uploadStagingByteCount: 64 * 1024);
                 Context = context = new RenderContext(System);
                 Scene = new World3DScene(System);
+                Scene.Occlusion.Enabled = false;
+                Scene.Shadows.Enabled = false;
             }
             catch
             {

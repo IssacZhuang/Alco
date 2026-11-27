@@ -2,19 +2,24 @@
 module World3DDeferredLighting;
 
 import Core;
+import SharedSampler;
 import World3DSceneData;
 import World3DAtmosphere;
+import World3DShadowSample;
 
 [GPURoot]
 public struct DeferredLightingRoot
 {
     public GPUBufferView Views;
+    public GPUBufferView ShadowFrame;
     public GPUTextureId Albedo;
     public GPUTextureId Normal;
     public GPUTextureId Material;
     public GPUTextureId Emissive;
     public GPUTextureId Depth;
     public GPUTextureId Hdr;
+    public uint Reserved0;
+    public uint Reserved1;
     public float4 SunDirectionAndIntensity;
     public float4 SunColorAndDiscCosRadius;
     public float4 Atmosphere;
@@ -29,6 +34,16 @@ float3 decodeAlbedo(float3 color)
     float3 linear = color / 12.92;
     float3 nonlinear = pow((color + 0.055) / 1.055, 2.4);
     return lerp(nonlinear, linear, step(color, float3(0.04045)));
+}
+
+float3 decodeGeometryNormal(float2 encoded)
+{
+    float2 f = encoded * 2.0 - 1.0;
+    float3 gn = float3(f.x, f.y, 1.0 - abs(f.x) - abs(f.y));
+    float t = saturate(-gn.z);
+    gn.xy += float2(gn.x >= 0.0 ? -t : t, gn.y >= 0.0 ? -t : t);
+    float lenSq = dot(gn, gn);
+    return lenSq > 0.0 && isfinite(lenSq) ? gn * rsqrt(lenSq) : float3(0.0, 0.0, 1.0);
 }
 
 float geometrySchlickGGX(float cosine, float k)
@@ -80,6 +95,16 @@ float4 loadGBuffer(GPUTextureId id, int3 pixel)
     return texture.Load(pixel);
 }
 
+float3 cascadeDebugColor(int cascadeIndex)
+{
+    if (cascadeIndex == 0) return float3(0.15, 0.85, 0.25);
+    if (cascadeIndex == 1) return float3(0.95, 0.85, 0.15);
+    if (cascadeIndex == 2) return float3(0.95, 0.45, 0.10);
+    if (cascadeIndex == 3) return float3(0.90, 0.15, 0.20);
+    if (cascadeIndex == 4) return float3(0.80, 0.20, 0.90);
+    return float3(0.20, 0.70, 0.95);
+}
+
 [shader("compute")]
 [numthreads(8, 8, 1)]
 void MainCS(uint3 id : SV_DispatchThreadID)
@@ -95,11 +120,26 @@ void MainCS(uint3 id : SV_DispatchThreadID)
     float2 uv = (float2(id.xy) + 0.5) * view.ViewportSizeInvSize.zw;
     float2 ndc = uv * float2(2.0, -2.0) + float2(-1.0, 1.0);
     float4 eyeRelativeH = mul(float4(ndc, depth, 1.0), view.CameraInvVP);
-    // At depth zero this is a homogeneous direction (w = 0). For geometry w is
-    // positive, and cancels when normalizing. Neither path needs a perspective divide.
     float3 ray = normalize(eyeRelativeH.xyz);
 
+    World3DShadowFrameGpu shadowFrame = gpu_load<World3DShadowFrameGpu>(root.ShadowFrame, 0);
     RWTexture2D<float4> hdr = gpu_texture<RWTexture2D<float4>>(root.Hdr.index);
+
+    if (shadowFrame.DebugView == 5u && (shadowFrame.Flags & WORLD3D_SHADOW_FLAG_HIZ_ACTIVE) != 0u && shadowFrame.HiZTex.index != 0u)
+    {
+        Texture2D<float2> hizTex = gpu_texture<Texture2D<float2>>(shadowFrame.HiZTex.index);
+        float2 hz = hizTex.SampleLevel(shared_sampler_nearest_clamp(), uv, 0.0);
+        hdr[id.xy] = float4(saturate(hz.r * 16.0), saturate(hz.g * 16.0), depth > 0.0 ? 0.15 : 0.0, 1.0);
+        return;
+    }
+
+    if (shadowFrame.DebugView == 6u && (shadowFrame.Flags & WORLD3D_SHADOW_FLAG_RSM_ACTIVE) != 0u && shadowFrame.RsmFluxTex.index != 0u)
+    {
+        Texture2D<float4> rsmTex = gpu_texture<Texture2D<float4>>(shadowFrame.RsmFluxTex.index);
+        hdr[id.xy] = float4(rsmTex.SampleLevel(shared_sampler_linear_clamp(), uv, 0.0).rgb, 1.0);
+        return;
+    }
+
     if (depth == 0.0)
     {
         float3 sky = world3d_sky_color(ray, root.SunDirectionAndIntensity.xyz, root.Atmosphere, root.Sky,
@@ -108,13 +148,45 @@ void MainCS(uint3 id : SV_DispatchThreadID)
         return;
     }
 
+    float4 normalSample = loadGBuffer(root.Normal, pixel);
+    float4 emissiveSample = loadGBuffer(root.Emissive, pixel);
     float3 albedo = decodeAlbedo(loadGBuffer(root.Albedo, pixel).rgb);
-    float3 n = normalize(loadGBuffer(root.Normal, pixel).xyz * 2.0 - 1.0);
+    float3 n = normalize(normalSample.xyz * 2.0 - 1.0);
+    float3 geometryNormal = decodeGeometryNormal(float2(normalSample.a, emissiveSample.a));
     float3 material = loadGBuffer(root.Material, pixel).xyz;
-    float3 emissive = loadGBuffer(root.Emissive, pixel).rgb;
+    float3 emissive = emissiveSample.rgb;
+
+    float3 eyeRelPos = eyeRelativeH.xyz / max(eyeRelativeH.w, 1e-6);
+    World3DShadowEval shadowEval = world3d_evaluate_sun_shadow(shadowFrame, view, eyeRelPos, geometryNormal);
+
+    if (shadowFrame.DebugView == 1u)
+    {
+        float3 dbg = cascadeDebugColor(shadowEval.CascadeIndex) * (0.35 + 0.65 * shadowEval.Visibility);
+        hdr[id.xy] = float4(dbg, 1.0);
+        return;
+    }
+    if (shadowFrame.DebugView == 2u)
+    {
+        hdr[id.xy] = float4(float3(shadowEval.Visibility), 1.0);
+        return;
+    }
+    if (shadowFrame.DebugView == 3u)
+    {
+        float3 mmColor = shadowEval.MinMaxState == 1u ? float3(0.15, 0.85, 0.25)
+            : (shadowEval.MinMaxState == 2u ? float3(0.90, 0.15, 0.15)
+            : (shadowEval.MinMaxState == 3u ? float3(0.95, 0.85, 0.15) : float3(0.25, 0.35, 0.65)));
+        hdr[id.xy] = float4(mmColor * (0.4 + 0.6 * shadowEval.Visibility), 1.0);
+        return;
+    }
+    if (shadowFrame.DebugView == 4u)
+    {
+        float b = shadowEval.FarBlendWeight;
+        hdr[id.xy] = float4(lerp(float3(0.15, 0.70, 0.30), float3(0.90, 0.30, 0.85), b) * (0.4 + 0.6 * shadowEval.Visibility), 1.0);
+        return;
+    }
 
     float3 direct = evaluateDirectSun(n, -ray, root.SunDirectionAndIntensity.xyz, albedo, material.x, material.y)
-        * root.SunColorAndDiscCosRadius.xyz * root.SunDirectionAndIntensity.w;
+        * root.SunColorAndDiscCosRadius.xyz * root.SunDirectionAndIntensity.w * shadowEval.Visibility;
     float3 indirect = evaluateDiffuseEnvironment(n.z, root.SkyHorizonAndDiscBrightness.xyz, root.SkyZenith.xyz, root.Sky.w)
         * albedo * (1.0 - material.x) * material.z;
     hdr[id.xy] = float4(direct + indirect + emissive, 1.0);

@@ -9,6 +9,7 @@ public sealed partial class World3DScene
     private RenderContext? _context;
     private ulong _recordedFrame;
     private ulong _recordedDiscardVersion;
+    private World3DCamera _recordedCamera;
     private World3DView _recordedView;
     private World3DView? _submittedView;
     private bool _recordingSucceeded;
@@ -41,12 +42,16 @@ public sealed partial class World3DScene
         _context = context;
         _recordedFrame = context.CurrentFrameId;
         _recordedDiscardVersion = context.DiscardVersion;
+        _recordedCamera = camera;
         _recordedView = view;
         _recordedWorld = output.IsValid && renderWorld;
         _gpu.ResetJobs();
         LastRecordedSync = default;
         LastRecordedDraws = default;
+        LastRecordedOcclusion = default;
+        LastRecordedShadows = default;
         ulong geometryBytes = PrepareGeometryCopies(context);
+        PrepareOcclusion(context, viewport);
         PrepareGeometryPasses(context);
         _gpu.PrepareTables(context);
         _graph.Execute(context, output, outputFinalUsage: outputFinalUsage);
@@ -67,6 +72,9 @@ public sealed partial class World3DScene
         bool submitted = _recordingSucceeded && !context.IsDisposed && context.DiscardVersion == _recordedDiscardVersion;
         _submittedWorld = submitted && _recordedWorld;
         CompleteGeometryCopies(submitted);
+        ReconcileOcclusion(submitted);
+        ReconcileShadows(submitted);
+        ReconcileFarShadow(submitted);
         _stagedDrawLods.Clear();
         if (_recordedWorld)
         {

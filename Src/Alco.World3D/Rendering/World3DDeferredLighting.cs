@@ -65,6 +65,10 @@ public sealed partial class World3DScene
         const string lightingModule = "World3DDeferredLighting";
         ShaderSystem shaders = _system.Shaders;
         shaders.Compiler.RegisterVirtualModule(atmosphereModule, atmosphereModule + ".slang", ReadWorldShader(atmosphereModule));
+        IReadOnlyList<ShaderTypeLayout> shadowTypes = shaders.Compiler.LoadModuleFromSource(
+            "World3DShadowSample", "World3DShadowSample.slang", ReadWorldShader("World3DShadowSample")).GetTypes();
+        GpuStore.ValidateLayout<World3DCascadeGpu>(shadowTypes.First(t => t.TypeName == nameof(World3DCascadeGpu)));
+        GpuStore.ValidateLayout<World3DShadowFrameGpu>(shadowTypes.First(t => t.TypeName == nameof(World3DShadowFrameGpu)));
         Shader lightingShader = shaders.GetShaderFromSource(lightingModule, lightingModule + ".slang",
             ReadWorldShader(lightingModule), ShaderKind.Compute);
         ValidateRoot<DeferredLightingRoot>(lightingShader.Reflection.Root
@@ -78,16 +82,19 @@ public sealed partial class World3DScene
             .Use(bloom).Use(tonemap).Use(fxaa);
     }
 
-    [StructLayout(LayoutKind.Sequential)]
+    [StructLayout(LayoutKind.Sequential, Size = 144)]
     private struct DeferredLightingRoot
     {
         public GPUBufferView Views;
+        public GPUBufferView ShadowFrame;
         public GPUTextureId Albedo;
         public GPUTextureId Normal;
         public GPUTextureId Material;
         public GPUTextureId Emissive;
         public GPUTextureId Depth;
         public GPUTextureId Hdr;
+        public uint Reserved0;
+        public uint Reserved1;
         public Vector4 SunDirectionAndIntensity;
         public Vector4 SunColorAndDiscCosRadius;
         public Vector4 Atmosphere;
@@ -142,6 +149,18 @@ public sealed partial class World3DScene
 
             RenderGraphPassBuilder pass = builder.AddPass("World3D.DeferredLighting");
             pass.Read(builder.ImportBuffer(views.Buffer!, "World3D.Views"), RGUsage.ComputeRead);
+            if (!_scene._frameShadowData.IsEmpty)
+                pass.Read(builder.ImportBuffer(_scene._frameShadowData.Buffer!, "World3D.ShadowFrame"), RGUsage.ComputeRead);
+            if (_scene._frameShadowArrayRG.IsValid)
+                pass.Read(_scene._frameShadowArrayRG, RGUsage.ComputeRead);
+            if (_scene._frameShadowMinMaxRG.IsValid)
+                pass.Read(_scene._frameShadowMinMaxRG, RGUsage.ComputeRead);
+            if (_scene._frameFarHeightRG.IsValid)
+                pass.Read(_scene._frameFarHeightRG, RGUsage.ComputeRead);
+            if (_scene._frameRsmFluxRG.IsValid)
+                pass.Read(_scene._frameRsmFluxRG, RGUsage.ComputeRead);
+            if (_scene._frameCurrHiZ.IsValid)
+                pass.Read(_scene._frameCurrHiZ, RGUsage.ComputeRead);
             pass.Read(gbuffer.Albedo, RGUsage.ComputeRead);
             pass.Read(gbuffer.Normal, RGUsage.ComputeRead);
             pass.Read(gbuffer.Material, RGUsage.ComputeRead);
@@ -162,6 +181,7 @@ public sealed partial class World3DScene
             GBufferTargets gbuffer = _scene._gbufferTargets;
             DeferredLightingRoot root = _cachedEnvironment;
             root.Views = _scene._frameViews.View;
+            root.ShadowFrame = _scene._frameShadowData.View;
             root.Albedo = GPUTextureId.FromSampled(context.GetTexture(gbuffer.Albedo));
             root.Normal = GPUTextureId.FromSampled(context.GetTexture(gbuffer.Normal));
             root.Material = GPUTextureId.FromSampled(context.GetTexture(gbuffer.Material));

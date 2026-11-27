@@ -23,6 +23,7 @@ public sealed partial class World3DScene : IDisposable
     private readonly SlotMap<TextureEntry> _textures = new();
     private readonly List<Action> _retireOnSubmit = [];
     private readonly ConcurrentQueue<Action[]> _retired = new();
+    private ulong _shadowSceneRevision = 1;
     private bool _disposed;
 
     /// <summary>Creates an empty scene using the given rendering system.</summary>
@@ -33,9 +34,16 @@ public sealed partial class World3DScene : IDisposable
         ObjectDisposedException.ThrowIf(system.IsDisposed, system);
         _system = system;
         _gpu = new GpuStore(system);
+        ShaderCompiler compiler = system.Shaders.Compiler;
+        compiler.RegisterVirtualModule("World3DOcclusionCommon", "World3DOcclusionCommon.slang", ReadWorldShader("World3DOcclusionCommon"));
+        compiler.RegisterVirtualModule("World3DShadowSample", "World3DShadowSample.slang", ReadWorldShader("World3DShadowSample"));
         _gbufferPrograms = new GBufferPrograms(system);
         _graph = new RenderGraph(system, new Extent2D(1, 1), "World3D")
-            .Use(new SyncNode(_gpu)).Use(new ClearNode(this)).Use(new GeometryPasses(this));
+            .Use(new SyncNode(_gpu))
+            .Use(new ClearNode(this))
+            .Use(new GeometryPasses(this))
+            .Use(new ShadowPasses(this))
+            .Use(new FarShadowPasses(this));
         AddLightingPipeline();
     }
 
@@ -45,8 +53,23 @@ public sealed partial class World3DScene : IDisposable
     /// <summary>Gets or sets the maximum camera draw distance; nonpositive values leave it unlimited.</summary>
     public float MaximumDrawDistance { get; set; }
 
+    /// <summary>Gets the GPU occlusion culling configuration for this scene.</summary>
+    public World3DOcclusionSettings Occlusion { get; } = new();
+
+    /// <summary>Gets the directional CSM, static far cascade, far heightfield, and RSM shadow configuration.</summary>
+    public World3DShadowSettings Shadows { get; } = new();
+
+    /// <summary>Gets or sets the diagnostic visualization overlay for deferred lighting.</summary>
+    public World3DLightingDebugView LightingDebugView { get; set; } = World3DLightingDebugView.None;
+
     /// <summary>Gets the GBuffer submissions recorded in the most recent frame.</summary>
     public World3DDrawStats LastRecordedDraws { get; private set; }
+
+    /// <summary>Gets the occlusion configuration and latest completed async GPU cull readback counters.</summary>
+    public World3DOcclusionStats LastRecordedOcclusion { get; private set; }
+
+    /// <summary>Gets the shadow update, cache, and far-field status for the most recently recorded frame.</summary>
+    public World3DShadowStats LastRecordedShadows { get; private set; }
 
     /// <summary>Gets the number of logically live instances.</summary>
     public int InstanceCount => _instances.Count;
@@ -75,10 +98,13 @@ public sealed partial class World3DScene : IDisposable
         BeginEdit();
         if (!TryGetSector(handle, out SectorEntry? sector))
             return false;
+        bool detachedAny = sector.Instances.Count != 0;
         foreach (int slot in sector.Instances)
             RemoveInstance(slot, _instances.GetLive(slot), unlinkSector: false);
         _sectors.Remove(handle.Slot);
         _sectors.Reclaim(handle.Slot);
+        if (detachedAny)
+            MarkShadowSceneDirty();
         return true;
     }
 
@@ -152,6 +178,8 @@ public sealed partial class World3DScene : IDisposable
             _dirtyDrawInstances.UnionWith(material.Instances);
         }
         _gpu.SetMaterial(handle.Slot, in gpu);
+        if (material.Instances.Count != 0)
+            MarkShadowSceneDirty();
         return true;
     }
 
@@ -271,6 +299,7 @@ public sealed partial class World3DScene : IDisposable
         LinkInstance(slot, instance);
         _dirtyDrawInstances.Add(slot);
         _gpu.SetInstance(slot, in gpu);
+        MarkShadowSceneDirty();
         handle = new WorldInstanceHandle(_id, slot, generation);
         return true;
     }
@@ -291,6 +320,7 @@ public sealed partial class World3DScene : IDisposable
         _instances.SetLive(handle.Slot, instance);
         LinkInstance(handle.Slot, instance);
         _gpu.SetInstance(handle.Slot, in gpu);
+        MarkShadowSceneDirty();
         return true;
     }
 
@@ -330,9 +360,15 @@ public sealed partial class World3DScene : IDisposable
         _graph.Dispose();
         _gbufferPrograms.Dispose();
         _drawLayout.Dispose();
+        DisposeOcclusionResources();
+        DisposeShadowResources();
+        DisposeFarShadowResources();
         _selection?.Dispose();
+        _phase2Selection?.Dispose();
         _drawArgs?.Dispose();
+        _phase2DrawArgs?.Dispose();
         _drawRefs?.Dispose();
+        _phase2DrawRefs?.Dispose();
         _gpu.Dispose();
         foreach (TextureEntry texture in _textures.LiveValues())
             texture.Texture.Dispose();
@@ -385,10 +421,13 @@ public sealed partial class World3DScene : IDisposable
             !TryGetMaterial(desc.Material, out MaterialEntry? material) || !TryGetSector(desc.Sector, out SectorEntry? sector) ||
             !World3DSceneCoordinates.TryPackInstance(desc.Transform, geometry.LocalMin, geometry.LocalMax, out World3DInstanceSpatialGpu spatial))
             return false;
-        gpu = new InstanceGpu(spatial, (uint)desc.Geometry.Slot, (uint)desc.Material.Slot, 1, desc.Fade);
+        uint instanceFlags = desc.CastsShadow ? 3u : 1u;
+        gpu = new InstanceGpu(spatial, (uint)desc.Geometry.Slot, (uint)desc.Material.Slot, instanceFlags, desc.Fade);
         instance = new InstanceEntry(desc, geometry, material, sector);
         return true;
     }
+
+    private void MarkShadowSceneDirty() => ++_shadowSceneRevision;
 
     private static void LinkInstance(int slot, InstanceEntry instance)
     {
@@ -411,6 +450,7 @@ public sealed partial class World3DScene : IDisposable
         _instances.Remove(slot);
         _dirtyDrawInstances.Add(slot);
         _gpu.SetInstance(slot, default);
+        MarkShadowSceneDirty();
         _retireOnSubmit.Add(() => _instances.Reclaim(slot));
     }
 

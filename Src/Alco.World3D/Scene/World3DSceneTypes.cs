@@ -100,8 +100,9 @@ public readonly record struct World3DMaterialDesc
 /// <param name="Material">The instance's material.</param>
 /// <param name="Transform">The authoritative double-position transform.</param>
 /// <param name="Fade">The authored opacity multiplier in [0, 1].</param>
+/// <param name="CastsShadow">Whether the instance renders into sun shadow maps and far-field capture.</param>
 public readonly record struct World3DInstanceDesc(WorldSectorHandle Sector, WorldGeometryHandle Geometry,
-    WorldMaterialHandle Material, World3DTransform Transform, float Fade = 1);
+    WorldMaterialHandle Material, World3DTransform Transform, float Fade = 1, bool CastsShadow = true);
 
 /// <summary>Counts persistent scene uploads recorded in a frame, excluding per-view data.</summary>
 /// <param name="GeometryBytes">Bytes of vertex and index payload copied.</param>

@@ -58,6 +58,23 @@ public sealed partial class World3DScene
         [FieldOffset(28)] private readonly uint Reserved1 = 0;
     }
 
+    [StructLayout(LayoutKind.Explicit, Size = 128)]
+    private readonly record struct World3DCullViewGpu(
+        [field: FieldOffset(0)] Matrix4x4 ViewProj,
+        [field: FieldOffset(64)] World3DCell EyeCell,
+        [field: FieldOffset(80)] Vector4 EyeLocalNear,
+        [field: FieldOffset(96)] uint TargetViewSlot,
+        [field: FieldOffset(100)] uint Flags,
+        [field: FieldOffset(104)] float MinObjectRadius,
+        [field: FieldOffset(108)] float MinTexelLodBiasMeters,
+        [field: FieldOffset(112)] float MaxDistance,
+        [field: FieldOffset(116)] uint Reserved0 = 0,
+        [field: FieldOffset(120)] uint Reserved1 = 0,
+        [field: FieldOffset(124)] uint Reserved2 = 0);
+
+    [StructLayout(LayoutKind.Sequential, Size = 8)]
+    private readonly record struct World3DOccludedCandidate(uint InstanceSlot, uint Lod);
+
     [StructLayout(LayoutKind.Explicit, Size = 32)]
     private readonly record struct ScatterRoot(
         [field: FieldOffset(0)] GPUBufferView Patches,
@@ -512,6 +529,8 @@ public sealed partial class World3DScene
 
             ValidateLayout<World3DInstanceSpatialGpu>(Find(nameof(World3DInstanceSpatialGpu)));
             ValidateLayout<World3DView>(Find(nameof(World3DView)));
+            ValidateLayout<World3DCullViewGpu>(Find(nameof(World3DCullViewGpu)));
+            ValidateLayout<World3DOccludedCandidate>(Find(nameof(World3DOccludedCandidate)));
             ValidateLayout<InstanceGpu>(Find("World3DInstanceGpu"));
             ValidateLayout<MaterialGpu>(Find("World3DMaterialGpu"));
             ValidateLayout<GeometryLodGpu>(Find("World3DGeometryLodGpu"));

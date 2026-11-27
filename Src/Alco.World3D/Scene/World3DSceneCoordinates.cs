@@ -153,6 +153,26 @@ public readonly struct World3DView
         return true;
     }
 
+    /// <summary>Creates a view payload for a cell-relative orthographic shadow or capture pass.</summary>
+    /// <param name="viewProj">The row-major linear Forward-Z [0, 1] orthographic matrix relative to <paramref name="eyeCell"/> and <paramref name="eyeLocal"/>.</param>
+    /// <param name="eyeCell">The snapped cell anchor for this shadow/capture frustum.</param>
+    /// <param name="eyeLocal">The cell-local anchor offset (xyz).</param>
+    /// <param name="resolution">The square target resolution in texels.</param>
+    /// <param name="view">Receives the constructed view payload when <paramref name="viewProj"/> is invertible and finite.</param>
+    /// <returns>True when the orthographic transform is finite and invertible.</returns>
+    public static bool TryCreateOrthographic(in Matrix4x4 viewProj, World3DCell eyeCell, Vector3 eyeLocal, int resolution,
+        out World3DView view)
+    {
+        view = default;
+        if (resolution <= 0 || !IsFinite(viewProj) || !Matrix4x4.Invert(viewProj, out Matrix4x4 invVP) || !IsFinite(invVP))
+            return false;
+        float size = resolution;
+        float invSize = 1f / size;
+        view = new World3DView(viewProj, invVP, eyeCell, eyeCell,
+            new Vector4(eyeLocal, 0f), new Vector4(size, size, invSize, invSize));
+        return true;
+    }
+
     private static bool IsWithinAnchorAxis(double value, int anchorCell)
     {
         const int cellSize = World3DSceneCoordinates.CellSize;

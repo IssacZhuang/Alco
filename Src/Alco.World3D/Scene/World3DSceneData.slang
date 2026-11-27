@@ -15,8 +15,16 @@ public static const uint WORLD3D_GEOMETRY_PAYLOAD_WINDOW = 3u * WORLD3D_DIRECTOR
 public static const float WORLD3D_CELL_SIZE = 512.0;
 
 public static const uint WORLD3D_INSTANCE_LIVE = 1u;
+public static const uint WORLD3D_INSTANCE_CAST_SHADOW = 2u;
 public static const uint WORLD3D_MATERIAL_ALPHA_MODE_MASK = 3u;
 public static const uint WORLD3D_MATERIAL_DOUBLE_SIDED = 4u;
+
+public static const uint WORLD3D_CULL_VIEW_ENABLED = 1u;
+public static const uint WORLD3D_CULL_VIEW_ORTHOGRAPHIC = 2u;
+public static const uint WORLD3D_CULL_VIEW_SHADOW_CASTER_ONLY = 4u;
+public static const uint WORLD3D_CULL_VIEW_HIZ_OCCLUSION = 8u;
+public static const uint WORLD3D_CULL_VIEW_USE_MAX_DISTANCE = 16u;
+public static const uint WORLD3D_CULL_VIEW_IS_PRIMARY = 32u;
 
 public struct World3DInstanceSpatialGpu
 {
@@ -34,6 +42,27 @@ public struct World3DView
     public int4 OriginAnchorCell;
     public float4 EyeLocalNear;
     public float4 ViewportSizeInvSize;
+};
+
+public struct World3DCullViewGpu
+{
+    public row_major float4x4 ViewProj;
+    public int4 EyeCell;
+    public float4 EyeLocalNear;
+    public uint TargetViewSlot;
+    public uint Flags;
+    public float MinObjectRadius;
+    public float MinTexelLodBiasMeters;
+    public float MaxDistance;
+    public uint Reserved0;
+    public uint Reserved1;
+    public uint Reserved2;
+};
+
+public struct World3DOccludedCandidate
+{
+    public uint InstanceSlot;
+    public uint Lod;
 };
 
 public struct World3DInstanceGpu
@@ -177,11 +206,17 @@ public uint world3d_load_index(GPUBufferView indices, uint index)
 }
 
 [ForceInline]
-public float3 world3d_eye_relative_pivot(World3DInstanceSpatialGpu spatial, World3DView view)
+public float3 world3d_eye_relative_pivot_from_cell(World3DInstanceSpatialGpu spatial, int4 eyeCell, float3 eyeLocal)
 {
     // Subtract cells in integer space before converting to float. The origin anchor does not enter eye-relative math.
-    return float3(spatial.Cell.xyz - view.EyeCell.xyz) * WORLD3D_CELL_SIZE
-        + (spatial.ObjectToCell[3].xyz - view.EyeLocalNear.xyz);
+    return float3(spatial.Cell.xyz - eyeCell.xyz) * WORLD3D_CELL_SIZE
+        + (spatial.ObjectToCell[3].xyz - eyeLocal);
+}
+
+[ForceInline]
+public float3 world3d_eye_relative_pivot(World3DInstanceSpatialGpu spatial, World3DView view)
+{
+    return world3d_eye_relative_pivot_from_cell(spatial, view.EyeCell, view.EyeLocalNear.xyz);
 }
 
 [ForceInline]

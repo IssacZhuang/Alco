@@ -25,6 +25,7 @@ internal sealed class Game : GameEngine
     private ImGUISystem? _imGui;
     private World3DCamera _camera;
     private float _flySpeed = 3f;
+    private float _sunHour = 10f;
     private bool _showImGui = true;
     private WorldGeometryHandle _proceduralGeometry;
     private Extent2D _previousViewport;
@@ -189,7 +190,7 @@ internal sealed class Game : GameEngine
     private void DrawImGuiPanel(float delta, Extent2D viewport, World3DDrawStats draws)
     {
         ImGui.SetNextWindowPos(new Vector2(14, 14), ImGuiCond.FirstUseEver);
-        ImGui.SetNextWindowSize(new Vector2(400, 280), ImGuiCond.FirstUseEver);
+        ImGui.SetNextWindowSize(new Vector2(420, 440), ImGuiCond.FirstUseEver);
         ImGuiWindowFlags flags = Input.IsMouseRelativeMode ? ImGuiWindowFlags.NoMouseInputs : ImGuiWindowFlags.None;
         bool expanded = ImGui.Begin("PBR Deferred - World3D", ref _showImGui, flags);
         try
@@ -215,6 +216,10 @@ internal sealed class Game : GameEngine
 
             if (ImGui.CollapsingHeader("Lighting", ImGuiTreeNodeFlags.DefaultOpen))
                 DrawLightingControls();
+            if (ImGui.CollapsingHeader("Occlusion (Hi-Z)", ImGuiTreeNodeFlags.DefaultOpen))
+                DrawOcclusionControls();
+            if (ImGui.CollapsingHeader("Shadows & Far Field", ImGuiTreeNodeFlags.DefaultOpen))
+                DrawShadowControls();
         }
         finally
         {
@@ -232,14 +237,86 @@ internal sealed class Game : GameEngine
     private void DrawLightingControls()
     {
         World3DLighting lighting = _scene.Lighting;
+        float hour = _sunHour;
+        bool sunChanged = ImGui.SliderFloat("Sun time (h)", ref hour, 5.5f, 18.5f, "%.2f", ImGuiSliderFlags.AlwaysClamp);
         float sunlight = lighting.SunIntensity;
         float exposure = lighting.SkyExposure;
         float ambient = lighting.AmbientFloor;
         bool changed = ImGui.SliderFloat("Sun intensity", ref sunlight, 0, 30, "%.2f", ImGuiSliderFlags.AlwaysClamp);
         changed |= ImGui.SliderFloat("Sky exposure", ref exposure, 0.1f, 4, "%.2f", ImGuiSliderFlags.AlwaysClamp);
         changed |= ImGui.SliderFloat("Ambient floor", ref ambient, 0, 2, "%.2f", ImGuiSliderFlags.AlwaysClamp);
+        if (sunChanged)
+        {
+            _sunHour = hour;
+            lighting = lighting with { DirectionToSun = ProceduralSkyUtility.GetDirectionToSun(hour) };
+            changed = true;
+        }
         if (changed)
             _scene.Lighting = lighting with { SunIntensity = sunlight, SkyExposure = exposure, AmbientFloor = ambient };
+    }
+
+    private void DrawOcclusionControls()
+    {
+        World3DOcclusionSettings occSettings = _scene.Occlusion;
+        bool enabled = occSettings.Enabled;
+        bool twoPhase = occSettings.TwoPhase;
+        if (ImGui.Checkbox("Hi-Z occlusion", ref enabled))
+            occSettings.Enabled = enabled;
+        ImGui.SameLine();
+        if (ImGui.Checkbox("Two-phase retest", ref twoPhase))
+            occSettings.TwoPhase = twoPhase;
+
+        World3DOcclusionStats occ = _scene.LastRecordedOcclusion;
+        ImGui.Text($"Hi-Z: {occ.HiZExtent.X}x{occ.HiZExtent.Y} ({occ.HiZMipCount} mips)");
+        if (ImGui.Button("Sample GPU Occlusion Counts"))
+            _scene.TryReadOcclusionCounts(out _, out _, out _);
+        if (occ.HasReadbackCounts)
+            ImGui.Text($"Phase1: {occ.Phase1VisibleDraws}  Occluded: {occ.OccludedCandidates}  Phase2: {occ.Phase2VisibleDraws}");
+    }
+
+    private void DrawShadowControls()
+    {
+        World3DShadowSettings shadows = _scene.Shadows;
+        bool enabled = shadows.Enabled;
+        bool minMax = shadows.UseMinMaxAcceleration;
+        bool staticFar = shadows.FarField.EnableStaticFarCascade;
+        bool farHeight = shadows.FarField.Enabled;
+        bool autoCap = shadows.FarField.AutoCaptureFromScene;
+        bool rsm = shadows.Rsm.Enabled;
+
+        if (ImGui.Checkbox("Sun shadows", ref enabled))
+            shadows.Enabled = enabled;
+        ImGui.SameLine();
+        if (ImGui.Checkbox("Min-Max pyramid", ref minMax))
+            shadows.UseMinMaxAcceleration = minMax;
+
+        float maxDist = shadows.MaxDistance;
+        float tightness = shadows.ShadowTightness;
+        if (ImGui.SliderFloat("CSM distance", ref maxDist, 30f, 600f, "%.0f m", ImGuiSliderFlags.AlwaysClamp))
+            shadows.MaxDistance = maxDist;
+        if (ImGui.SliderFloat("Shadow tightness", ref tightness, 0f, 1f, "%.2f", ImGuiSliderFlags.AlwaysClamp))
+            shadows.ShadowTightness = tightness;
+
+        if (ImGui.Checkbox("Static far cascade", ref staticFar))
+            shadows.FarField.EnableStaticFarCascade = staticFar;
+        ImGui.SameLine();
+        if (ImGui.Checkbox("Far heightfield", ref farHeight))
+            shadows.FarField.Enabled = farHeight;
+
+        if (ImGui.Checkbox("Far auto-capture", ref autoCap))
+            shadows.FarField.AutoCaptureFromScene = autoCap;
+        ImGui.SameLine();
+        if (ImGui.Checkbox("RSM pass", ref rsm))
+            shadows.Rsm.Enabled = rsm;
+
+        int debugView = (int)_scene.LightingDebugView;
+        if (ImGui.Combo("Debug view", ref debugView,
+            "None\0Cascade Index\0Shadow Factor\0Min-Max Early-Out\0Far Shadow Blend\0Hi-Z Mip0\0RSM Flux\0"))
+            _scene.LightingDebugView = (World3DLightingDebugView)debugView;
+
+        World3DShadowStats stats = _scene.LastRecordedShadows;
+        ImGui.Text($"Res: {stats.CascadeResolution}  Updated: 0x{stats.UpdatedCascadeMask:X}  Cached: 0x{stats.CachedCascadeMask:X}  Draws: {stats.ShadowDrawCalls}");
+        ImGui.Text($"MinMax: {stats.MinMaxActive}  StaticFar: {stats.StaticFarCascadeActive}  FarHeight: {stats.FarHeightfieldActive}  RSM: {stats.RsmUpdated}");
     }
 
     private void UpdateFlyCamera(float delta, bool captureMouse, bool captureKeyboard)

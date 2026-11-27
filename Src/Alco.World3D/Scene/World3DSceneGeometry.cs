@@ -166,6 +166,7 @@ public sealed partial class World3DScene
 
     private void CompleteGeometryCopies(bool submitted)
     {
+        bool anyLodCompleted = false;
         foreach (RecordedLod recorded in _recordedLods)
         {
             PendingLod lod = recorded.Node.Value;
@@ -184,8 +185,11 @@ public sealed partial class World3DScene
             lod.Geometry.Pending[lod.Lod] = null;
             _pendingLods.Remove(recorded.Node);
             lod.Source?.Dispose();
+            anyLodCompleted = true;
         }
         _recordedLods.Clear();
+        if (anyLodCompleted)
+            MarkShadowSceneDirty();
     }
 
     private void RemoveGeometryLods(GeometryEntry geometry)
