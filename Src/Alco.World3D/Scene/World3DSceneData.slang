@@ -16,8 +16,12 @@ public static const float WORLD3D_CELL_SIZE = 512.0;
 
 public static const uint WORLD3D_INSTANCE_LIVE = 1u;
 public static const uint WORLD3D_INSTANCE_CAST_SHADOW = 2u;
+public static const uint WORLD3D_INSTANCE_DYNAMIC = 4u;
+public static const uint WORLD3D_INSTANCE_AFFECTS_GI = 8u;
 public static const uint WORLD3D_MATERIAL_ALPHA_MODE_MASK = 3u;
 public static const uint WORLD3D_MATERIAL_DOUBLE_SIDED = 4u;
+public static const uint WORLD3D_MATERIAL_SURFACE_BUCKET_SHIFT = 8u;
+public static const uint WORLD3D_MATERIAL_SURFACE_BUCKET_MASK = 0xFFu;
 
 public static const uint WORLD3D_CULL_VIEW_ENABLED = 1u;
 public static const uint WORLD3D_CULL_VIEW_ORTHOGRAPHIC = 2u;
@@ -63,6 +67,13 @@ public struct World3DOccludedCandidate
 {
     public uint InstanceSlot;
     public uint Lod;
+};
+
+public struct World3DPointLightGpu
+{
+    public int4 Cell;
+    public float4 LocalPositionAndRadius;
+    public float4 ColorAndIntensity;
 };
 
 public struct World3DInstanceGpu

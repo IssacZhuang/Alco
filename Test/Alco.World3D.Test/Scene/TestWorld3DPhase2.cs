@@ -583,6 +583,8 @@ public sealed class TestWorld3DPhase2
                     bufferHeapByteCount: 8 * 1024 * 1024, uploadStagingByteCount: 256 * 1024);
                 Context = context = new RenderContext(System, frameDataByteCount: 2 * 1024 * 1024);
                 Scene = new World3DScene(System);
+                Scene.Shadows.Rsm.Enabled = false;
+                Scene.VoxelGi.Enabled = false;
             }
             catch
             {

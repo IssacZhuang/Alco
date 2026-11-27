@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Numerics;
 using Alco;
 using Alco.Engine;
@@ -21,12 +22,14 @@ internal sealed class Game : GameEngine
     private readonly RenderContext _context;
     private readonly World3DScene _scene;
     private readonly Texture? _offscreen;
+    private readonly List<double> _flyRecordMs = [];
     private BistroImporter? _importer;
     private ImGUISystem? _imGui;
     private World3DCamera _camera;
     private float _flySpeed = 3f;
     private float _sunHour = 10f;
     private bool _showImGui = true;
+    private bool _demoLightsEnabled;
     private WorldGeometryHandle _proceduralGeometry;
     private Extent2D _previousViewport;
     private int _renderedFrames;
@@ -48,6 +51,12 @@ internal sealed class Game : GameEngine
         {
             context = new RenderContext(RenderingSystem, frameDataByteCount: 8 * 1024 * 1024);
             scene = new World3DScene(RenderingSystem);
+            scene.VoxelGi.Enabled = options.GiEnabled;
+            scene.VoxelGi.BootstrapFullVolumeOnReset = options.BootstrapGi || (options.Frames.HasValue && !options.FlyStress);
+            if (options.RsmEnabled.HasValue)
+                scene.Shadows.Rsm.Enabled = options.RsmEnabled.Value;
+            scene.LightingDebugView = options.GiDebugView;
+            _demoLightsEnabled = options.AddDemoLights;
             _offscreen = setting.Platform is ConsolePlatform ? RenderingSystem.CreateTexture(new TextureDesc
             {
                 Extent = new Extent3D(options.Width, options.Height, 1),
@@ -64,6 +73,7 @@ internal sealed class Game : GameEngine
         }
         _scene = scene;
         _context = context;
+        ApplyDemoPointLights(_demoLightsEnabled);
     }
 
     /// <summary>Gets the process result, including incomplete requested verification.</summary>
@@ -128,11 +138,16 @@ internal sealed class Game : GameEngine
                     _showImGui = !_showImGui;
                 UpdateFlyCamera(delta, ImGui.GetIO().WantCaptureMouse, captureKeyboard);
             }
-            if (!TryRecordFrame(output, _offscreen != null ? RGUsage.TransferRead : RGUsage.ColorAttachment))
+            if (_options.FlyStress)
+                UpdateFlyStressCamera(_renderedFrames);
+            long startStamp = Stopwatch.GetTimestamp();
+            if (!TryRecordFrame(output, _offscreen != null ? RGUsage.TransferRead : RGUsage.ColorAttachment, delta))
             {
                 Fail("World3D rejected the camera or output viewport.");
                 return;
             }
+            if (_options.FlyStress && _renderedFrames >= 1)
+                _flyRecordMs.Add(Stopwatch.GetElapsedTime(startStamp).TotalMilliseconds);
             World3DDrawStats draws = _scene.LastRecordedDraws;
             if (_options.RequireBistro && (draws.MdiCalls == 0 || draws.IndirectSlots == 0))
             {
@@ -216,6 +231,8 @@ internal sealed class Game : GameEngine
 
             if (ImGui.CollapsingHeader("Lighting", ImGuiTreeNodeFlags.DefaultOpen))
                 DrawLightingControls();
+            if (ImGui.CollapsingHeader("VoxelGI (Clipmap)", ImGuiTreeNodeFlags.DefaultOpen))
+                DrawVoxelGiControls();
             if (ImGui.CollapsingHeader("Occlusion (Hi-Z)", ImGuiTreeNodeFlags.DefaultOpen))
                 DrawOcclusionControls();
             if (ImGui.CollapsingHeader("Shadows & Far Field", ImGuiTreeNodeFlags.DefaultOpen))
@@ -311,12 +328,91 @@ internal sealed class Game : GameEngine
 
         int debugView = (int)_scene.LightingDebugView;
         if (ImGui.Combo("Debug view", ref debugView,
-            "None\0Cascade Index\0Shadow Factor\0Min-Max Early-Out\0Far Shadow Blend\0Hi-Z Mip0\0RSM Flux\0"))
+            "None\0Cascade Index\0Shadow Factor\0Min-Max Early-Out\0Far Shadow Blend\0Hi-Z Mip0\0RSM Flux\0GI Diffuse\0GI Specular\0GI Visibility\0GI Raw Trace\0"))
             _scene.LightingDebugView = (World3DLightingDebugView)debugView;
 
         World3DShadowStats stats = _scene.LastRecordedShadows;
         ImGui.Text($"Res: {stats.CascadeResolution}  Updated: 0x{stats.UpdatedCascadeMask:X}  Cached: 0x{stats.CachedCascadeMask:X}  Draws: {stats.ShadowDrawCalls}");
         ImGui.Text($"MinMax: {stats.MinMaxActive}  StaticFar: {stats.StaticFarCascadeActive}  FarHeight: {stats.FarHeightfieldActive}  RSM: {stats.RsmUpdated}");
+    }
+
+    private void DrawVoxelGiControls()
+    {
+        World3DVoxelGiSettings gi = _scene.VoxelGi;
+        bool enabled = gi.Enabled;
+        bool bootstrap = gi.BootstrapFullVolumeOnReset;
+        bool halfRes = gi.HalfResolutionTrace;
+        if (ImGui.Checkbox("GI enabled", ref enabled))
+            gi.Enabled = enabled;
+        ImGui.SameLine();
+        if (ImGui.Checkbox("Half-res trace", ref halfRes))
+            gi.HalfResolutionTrace = halfRes;
+        ImGui.SameLine();
+        if (ImGui.Checkbox("Bootstrap reset", ref bootstrap))
+            gi.BootstrapFullVolumeOnReset = bootstrap;
+
+        float diff = gi.IndirectDiffuseIntensity;
+        float spec = gi.IndirectSpecularIntensity;
+        float emis = gi.EmissiveBoost;
+        float decay = gi.PropagationDecay;
+        if (ImGui.SliderFloat("Indirect diffuse", ref diff, 0f, 3f, "%.2f", ImGuiSliderFlags.AlwaysClamp))
+            gi.IndirectDiffuseIntensity = diff;
+        if (ImGui.SliderFloat("Indirect specular", ref spec, 0f, 3f, "%.2f", ImGuiSliderFlags.AlwaysClamp))
+            gi.IndirectSpecularIntensity = spec;
+        if (ImGui.SliderFloat("Emissive boost", ref emis, 0f, 4f, "%.2f", ImGuiSliderFlags.AlwaysClamp))
+            gi.EmissiveBoost = emis;
+        if (ImGui.SliderFloat("Propagation decay", ref decay, 0f, 1.2f, "%.2f", ImGuiSliderFlags.AlwaysClamp))
+            gi.PropagationDecay = decay;
+
+        if (ImGui.Checkbox("Demo point lights", ref _demoLightsEnabled))
+            ApplyDemoPointLights(_demoLightsEnabled);
+        ImGui.SameLine();
+        if (ImGui.Button("Reset GI"))
+            _scene.InvalidateVoxelGi();
+        ImGui.SameLine();
+        if (ImGui.Button("Sample GPU GI Counters"))
+            _scene.TryReadVoxelGiCounters(out _);
+
+        World3DVoxelGiStats stats = _scene.LastRecordedVoxelGi;
+        ImGui.Text($"Res: {stats.Resolution}  Voxel: {stats.BaseVoxelSize:F2}m  Pool: {stats.StaticPoolCapacity}/{stats.DynamicPoolCapacity}  Lights: {stats.PointLightCount}");
+        ImGui.Text($"Shift: 0x{stats.ShiftedCascadeMask:X}  Reset: 0x{stats.ResetCascadeMask:X}  Evicted: {stats.EvictedStaticBricksThisFrame}");
+        World3DVoxelGiGpuCounters c = stats.LastReadbackCounters;
+        ImGui.Text($"Used(S/D): {c.StaticUsedBricks}/{c.DynamicUsedBricks}  Fallback: {c.StaticFallbackBricks}/{c.DynamicFallbackBricks}  Chunks: {c.BrickDispatchChunks}");
+    }
+
+    private void ApplyDemoPointLights(bool enabled)
+    {
+        if (!enabled)
+        {
+            _scene.SetPointLights([]);
+            return;
+        }
+        ReadOnlySpan<World3DPointLight> lights =
+        [
+            new(new World3DPosition(-4.0, 2.5, 3.2), new Vector3(1.0f, 0.72f, 0.38f), 22f, 12f),
+            new(new World3DPosition(4.5, 5.8, 2.3), new Vector3(1.0f, 0.78f, 0.45f), 16f, 10f),
+            new(new World3DPosition(-14.0, 0.0, 3.8), new Vector3(1.0f, 0.68f, 0.32f), 28f, 14f),
+        ];
+        _scene.SetPointLights(lights);
+    }
+
+    private void UpdateFlyStressCamera(int frameIndex)
+    {
+        double t = frameIndex * (1.0 / 60.0);
+        double x = -12.0 + 18.0 * Math.Cos(t * 1.9);
+        double y = 2.0 + 16.0 * Math.Sin(t * 1.4);
+        double z = 3.5 + 1.5 * Math.Sin(t * 2.5);
+        double dx = -18.0 * 1.9 * Math.Sin(t * 1.9);
+        double dy = 16.0 * 1.4 * Math.Cos(t * 1.4);
+        Vector3 forward = Vector3.Normalize(new Vector3((float)dx, (float)dy, -0.15f));
+        Vector3 right = Vector3.Normalize(Vector3.Cross(Vector3.UnitZ, forward));
+        Vector3 up = Vector3.Cross(forward, right);
+        Quaternion rot = Quaternion.CreateFromRotationMatrix(new Matrix4x4(
+            forward.X, forward.Y, forward.Z, 0f,
+            right.X, right.Y, right.Z, 0f,
+            up.X, up.Y, up.Z, 0f,
+            0f, 0f, 0f, 1f));
+        _camera = new World3DCamera(new World3DPosition(x, y, z), rot, 0.83f, 0.1f);
     }
 
     private void UpdateFlyCamera(float delta, bool captureMouse, bool captureKeyboard)
@@ -433,13 +529,13 @@ internal sealed class Game : GameEngine
         return true;
     }
 
-    private bool TryRecordFrame(RenderGraphTarget output = default, RGUsage outputFinalUsage = RGUsage.None)
+    private bool TryRecordFrame(RenderGraphTarget output = default, RGUsage outputFinalUsage = RGUsage.None, float deltaTime = 1f / 60f)
     {
         _context.BeginFrame();
         try
         {
             Extent2D viewport = output.IsValid ? output.Extent : _initialExtent;
-            if (_scene.TryRecordFrame(_context, in _camera, viewport, out _, output, outputFinalUsage))
+            if (_scene.TryRecordFrame(_context, in _camera, viewport, out _, output, outputFinalUsage, renderWorld: true, deltaTime: deltaTime))
             {
                 MainPresenter.EnqueueFrameContext(_context);
                 return true;
@@ -466,6 +562,24 @@ internal sealed class Game : GameEngine
         {
             Fail("Required Bistro verification did not read back any visible draw commands.");
             return;
+        }
+        if (GraphicsDevice.ActiveBackend != GraphicsBackend.NoGPU && _scene.VoxelGi.Enabled &&
+            _scene.TryReadVoxelGiCounters(out World3DVoxelGiGpuCounters giCounters))
+        {
+            Log.Info($"World3D VoxelGI counters: staticUsed={giCounters.StaticUsedBricks}, dynUsed={giCounters.DynamicUsedBricks}, " +
+                $"reclaimed={giCounters.StaticReclaimedThisFrame}, fallback={giCounters.StaticFallbackBricks}/{giCounters.DynamicFallbackBricks}, chunks={giCounters.BrickDispatchChunks}");
+        }
+        if (_options.FlyStress && _flyRecordMs.Count > 0)
+        {
+            _flyRecordMs.Sort();
+            double sum = 0;
+            foreach (double v in _flyRecordMs)
+                sum += v;
+            double mean = sum / _flyRecordMs.Count;
+            double p95 = _flyRecordMs[Math.Clamp((int)(_flyRecordMs.Count * 0.95), 0, _flyRecordMs.Count - 1)];
+            double p99 = _flyRecordMs[Math.Clamp((int)(_flyRecordMs.Count * 0.99), 0, _flyRecordMs.Count - 1)];
+            double max = _flyRecordMs[^1];
+            Log.Info($"World3D FlyStress timings (samples={_flyRecordMs.Count}): mean={mean:F3}ms, p95={p95:F3}ms, p99={p99:F3}ms, max={max:F3}ms");
         }
 
         if (_options.CapturePath is string path)

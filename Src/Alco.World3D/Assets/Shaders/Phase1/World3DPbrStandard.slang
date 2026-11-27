@@ -15,8 +15,32 @@ float4 sampleTexture(GPUTextureId id, SurfaceInput input)
     return tex.SampleGrad(sampler, input.UV, input.DdxUV, input.DdyUV);
 }
 
+float4 sampleTextureLevel(GPUTextureId id, GPUSamplerId samplerId, float2 uv, float lod)
+{
+    Texture2D<float4> tex = gpu_texture<Texture2D<float4>>(gpu_nonuniform_index(id.index));
+    SamplerState sampler = gpu_sampler(gpu_nonuniform_index(samplerId.index));
+    return tex.SampleLevel(sampler, uv, lod);
+}
+
 public struct PbrStandard : ISurface
 {
+    public override float4 getVoxelBaseColor(VoxelSurfaceInput input)
+    {
+        float4 factor = input.Material.BaseColor;
+        GPUTextureId texture = input.Material.BaseColorTexture;
+        if (texture.index == InvalidTexture)
+            return factor;
+        return factor * sampleTextureLevel(texture, input.Material.Sampler, input.UV, input.TextureLod);
+    }
+
+    public override float3 getVoxelEmissive(VoxelSurfaceInput input)
+    {
+        float3 factor = input.Material.EmissiveAlphaCutoff.rgb;
+        GPUTextureId texture = input.Material.EmissiveTexture;
+        if (texture.index == InvalidTexture)
+            return factor;
+        return factor * sampleTextureLevel(texture, input.Material.Sampler, input.UV, input.TextureLod).rgb;
+    }
     public override float4 getBaseColor(SurfaceInput input)
     {
         // Base color and emissive use sRGB sampled views; RGB is decoded by the GPU, alpha is linear.

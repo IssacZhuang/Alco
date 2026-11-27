@@ -32,7 +32,9 @@ public sealed partial class World3DScene
         public Vector3 SunDir;
         public int Resolution;
         public float WorldExtent;
+        public float DepthRange;
         public World3DPosition AnchorWorld;
+        public World3DCascadeGpu GpuCascade;
     }
 
     private readonly CascadeCacheState[] _cascadeCache = new CascadeCacheState[TotalShadowCascadeSlices];
@@ -73,6 +75,8 @@ public sealed partial class World3DScene
     private RGTexture _frameShadowArrayRG;
     private RGTexture _frameShadowMinMaxRG;
     private RGTexture _frameRsmFluxRG;
+    private RGTexture _frameRsmNormalRG;
+    private RGTexture _frameRsmDepthRG;
 
     private void PrepareShadows(RenderContext context, in World3DCamera camera, in World3DView primaryView,
         List<World3DView> views, List<World3DCullViewGpu> cullViews, List<uint> targetSlots)
@@ -166,7 +170,7 @@ public sealed partial class World3DScene
             if (needsRender)
             {
                 BuildSnappedOrthoCascade(sliceCenter, worldSize, res, lightRight, lightUp, lightForward,
-                    out World3DCascadeGpu gpuCascade, out World3DView viewData, out World3DPosition snappedAnchor);
+                    out World3DCascadeGpu gpuCascade, out World3DView viewData, out World3DPosition snappedAnchor, out _);
 
                 _pendingCascadeState[c] = new CascadeCacheState
                 {
@@ -233,7 +237,7 @@ public sealed partial class World3DScene
             if (needsRender)
             {
                 BuildSnappedOrthoCascade(camera.Eye, staticWorldSize, res, lightRight, lightUp, lightForward,
-                    out World3DCascadeGpu gpuCascade, out World3DView viewData, out World3DPosition snappedAnchor);
+                    out World3DCascadeGpu gpuCascade, out World3DView viewData, out World3DPosition snappedAnchor, out _);
 
                 _pendingCascadeState[MainCascadeCount] = new CascadeCacheState
                 {
@@ -285,6 +289,11 @@ public sealed partial class World3DScene
             EnsureRsmTextures(rsmRes);
             _recordedRsmEnabled = true;
 
+            Vector3 sunColor = ProceduralSkyUtility.GetSunColor(sunDir) * Lighting.SunColor;
+            float sunIntensity = Lighting.SunIntensity * ProceduralSkyUtility.GetSunLightScale(sunDir);
+            _recordedRsmSunDirIntensity = new Vector4(sunDir, sunIntensity);
+            _recordedRsmSunColor = new Vector4(sunColor, 0f);
+
             bool sunChanged = !_rsmCache.Valid || Vector3.Dot(_rsmCache.SunDir, sunDir) < 0.99999f;
             bool paramsChanged = _rsmCache.Resolution != rsmRes || MathF.Abs(_rsmCache.WorldExtent - rsmExtent) > 0.25f;
             bool sceneChanged = _rsmCache.SceneRevision != _shadowSceneRevision;
@@ -293,7 +302,8 @@ public sealed partial class World3DScene
             if (!_rsmCache.Valid || sunChanged || paramsChanged || sceneChanged || drifted)
             {
                 BuildSnappedOrthoCascade(camera.Eye, rsmExtent, rsmRes, lightRight, lightUp, lightForward,
-                    out _, out World3DView rsmView, out World3DPosition snappedAnchor);
+                    out World3DCascadeGpu rsmCascade, out World3DView rsmView, out World3DPosition snappedAnchor,
+                    out float rsmDepthRange);
                 _pendingRsmState = new RsmCacheState
                 {
                     Valid = true,
@@ -301,14 +311,11 @@ public sealed partial class World3DScene
                     SunDir = sunDir,
                     Resolution = rsmRes,
                     WorldExtent = rsmExtent,
+                    DepthRange = rsmDepthRange,
                     AnchorWorld = snappedAnchor,
+                    GpuCascade = rsmCascade,
                 };
                 _recordedRsmUpdate = true;
-
-                Vector3 sunColor = ProceduralSkyUtility.GetSunColor(sunDir) * Lighting.SunColor;
-                float sunIntensity = Lighting.SunIntensity * ProceduralSkyUtility.GetSunLightScale(sunDir);
-                _recordedRsmSunDirIntensity = new Vector4(sunDir, sunIntensity);
-                _recordedRsmSunColor = new Vector4(sunColor, 0f);
 
                 if (_frameDrawSlots != 0)
                 {
@@ -546,7 +553,8 @@ public sealed partial class World3DScene
         Vector3 lightForward,
         out World3DCascadeGpu gpuCascade,
         out World3DView viewData,
-        out World3DPosition snappedAnchorWorld)
+        out World3DPosition snappedAnchorWorld,
+        out float depthRange)
     {
         double texelSize = (double)worldSize / resolution;
         double u = centerWorld.X * lightRight.X + centerWorld.Y * lightRight.Y + centerWorld.Z * lightRight.Z;
@@ -563,7 +571,7 @@ public sealed partial class World3DScene
             snappedU * lightRight.Z + snappedV * lightUp.Z + snappedW * lightForward.Z);
 
         World3DSceneCoordinates.TrySplitPosition(snappedAnchorWorld, out World3DCell cell, out Vector3 local);
-        float depthRange = MathF.Max(worldSize * 2f + 1000f, 1500f);
+        depthRange = MathF.Max(worldSize * 2f + 1000f, 1500f);
         float halfDepth = depthRange * 0.5f;
         Vector3 eyeRel = -lightForward * halfDepth;
         Matrix4x4 lightView = Matrix4x4.CreateLookAtLeftHanded(eyeRel, Vector3.Zero, lightUp);
@@ -594,6 +602,12 @@ public sealed partial class World3DScene
 
         void IRenderGraphNode.Setup(RenderGraphBuilder builder)
         {
+            _scene._frameShadowArrayRG = default;
+            _scene._frameShadowMinMaxRG = default;
+            _scene._frameRsmFluxRG = default;
+            _scene._frameRsmNormalRG = default;
+            _scene._frameRsmDepthRG = default;
+
             if (!_scene._recordedWorld || !_scene._recordedShadowsEnabled || _scene._shadowArray == null)
                 return;
 
@@ -653,11 +667,13 @@ public sealed partial class World3DScene
             if (_scene._recordedRsmEnabled && _scene._rsmFlux != null && _scene._rsmNormal != null && _scene._rsmDepth != null)
             {
                 RGTexture rsmFlux = builder.ImportTexture(_scene._rsmFlux, "World3D.RsmFlux");
+                RGTexture rsmNormal = builder.ImportTexture(_scene._rsmNormal, "World3D.RsmNormal");
+                RGTexture rsmDepth = builder.ImportTexture(_scene._rsmDepth, "World3D.RsmDepth");
                 _scene._frameRsmFluxRG = rsmFlux;
+                _scene._frameRsmNormalRG = rsmNormal;
+                _scene._frameRsmDepthRG = rsmDepth;
                 if (_scene._recordedRsmUpdate)
                 {
-                    RGTexture rsmNormal = builder.ImportTexture(_scene._rsmNormal, "World3D.RsmNormal");
-                    RGTexture rsmDepth = builder.ImportTexture(_scene._rsmDepth, "World3D.RsmDepth");
                     RenderGraphPassBuilder rsmPass = builder.AddPass("World3D.Rsm", RsmPass);
                     rsmPass.Write(rsmFlux, RGUsage.ColorAttachmentWrite);
                     rsmPass.Write(rsmNormal, RGUsage.ColorAttachmentWrite);

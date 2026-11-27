@@ -185,6 +185,7 @@ public sealed partial class World3DScene
             lod.Geometry.Pending[lod.Lod] = null;
             _pendingLods.Remove(recorded.Node);
             lod.Source?.Dispose();
+            MarkVoxelGiGeometryDirty(lod.Geometry);
             anyLodCompleted = true;
         }
         _recordedLods.Clear();

@@ -43,7 +43,8 @@ public sealed partial class World3DScene : IDisposable
             .Use(new ClearNode(this))
             .Use(new GeometryPasses(this))
             .Use(new ShadowPasses(this))
-            .Use(new FarShadowPasses(this));
+            .Use(new FarShadowPasses(this))
+            .Use(new VoxelGiPasses(this));
         AddLightingPipeline();
     }
 
@@ -179,7 +180,10 @@ public sealed partial class World3DScene : IDisposable
         }
         _gpu.SetMaterial(handle.Slot, in gpu);
         if (material.Instances.Count != 0)
+        {
             MarkShadowSceneDirty();
+            MarkVoxelGiMaterialDirty(material);
+        }
         return true;
     }
 
@@ -300,6 +304,8 @@ public sealed partial class World3DScene : IDisposable
         _dirtyDrawInstances.Add(slot);
         _gpu.SetInstance(slot, in gpu);
         MarkShadowSceneDirty();
+        if (!description.Dynamic && description.AffectsGlobalIllumination)
+            MarkVoxelGiSpatialDirty(gpu.Spatial);
         handle = new WorldInstanceHandle(_id, slot, generation);
         return true;
     }
@@ -316,11 +322,15 @@ public sealed partial class World3DScene : IDisposable
             return false;
         if (!ReferenceEquals(previous.Geometry, instance.Geometry) || GetDrawRoute(previous) != GetDrawRoute(instance))
             _dirtyDrawInstances.Add(handle.Slot);
+        if (!previous.Description.Dynamic && previous.Description.AffectsGlobalIllumination)
+            MarkVoxelGiSpatialDirty(previous.Spatial);
         UnlinkInstance(handle.Slot, previous, unlinkSector: true);
         _instances.SetLive(handle.Slot, instance);
         LinkInstance(handle.Slot, instance);
         _gpu.SetInstance(handle.Slot, in gpu);
         MarkShadowSceneDirty();
+        if (!description.Dynamic && description.AffectsGlobalIllumination)
+            MarkVoxelGiSpatialDirty(gpu.Spatial);
         return true;
     }
 
@@ -363,6 +373,7 @@ public sealed partial class World3DScene : IDisposable
         DisposeOcclusionResources();
         DisposeShadowResources();
         DisposeFarShadowResources();
+        DisposeVoxelGi();
         _selection?.Dispose();
         _phase2Selection?.Dispose();
         _drawArgs?.Dispose();
@@ -421,9 +432,12 @@ public sealed partial class World3DScene : IDisposable
             !TryGetMaterial(desc.Material, out MaterialEntry? material) || !TryGetSector(desc.Sector, out SectorEntry? sector) ||
             !World3DSceneCoordinates.TryPackInstance(desc.Transform, geometry.LocalMin, geometry.LocalMax, out World3DInstanceSpatialGpu spatial))
             return false;
-        uint instanceFlags = desc.CastsShadow ? 3u : 1u;
+        uint instanceFlags = 1u
+            | (desc.CastsShadow ? 2u : 0u)
+            | (desc.Dynamic ? 4u : 0u)
+            | (desc.AffectsGlobalIllumination ? 8u : 0u);
         gpu = new InstanceGpu(spatial, (uint)desc.Geometry.Slot, (uint)desc.Material.Slot, instanceFlags, desc.Fade);
-        instance = new InstanceEntry(desc, geometry, material, sector);
+        instance = new InstanceEntry(desc, geometry, material, sector, spatial);
         return true;
     }
 
@@ -446,6 +460,8 @@ public sealed partial class World3DScene : IDisposable
 
     private void RemoveInstance(int slot, InstanceEntry instance, bool unlinkSector)
     {
+        if (!instance.Description.Dynamic && instance.Description.AffectsGlobalIllumination)
+            MarkVoxelGiSpatialDirty(instance.Spatial);
         UnlinkInstance(slot, instance, unlinkSector);
         _instances.Remove(slot);
         _dirtyDrawInstances.Add(slot);
@@ -479,8 +495,12 @@ public sealed partial class World3DScene : IDisposable
         };
         if (sampler == null)
             return false;
+        string moduleKey = string.IsNullOrEmpty(desc.SurfaceModule) ? StandardVoxelSurfaceModule : desc.SurfaceModule;
+        if (!_surfaceBucketIds.ContainsKey(moduleKey) && _surfaceBucketModules.Count >= 256)
+            return false;
+        uint surfaceBucket = ResolveSurfaceBucket(moduleKey);
         GPUTextureId white = _system.TextureWhite.SampledId;
-        uint flags = (uint)desc.AlphaMode | (desc.DoubleSided ? 4u : 0u);
+        uint flags = (uint)desc.AlphaMode | (desc.DoubleSided ? 4u : 0u) | (surfaceBucket << 8);
         gpu = new MaterialGpu(desc.BaseColor, new Vector4(desc.Emissive, desc.AlphaCutoff),
             new Vector2(desc.Metallic, desc.Roughness), flags, sampler.Id, color?.Texture.SampledId ?? white,
             normal?.Texture.SampledId ?? GPUTextureId.Invalid, metallicRoughness?.Texture.SampledId ?? white,
@@ -504,7 +524,8 @@ public sealed partial class World3DScene : IDisposable
 
     private static bool IsBound(Vector3 min, Vector3 max) => IsFinite(min) && IsFinite(max) && Contains(min, max, min);
 
-    private sealed record InstanceEntry(World3DInstanceDesc Description, GeometryEntry Geometry, MaterialEntry Material, SectorEntry Sector);
+    private sealed record InstanceEntry(World3DInstanceDesc Description, GeometryEntry Geometry, MaterialEntry Material,
+        SectorEntry Sector, World3DInstanceSpatialGpu Spatial);
 
     private sealed class SectorEntry
     {

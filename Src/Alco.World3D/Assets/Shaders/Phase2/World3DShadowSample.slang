@@ -363,3 +363,74 @@ public World3DShadowEval world3d_evaluate_sun_shadow(
 
     return eval;
 }
+
+/// Fast single-tap + Min-Max sun shadow test intended for GPU VoxelGI radiance injection.
+public float world3d_sample_sun_shadow_fast(
+    World3DShadowFrameGpu frame,
+    World3DView view,
+    float3 eyeRelPos,
+    float3 normalWS)
+{
+    if ((frame.Flags & WORLD3D_SHADOW_FLAG_ENABLED) == 0u)
+        return 1.0;
+
+    float ndotL = dot(normalWS, frame.SunDirectionParams.xyz);
+    if (ndotL <= 0.0)
+        return 0.0;
+
+    float vis = 1.0;
+    bool found = false;
+    uint cascadeCount = (frame.Flags & WORLD3D_SHADOW_FLAG_STATIC_FAR_ACTIVE) != 0u ? 5u : 4u;
+    if (frame.ShadowArray.index != 0u)
+    {
+        for (uint c = 0u; c < cascadeCount; ++c)
+        {
+            float3 uvz = projectToCascade(frame, c, view, eyeRelPos, normalWS);
+            if (!insideCascade(uvz, 0.002))
+                continue;
+
+            float bias = computeReceiverBias(frame, c, ndotL);
+            float cmpDepth = uvz.z - bias;
+            if (cmpDepth <= 0.0)
+            {
+                vis = 1.0;
+                found = true;
+                break;
+            }
+
+            if ((frame.Flags & WORLD3D_SHADOW_FLAG_USE_MINMAX) != 0u && frame.ShadowMinMaxArray.index != 0u)
+            {
+                Texture2DArray<float2> minMaxTex = gpu_texture<Texture2DArray<float2>>(frame.ShadowMinMaxArray.index);
+                int maxMm = int(max(frame.ResolutionParams.z, 1.0)) - 1;
+                int2 mmCoord = clamp(int2(floor(uvz.xy * frame.ResolutionParams.z)), int2(0), int2(maxMm));
+                float2 mm = minMaxTex.Load(int4(mmCoord.x, mmCoord.y, int(c), 0));
+                if (cmpDepth < mm.x - 1e-5)
+                {
+                    vis = 1.0;
+                    found = true;
+                    break;
+                }
+                if (cmpDepth > mm.y + 1e-5)
+                {
+                    vis = 0.0;
+                    found = true;
+                    break;
+                }
+            }
+
+            Texture2DArray<float> shadowTex = gpu_texture<Texture2DArray<float>>(frame.ShadowArray.index);
+            SamplerComparisonState cmpSampler = shared_sampler_depth_comparison();
+            vis = shadowTex.SampleCmpLevelZero(cmpSampler, float3(uvz.xy, float(c)), cmpDepth);
+            found = true;
+            break;
+        }
+    }
+
+    if ((frame.Flags & WORLD3D_SHADOW_FLAG_FAR_HEIGHT_ACTIVE) != 0u)
+    {
+        float farVis = world3d_sample_far_horizon_shadow(frame, view, eyeRelPos);
+        vis = found ? min(vis, farVis) : farVis;
+    }
+
+    return vis;
+}

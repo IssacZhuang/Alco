@@ -75,6 +75,12 @@ public sealed partial class World3DScene
     [StructLayout(LayoutKind.Sequential, Size = 8)]
     private readonly record struct World3DOccludedCandidate(uint InstanceSlot, uint Lod);
 
+    [StructLayout(LayoutKind.Explicit, Size = 48)]
+    private readonly record struct PointLightGpu(
+        [field: FieldOffset(0)] World3DCell Cell,
+        [field: FieldOffset(16)] Vector4 LocalPositionAndRadius,
+        [field: FieldOffset(32)] Vector4 ColorAndIntensity);
+
     [StructLayout(LayoutKind.Explicit, Size = 32)]
     private readonly record struct ScatterRoot(
         [field: FieldOffset(0)] GPUBufferView Patches,
@@ -531,6 +537,7 @@ public sealed partial class World3DScene
             ValidateLayout<World3DView>(Find(nameof(World3DView)));
             ValidateLayout<World3DCullViewGpu>(Find(nameof(World3DCullViewGpu)));
             ValidateLayout<World3DOccludedCandidate>(Find(nameof(World3DOccludedCandidate)));
+            ValidateLayout<PointLightGpu>(Find("World3DPointLightGpu"));
             ValidateLayout<InstanceGpu>(Find("World3DInstanceGpu"));
             ValidateLayout<MaterialGpu>(Find("World3DMaterialGpu"));
             ValidateLayout<GeometryLodGpu>(Find("World3DGeometryLodGpu"));

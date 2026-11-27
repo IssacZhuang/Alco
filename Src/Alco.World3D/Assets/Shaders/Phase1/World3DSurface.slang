@@ -15,9 +15,28 @@ public struct SurfaceInput
     public World3DMaterialGpu Material;
 };
 
+/// Inputs supplied by GPU voxelization when evaluating a surface inside a compute kernel.
+public struct VoxelSurfaceInput
+{
+    public float3 AnchorRelativePosition; // Position relative to OriginAnchorCell.
+    public float3 NormalWS;
+    public float2 UV;
+    public float TextureLod;
+    public World3DMaterialGpu Material;
+};
+
+/// Surface hook evaluated during GPU voxelization without quad derivatives.
+public interface IVoxelFeedSurface
+{
+    /// Linear albedo (rgb) and coverage (a), before instance fade.
+    float4 getVoxelBaseColor(VoxelSurfaceInput input) { return input.Material.BaseColor; }
+    /// Linear emissive radiance.
+    float3 getVoxelEmissive(VoxelSurfaceInput input) { return input.Material.EmissiveAlphaCutoff.rgb; }
+};
+
 // Export one public struct implementing ISurface. Override only the needed
 // methods; the defaults describe the textureless material from the scene table.
-public interface ISurface
+public interface ISurface : IVoxelFeedSurface
 {
     // Both hooks receive the same pre-deformation eye-relative position and normal.
     float3 getWorldPosition(float3 eyeRelativePosition, float3 normalWS, float2 uv) { return eyeRelativePosition; }

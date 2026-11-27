@@ -22,10 +22,12 @@ public sealed partial class World3DScene
     /// <param name="output">An optional color output target.</param>
     /// <param name="outputFinalUsage">The output's next usage outside the graph.</param>
     /// <param name="renderWorld">Whether to render instead of only synchronizing and clearing the output.</param>
+    /// <param name="deltaTime">Elapsed frame time in seconds for temporal GI convergence.</param>
     /// <returns>Whether the camera and viewport were valid and the frame was recorded.</returns>
     /// <remarks>Call after BeginFrame, then submit or discard before editing the scene. Discard the frame if recording throws.</remarks>
     public bool TryRecordFrame(RenderContext context, in World3DCamera camera, Extent2D viewport, out World3DView view,
-        RenderGraphTarget output = default, RGUsage outputFinalUsage = RGUsage.None, bool renderWorld = true)
+        RenderGraphTarget output = default, RGUsage outputFinalUsage = RGUsage.None, bool renderWorld = true,
+        float deltaTime = 1f / 60f)
     {
         ArgumentNullException.ThrowIfNull(context);
         ObjectDisposedException.ThrowIf(context.IsDisposed, context);
@@ -53,6 +55,7 @@ public sealed partial class World3DScene
         ulong geometryBytes = PrepareGeometryCopies(context);
         PrepareOcclusion(context, viewport);
         PrepareGeometryPasses(context);
+        PrepareVoxelGi(context, in camera, viewport, in view, deltaTime);
         _gpu.PrepareTables(context);
         _graph.Execute(context, output, outputFinalUsage: outputFinalUsage);
         _recordingSucceeded = true;
@@ -75,6 +78,7 @@ public sealed partial class World3DScene
         ReconcileOcclusion(submitted);
         ReconcileShadows(submitted);
         ReconcileFarShadow(submitted);
+        ReconcileVoxelGi(submitted);
         _stagedDrawLods.Clear();
         if (_recordedWorld)
         {

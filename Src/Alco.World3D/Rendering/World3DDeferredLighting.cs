@@ -82,7 +82,7 @@ public sealed partial class World3DScene
             .Use(bloom).Use(tonemap).Use(fxaa);
     }
 
-    [StructLayout(LayoutKind.Sequential, Size = 144)]
+    [StructLayout(LayoutKind.Sequential, Size = 176)]
     private struct DeferredLightingRoot
     {
         public GPUBufferView Views;
@@ -93,21 +93,27 @@ public sealed partial class World3DScene
         public GPUTextureId Emissive;
         public GPUTextureId Depth;
         public GPUTextureId Hdr;
-        public uint Reserved0;
-        public uint Reserved1;
+        public GPUTextureId GiDiffuse;
+        public GPUTextureId GiSpecular;
         public Vector4 SunDirectionAndIntensity;
         public Vector4 SunColorAndDiscCosRadius;
         public Vector4 Atmosphere;
         public Vector4 Sky;
         public Vector4 SkyHorizonAndDiscBrightness;
         public Vector4 SkyZenith;
+        public GPUBufferView PointLights;
+        public GPUTextureId GiRawDiffuse;
+        public uint PointLightCount;
+        public uint GiFlags;
+        public float GiDiffuseScale;
+        public float GiSpecularScale;
+        public uint Reserved0;
     }
 
     private sealed class DeferredLightingNode(World3DScene scene, RenderChain chain, Shader shader,
         RGNode_Bloom bloom, RGNode_Tonemap tonemap, RGNode_FXAA fxaa) : IRenderGraphNode
     {
         private const uint GroupSize = 8;
-        private static readonly Vector3 LuminanceWeights = new(0.2126f, 0.7152f, 0.0722f);
 
         private readonly World3DScene _scene = scene;
         private readonly RenderChain _chain = chain;
@@ -161,6 +167,12 @@ public sealed partial class World3DScene
                 pass.Read(_scene._frameRsmFluxRG, RGUsage.ComputeRead);
             if (_scene._frameCurrHiZ.IsValid)
                 pass.Read(_scene._frameCurrHiZ, RGUsage.ComputeRead);
+            if (_scene._frameGiOutputDiffuseRG.IsValid)
+                pass.Read(_scene._frameGiOutputDiffuseRG, RGUsage.ComputeRead);
+            if (_scene._frameGiOutputSpecularRG.IsValid)
+                pass.Read(_scene._frameGiOutputSpecularRG, RGUsage.ComputeRead);
+            if (_scene._frameGiRawDiffuseRG.IsValid)
+                pass.Read(_scene._frameGiRawDiffuseRG, RGUsage.ComputeRead);
             pass.Read(gbuffer.Albedo, RGUsage.ComputeRead);
             pass.Read(gbuffer.Normal, RGUsage.ComputeRead);
             pass.Read(gbuffer.Material, RGUsage.ComputeRead);
@@ -188,6 +200,29 @@ public sealed partial class World3DScene
             root.Emissive = GPUTextureId.FromSampled(context.GetTexture(gbuffer.Emissive));
             root.Depth = GPUTextureId.FromSampled(context.GetTexture(gbuffer.Depth));
             root.Hdr = GPUTextureId.FromStorage(context.GetTexture(_hdr));
+            root.PointLights = _scene._framePointLights.IsEmpty ? default : _scene._framePointLights.View;
+            root.PointLightCount = (uint)_scene._recordedPointLightCount;
+
+            if (_scene._recordedVoxelGiEnabled && _scene._frameGiOutputDiffuseRG.IsValid && _scene._frameGiOutputSpecularRG.IsValid)
+            {
+                root.GiFlags = 1u;
+                root.GiDiffuse = GPUTextureId.FromSampled(context.GetTexture(_scene._frameGiOutputDiffuseRG));
+                root.GiSpecular = GPUTextureId.FromSampled(context.GetTexture(_scene._frameGiOutputSpecularRG));
+                root.GiRawDiffuse = _scene._frameGiRawDiffuseRG.IsValid
+                    ? GPUTextureId.FromSampled(context.GetTexture(_scene._frameGiRawDiffuseRG))
+                    : GPUTextureId.Invalid;
+                root.GiDiffuseScale = MathF.Max(0f, _scene.VoxelGi.IndirectDiffuseIntensity);
+                root.GiSpecularScale = MathF.Max(0f, _scene.VoxelGi.IndirectSpecularIntensity);
+            }
+            else
+            {
+                root.GiFlags = 0u;
+                root.GiDiffuse = GPUTextureId.Invalid;
+                root.GiSpecular = GPUTextureId.Invalid;
+                root.GiRawDiffuse = GPUTextureId.Invalid;
+                root.GiDiffuseScale = 0f;
+                root.GiSpecularScale = 0f;
+            }
 
             Extent3D extent = context.GetExtent(_hdr);
             Extent3D groups = new((extent.X + GroupSize - 1) / GroupSize, (extent.Y + GroupSize - 1) / GroupSize, 1);
@@ -197,16 +232,9 @@ public sealed partial class World3DScene
 
         private static DeferredLightingRoot EvaluateEnvironment(in World3DLighting lighting)
         {
-            float lengthSquared = lighting.DirectionToSun.LengthSquared();
-            Vector3 directionToSun = lengthSquared > 0.0f && float.IsFinite(lengthSquared)
-                ? lighting.DirectionToSun / MathF.Sqrt(lengthSquared)
-                : Vector3.UnitZ;
-            Vector3 sunColor = ProceduralSkyUtility.GetSunColor(directionToSun) * lighting.SunColor;
-            float sunIntensity = lighting.SunIntensity * ProceduralSkyUtility.GetSunLightScale(directionToSun);
-            ProceduralSkyUtility.GetSkyRadianceGradient(directionToSun, lighting.RayleighScale, lighting.MieScale,
-                lighting.SkyExposure, lighting.NightFloor, lighting.SunRadianceScale, out Vector3 horizon, out Vector3 zenith);
+            EvaluateFilteredSkyAndSun(in lighting, out Vector3 directionToSun, out Vector3 sunColor,
+                out float sunIntensity, out Vector3 horizon, out Vector3 zenith);
 
-            float saturation = Math.Clamp(lighting.AmbientSaturation, 0.0f, 1.0f);
             return new DeferredLightingRoot
             {
                 SunDirectionAndIntensity = new Vector4(directionToSun, sunIntensity),
@@ -214,12 +242,32 @@ public sealed partial class World3DScene
                 Atmosphere = new Vector4(lighting.RayleighScale, lighting.MieScale,
                     Math.Clamp(lighting.MieAnisotropy, -0.99f, 0.99f), lighting.SkyExposure),
                 Sky = new Vector4(lighting.StarIntensity, lighting.NightFloor, lighting.SunRadianceScale, lighting.AmbientFloor),
-                SkyHorizonAndDiscBrightness = new Vector4(Desaturate(horizon, saturation), lighting.SunDiscBrightness),
-                SkyZenith = new Vector4(Desaturate(zenith, saturation), 0.0f),
+                SkyHorizonAndDiscBrightness = new Vector4(horizon, lighting.SunDiscBrightness),
+                SkyZenith = new Vector4(zenith, 0.0f),
             };
         }
+    }
 
-        private static Vector3 Desaturate(Vector3 color, float saturation) =>
-            Vector3.Lerp(new Vector3(Vector3.Dot(color, LuminanceWeights)), color, saturation);
+    private static void EvaluateFilteredSkyAndSun(
+        in World3DLighting lighting,
+        out Vector3 directionToSun,
+        out Vector3 sunColor,
+        out float sunIntensity,
+        out Vector3 horizon,
+        out Vector3 zenith)
+    {
+        float lengthSquared = lighting.DirectionToSun.LengthSquared();
+        directionToSun = lengthSquared > 0.0f && float.IsFinite(lengthSquared)
+            ? lighting.DirectionToSun / MathF.Sqrt(lengthSquared)
+            : Vector3.UnitZ;
+        sunColor = ProceduralSkyUtility.GetSunColor(directionToSun) * lighting.SunColor;
+        sunIntensity = lighting.SunIntensity * ProceduralSkyUtility.GetSunLightScale(directionToSun);
+        ProceduralSkyUtility.GetSkyRadianceGradient(directionToSun, lighting.RayleighScale, lighting.MieScale,
+            lighting.SkyExposure, lighting.NightFloor, lighting.SunRadianceScale, out Vector3 rawHorizon, out Vector3 rawZenith);
+
+        Vector3 luminanceWeights = new(0.2126f, 0.7152f, 0.0722f);
+        float saturation = Math.Clamp(lighting.AmbientSaturation, 0.0f, 1.0f);
+        horizon = Vector3.Lerp(new Vector3(Vector3.Dot(rawHorizon, luminanceWeights)), rawHorizon, saturation);
+        zenith = Vector3.Lerp(new Vector3(Vector3.Dot(rawZenith, luminanceWeights)), rawZenith, saturation);
     }
 }

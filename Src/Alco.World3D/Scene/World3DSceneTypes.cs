@@ -101,8 +101,18 @@ public readonly record struct World3DMaterialDesc
 /// <param name="Transform">The authoritative double-position transform.</param>
 /// <param name="Fade">The authored opacity multiplier in [0, 1].</param>
 /// <param name="CastsShadow">Whether the instance renders into sun shadow maps and far-field capture.</param>
+/// <param name="Dynamic">Whether the instance moves frequently and feeds dynamic GI clipmap levels instead of static bricks.</param>
+/// <param name="AffectsGlobalIllumination">Whether the instance contributes albedo, emissive, and opacity to VoxelGI.</param>
 public readonly record struct World3DInstanceDesc(WorldSectorHandle Sector, WorldGeometryHandle Geometry,
-    WorldMaterialHandle Material, World3DTransform Transform, float Fade = 1, bool CastsShadow = true);
+    WorldMaterialHandle Material, World3DTransform Transform, float Fade = 1, bool CastsShadow = true,
+    bool Dynamic = false, bool AffectsGlobalIllumination = true);
+
+/// <summary>Describes a point light contributing to direct lighting and VoxelGI radiance injection.</summary>
+/// <param name="Position">The double-precision light position in world coordinates.</param>
+/// <param name="Color">The linear RGB tint.</param>
+/// <param name="Intensity">The luminous intensity multiplier.</param>
+/// <param name="Radius">The attenuation radius in meters.</param>
+public readonly record struct World3DPointLight(World3DPosition Position, Vector3 Color, float Intensity, float Radius);
 
 /// <summary>Counts persistent scene uploads recorded in a frame, excluding per-view data.</summary>
 /// <param name="GeometryBytes">Bytes of vertex and index payload copied.</param>

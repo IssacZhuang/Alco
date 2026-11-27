@@ -6,6 +6,9 @@ using Alco.Engine;
 using Alco.Graphics;
 using Alco.World3D;
 
+if (args.Length == 0 && Environment.GetEnvironmentVariable("WORLD3D_SANDBOX_ARGS") is { Length: > 0 } envArgs)
+    args = envArgs.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
 if (!SandboxOptions.TryParse(args, out SandboxOptions options, out string? error))
 {
     Log.Error(error);
@@ -30,7 +33,12 @@ var setting = new GameEngineSetting
     View = new ViewSetting((int)options.Width, (int)options.Height, "World3D | PBR Deferred"),
     Platform = options.Headless || options.Backend == GraphicsBackend.NoGPU ? new ConsolePlatform() : null,
     Audio = AudioSetting.NoAudio,
-    Graphics = GraphicsSetting.Default with { Backend = options.Backend },
+    Graphics = GraphicsSetting.Default with
+    {
+        Backend = options.Backend,
+        BufferHeapByteCount = 192ul * 1024 * 1024,
+        TextureHeapByteCount = 256ul * 1024 * 1024,
+    },
 };
 try
 {
@@ -58,6 +66,7 @@ internal sealed record SandboxOptions
     /// <summary>Gets the supported command-line switches.</summary>
     public const string Usage = "26-PBRDeferred [--backend=VulkanCompact] [--interior | --procedural] " +
         "[--asset-root=<parent of Bistro>] [--require-bistro] [--bistro-legacy-metallic] [--software-bc] " +
+        "[--no-gi] [--rsm=on|off] [--gi-debug=<view|0..10>] [--bootstrap-gi] [--fly-stress] [--point-lights] " +
         "[--pos=x,y,z] [--look=x,y,z] [--size=1280x720] [--headless] [--frames=N] [--capture=<path.png>]\n" +
         "Bistro loads the exterior and interior together. --interior starts the camera indoors.";
 
@@ -73,6 +82,18 @@ internal sealed record SandboxOptions
     public bool LegacyMetallic { get; private init; }
     /// <summary>Gets whether to force bounded software BC decoding even on capable devices.</summary>
     public bool SoftwareBc { get; private init; }
+    /// <summary>Gets whether VoxelGI is enabled.</summary>
+    public bool GiEnabled { get; private init; } = true;
+    /// <summary>Gets an explicit RSM override when specified.</summary>
+    public bool? RsmEnabled { get; private init; }
+    /// <summary>Gets the requested deferred lighting debug visualization.</summary>
+    public World3DLightingDebugView GiDebugView { get; private init; }
+    /// <summary>Gets whether cascade resets bootstrap the full static brick budget in one frame.</summary>
+    public bool BootstrapGi { get; private init; }
+    /// <summary>Gets whether to execute the automated high-speed camera fly stress test.</summary>
+    public bool FlyStress { get; private init; }
+    /// <summary>Gets whether to populate demo Bistro point lights.</summary>
+    public bool AddDemoLights { get; private init; }
     /// <summary>Gets whether to render into an offscreen GPU target.</summary>
     public bool Headless { get; private init; }
     /// <summary>Gets whether to print usage and exit without initializing the engine.</summary>
@@ -113,6 +134,19 @@ internal sealed record SandboxOptions
                 case "--bistro-legacy-metallic" when equals < 0: options = options with { LegacyMetallic = true }; break;
                 case "--software-bc" when equals < 0: options = options with { SoftwareBc = true }; break;
                 case "--headless" when equals < 0: options = options with { Headless = true }; break;
+                case "--no-gi" when equals < 0: options = options with { GiEnabled = false }; break;
+                case "--bootstrap-gi" when equals < 0: options = options with { BootstrapGi = true }; break;
+                case "--fly-stress" when equals < 0: options = options with { FlyStress = true, Headless = true }; break;
+                case "--point-lights" when equals < 0: options = options with { AddDemoLights = true }; break;
+                case "--rsm" when value.Equals("on", StringComparison.OrdinalIgnoreCase) || value.Equals("true", StringComparison.OrdinalIgnoreCase):
+                    options = options with { RsmEnabled = true };
+                    break;
+                case "--rsm" when value.Equals("off", StringComparison.OrdinalIgnoreCase) || value.Equals("false", StringComparison.OrdinalIgnoreCase):
+                    options = options with { RsmEnabled = false };
+                    break;
+                case "--gi-debug" when TryParseDebugView(value, out World3DLightingDebugView dbg):
+                    options = options with { GiDebugView = dbg };
+                    break;
                 case "--backend" when Enum.TryParse(value, true, out GraphicsBackend backend) && Enum.IsDefined(backend):
                     options = options with { Backend = backend };
                     break;
@@ -147,9 +181,23 @@ internal sealed record SandboxOptions
             error = "--require-bistro and --capture require a real graphics backend.";
             return false;
         }
+        if (options.FlyStress && options.Frames == null)
+            options = options with { Frames = 180 };
         if ((options.Headless || options.Backend == GraphicsBackend.NoGPU) && options.Frames == null)
             options = options with { Frames = DefaultFrames };
         return true;
+    }
+
+    private static bool TryParseDebugView(string value, out World3DLightingDebugView view)
+    {
+        view = World3DLightingDebugView.None;
+        if (int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int num) &&
+            Enum.IsDefined((World3DLightingDebugView)num))
+        {
+            view = (World3DLightingDebugView)num;
+            return true;
+        }
+        return Enum.TryParse(value, ignoreCase: true, out view) && Enum.IsDefined(view);
     }
 
     /// <summary>Resolves the directory containing both Bistro glTF files, unless procedural was requested.</summary>

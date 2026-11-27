@@ -69,7 +69,7 @@ public sealed class TestWorld3DPhase1
         compiler.RegisterVirtualModule(SurfaceModule, SurfaceModule + ".slang", SurfaceSource);
 
         ReadOnlySpan<(string Module, uint RootBytes)> kernels =
-            [("World3DCullSelect", 100), ("World3DBuildArgs", 72), ("World3DDeferredLighting", 144)];
+            [("World3DCullSelect", 100), ("World3DBuildArgs", 72), ("World3DDeferredLighting", 176)];
         foreach ((string module, uint bytes) in kernels)
             Assert.That(compiler.Compile(module, ShaderPipelineKind.Compute).Reflection.Root?.SizeBytes, Is.EqualTo(bytes), module);
 
@@ -360,6 +360,7 @@ public sealed class TestWorld3DPhase1
                 Scene = new World3DScene(System);
                 Scene.Occlusion.Enabled = false;
                 Scene.Shadows.Enabled = false;
+                Scene.VoxelGi.Enabled = false;
             }
             catch
             {

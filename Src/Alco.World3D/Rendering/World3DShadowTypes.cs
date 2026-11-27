@@ -44,14 +44,14 @@ public sealed class World3DFarShadowSettings
     public int StaticFarRefreshIntervalFrames { get; set; } = 60;
 }
 
-/// <summary>Configures the optional Reflective Shadow Map pass reserved for Phase 3 VoxelGI injection.</summary>
+/// <summary>Configures the Reflective Shadow Map pass feeding Phase 3 VoxelGI injection and sun bounce.</summary>
 public sealed class World3DRsmSettings
 {
-    /// <summary>Gets or sets whether the optional RSM pass executes.</summary>
-    public bool Enabled { get; set; } = false;
+    /// <summary>Gets or sets whether the RSM pass executes.</summary>
+    public bool Enabled { get; set; } = true;
 
     /// <summary>Gets or sets the square texture resolution in texels for RSM flux, normal, and depth targets.</summary>
-    public int Resolution { get; set; } = 256;
+    public int Resolution { get; set; } = 512;
 
     /// <summary>Gets or sets the world-space orthographic extent in meters centered on the active camera.</summary>
     public float WorldExtentMeters { get; set; } = 96f;
@@ -111,6 +111,14 @@ public enum World3DLightingDebugView
     HiZMip0 = 5,
     /// <summary>Visualizes the optional RSM radiant flux target when RSM is enabled.</summary>
     RsmFlux = 6,
+    /// <summary>Visualizes resolved VoxelGI indirect diffuse irradiance.</summary>
+    GiDiffuse = 7,
+    /// <summary>Visualizes resolved VoxelGI indirect glossy specular radiance.</summary>
+    GiSpecular = 8,
+    /// <summary>Visualizes resolved VoxelGI directional ambient visibility.</summary>
+    GiVisibility = 9,
+    /// <summary>Visualizes raw noisy half-res VoxelGI diffuse trace output prior to spatial demosaic.</summary>
+    GiRawDiffuseTrace = 10,
 }
 
 /// <summary>Summarizes the recorded occlusion state and latest async GPU culling readback counts.</summary>

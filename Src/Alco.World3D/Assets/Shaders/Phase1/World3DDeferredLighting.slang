@@ -18,14 +18,21 @@ public struct DeferredLightingRoot
     public GPUTextureId Emissive;
     public GPUTextureId Depth;
     public GPUTextureId Hdr;
-    public uint Reserved0;
-    public uint Reserved1;
+    public GPUTextureId GiDiffuse;
+    public GPUTextureId GiSpecular;
     public float4 SunDirectionAndIntensity;
     public float4 SunColorAndDiscCosRadius;
     public float4 Atmosphere;
     public float4 Sky;
     public float4 SkyHorizonAndDiscBrightness;
     public float4 SkyZenith;
+    public GPUBufferView PointLights;
+    public GPUTextureId GiRawDiffuse;
+    public uint PointLightCount;
+    public uint GiFlags; // bit 0 = VoxelGI active
+    public float GiDiffuseScale;
+    public float GiSpecularScale;
+    public uint Reserved0;
 };
 
 // The RGBA8 UNORM albedo attachment is manually sRGB-encoded by the GBuffer pass.
@@ -77,6 +84,50 @@ float3 evaluateDirectSun(float3 n, float3 v, float3 l, float3 albedo, float meta
     float3 specular = distribution * visibility * fresnel / (4.0 * ndotL * ndotV + 1e-6);
     float3 diffuse = (1.0 - fresnel) * (1.0 - metallic) * albedo / WORLD3D_PI;
     return (diffuse + specular) * ndotL;
+}
+
+float3 envSpecularBrdfApprox(float3 f0, float roughness, float ndotV)
+{
+    const float4 c0 = float4(-1.0, -0.0275, -0.572, 0.022);
+    const float4 c1 = float4(1.0, 0.0425, 1.04, -0.04);
+    float4 r = roughness * c0 + c1;
+    float a004 = min(r.x * r.x, exp2(-9.28 * ndotV)) * r.x + r.y;
+    float2 ab = float2(-1.04, 1.04) * a004 + r.zw;
+    return f0 * ab.x + ab.y;
+}
+
+float3 evaluatePointLights(
+    GPUBufferView lightsView,
+    uint lightCount,
+    World3DView view,
+    float3 eyeRelPos,
+    float3 n,
+    float3 v,
+    float3 albedo,
+    float metallic,
+    float roughness)
+{
+    float3 sum = float3(0.0);
+    for (uint i = 0u; i < lightCount; ++i)
+    {
+        World3DPointLightGpu light = gpu_load<World3DPointLightGpu>(lightsView, i);
+        float3 lightEyeRel = float3(light.Cell.xyz - view.EyeCell.xyz) * WORLD3D_CELL_SIZE
+            + (light.LocalPositionAndRadius.xyz - view.EyeLocalNear.xyz);
+        float3 delta = lightEyeRel - eyeRelPos;
+        float distSq = dot(delta, delta);
+        float radius = max(light.LocalPositionAndRadius.w, 0.01);
+        float radiusSq = radius * radius;
+        if (distSq >= radiusSq)
+            continue;
+
+        float win = saturate(1.0 - distSq / radiusSq);
+        win *= win;
+        float atten = win / (distSq + 0.1);
+        float3 l = delta * rsqrt(max(distSq, 1e-6));
+        sum += evaluateDirectSun(n, v, l, albedo, metallic, roughness)
+            * (light.ColorAndIntensity.rgb * light.ColorAndIntensity.w * atten);
+    }
+    return sum;
 }
 
 // Unit-albedo Lambert response to the CPU-filtered sky, plus a small ground/sky bounce floor.
@@ -185,9 +236,59 @@ void MainCS(uint3 id : SV_DispatchThreadID)
         return;
     }
 
-    float3 direct = evaluateDirectSun(n, -ray, root.SunDirectionAndIntensity.xyz, albedo, material.x, material.y)
+    bool giActive = (root.GiFlags & 1u) != 0u && root.GiDiffuse.index != 0u;
+    float4 giDiff = float4(0.0, 0.0, 0.0, 1.0);
+    float4 giSpec = float4(0.0);
+    if (giActive)
+    {
+        giDiff = loadGBuffer(root.GiDiffuse, pixel);
+        giSpec = loadGBuffer(root.GiSpecular, pixel);
+    }
+
+    if (shadowFrame.DebugView == 7u)
+    {
+        hdr[id.xy] = float4(giActive ? giDiff.rgb * root.GiDiffuseScale : float3(0.0), 1.0);
+        return;
+    }
+    if (shadowFrame.DebugView == 8u)
+    {
+        hdr[id.xy] = float4(giActive ? giSpec.rgb * root.GiSpecularScale : float3(0.0), 1.0);
+        return;
+    }
+    if (shadowFrame.DebugView == 9u)
+    {
+        hdr[id.xy] = float4(float3(giActive ? giDiff.a : 1.0), 1.0);
+        return;
+    }
+    if (shadowFrame.DebugView == 10u)
+    {
+        float3 rawDiff = (giActive && root.GiRawDiffuse.index != 0u)
+            ? gpu_texture<Texture2D<float4>>(root.GiRawDiffuse.index).SampleLevel(shared_sampler_linear_clamp(), uv, 0.0).rgb
+            : float3(0.0);
+        hdr[id.xy] = float4(rawDiff * root.GiDiffuseScale, 1.0);
+        return;
+    }
+
+    float3 v = -ray;
+    float3 direct = evaluateDirectSun(n, v, root.SunDirectionAndIntensity.xyz, albedo, material.x, material.y)
         * root.SunColorAndDiscCosRadius.xyz * root.SunDirectionAndIntensity.w * shadowEval.Visibility;
-    float3 indirect = evaluateDiffuseEnvironment(n.z, root.SkyHorizonAndDiscBrightness.xyz, root.SkyZenith.xyz, root.Sky.w)
-        * albedo * (1.0 - material.x) * material.z;
+    if (root.PointLightCount > 0u)
+        direct += evaluatePointLights(root.PointLights, root.PointLightCount, view, eyeRelPos, n, v, albedo, material.x, material.y);
+
+    float3 indirect;
+    if (giActive)
+    {
+        float ndotV = saturate(dot(n, v));
+        float3 f0 = lerp(float3(0.04), albedo, material.x);
+        float3 envBrdf = envSpecularBrdfApprox(f0, material.y, ndotV);
+        float3 giDiffuseTerm = giDiff.rgb * root.GiDiffuseScale * albedo * (1.0 - material.x) * material.z;
+        float3 giSpecularTerm = giSpec.rgb * root.GiSpecularScale * envBrdf * material.z;
+        indirect = giDiffuseTerm + giSpecularTerm;
+    }
+    else
+    {
+        indirect = evaluateDiffuseEnvironment(n.z, root.SkyHorizonAndDiscBrightness.xyz, root.SkyZenith.xyz, root.Sky.w)
+            * albedo * (1.0 - material.x) * material.z;
+    }
     hdr[id.xy] = float4(direct + indirect + emissive, 1.0);
 }
