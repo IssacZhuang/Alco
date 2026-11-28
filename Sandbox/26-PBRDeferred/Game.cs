@@ -259,7 +259,9 @@ internal sealed class Game : GameEngine
             if (!expanded)
                 return;
 
-            ImGui.Text($"{GraphicsDevice.ActiveBackend}  |  {viewport.X} x {viewport.Y}  |  {delta * 1000f:F1} ms");
+            int fps = FrameRate > 0 ? FrameRate : (delta > 0f ? (int)MathF.Round(1f / delta) : 0);
+            float frameMs = FrameTime > 0f ? FrameTime * 1000f : delta * 1000f;
+            ImGui.Text(FormattableString.Invariant($"{GraphicsDevice.ActiveBackend}  |  {viewport.X} x {viewport.Y}  |  {fps} FPS ({frameMs:F1} ms)"));
             ImGui.Text($"Instances: {_scene.InstanceCount}   MDI: {draws.MdiCalls}   Slots: {draws.IndirectSlots}");
             ImGui.Separator();
             ImGui.Text("RMB look / wheel speed, WASD move, Shift boost");
