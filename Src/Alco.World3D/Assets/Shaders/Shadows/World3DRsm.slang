@@ -130,7 +130,8 @@ public RsmOutput psMain<T : ISurface, let alphaTest : bool>(RsmVaryings vertex, 
 
     float ndotL = saturate(dot(n, root.SunDirectionAndIntensity.xyz));
     float3 irradiance = root.SunColorAndPadding.rgb * root.SunDirectionAndIntensity.w;
-    float3 flux = baseColor.rgb * (1.0 - mrAO.x) * (1.0 / 3.14159265) * ndotL * irradiance + surface.getEmissive(input);
+    // Emissive radiance enters GI through coverage-weighted voxelization only.
+    float3 flux = baseColor.rgb * (1.0 - mrAO.x) * (1.0 / 3.14159265) * ndotL * irradiance;
 
     RsmOutput output;
     output.Flux = float4(flux, 1.0);

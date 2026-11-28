@@ -74,6 +74,8 @@ public void csMain(uint3 groupId : SV_GroupID, uint3 localId : SV_GroupThreadID)
     uint3 localBrick = voxel_toroidal_to_local(toroidalBrick, cGpu);
     float voxelSize = cGpu.OriginVoxelSize.w;
     float3 anchorToEye = float3(view.OriginAnchorCell.xyz - view.EyeCell.xyz) * WORLD3D_CELL_SIZE - view.EyeLocalNear.xyz;
+    // Radiance mips average volumes; normalize surface emission to the finest layer's cell depth.
+    float emissiveScale = frame.EmissiveBoost / float(1u << cascade);
 
     uint baseVoxel = poolIdx * WORLD3D_VOXEL_BRICK_UINT4_STRIDE;
     for (uint k = 0u; k < 8u; ++k)
@@ -83,9 +85,9 @@ public void csMain(uint3 groupId : SV_GroupID, uint3 localId : SV_GroupThreadID)
 
         float3 albedo;
         float3 normalWS;
-        float3 emissive;
+        float3 premultipliedEmissive;
         float opacity;
-        if (!voxel_decode_accum(packed, albedo, normalWS, emissive, opacity))
+        if (!voxel_decode_accum(packed, albedo, normalWS, premultipliedEmissive, opacity))
             continue;
 
         uint3 subVoxel = uint3(v & 7u, (v >> 3) & 7u, v >> 6);
@@ -127,7 +129,6 @@ public void csMain(uint3 groupId : SV_GroupID, uint3 localId : SV_GroupThreadID)
         }
 
         float3 reflected = albedo * (1.0 / 3.14159265) * directIrradiance;
-        float3 combined = reflected + emissive * frame.EmissiveBoost;
 
         if (frame.HasRsm != 0u && shadowFrame.RsmFluxTex.index != 0u && frame.RsmDepthTex.index != 0u)
         {
@@ -146,17 +147,17 @@ public void csMain(uint3 groupId : SV_GroupID, uint3 localId : SV_GroupThreadID)
                 {
                     Texture2D<float4> rsmFluxTex = gpu_texture<Texture2D<float4>>(shadowFrame.RsmFluxTex.index);
                     float3 rsmFlux = rsmFluxTex.SampleLevel(shared_sampler_linear_clamp(), uv, 0.0).rgb;
-                    combined = max(combined, rsmFlux);
+                    reflected = max(reflected, rsmFlux);
                 }
             }
         }
 
-        float3 totalRadiance = combined * opacity;
+        float3 totalRadiance = reflected * opacity + premultipliedEmissive * emissiveScale;
         if (root.DynamicMode != 0u)
         {
             float4 prev = readVolume(root.Vol0, root.Vol1, root.Vol2, root.Vol3, cascade, texelCoord);
-            totalRadiance = lerp(prev.rgb, totalRadiance, opacity);
-            opacity = max(prev.a, opacity);
+            totalRadiance += prev.rgb * (1.0 - opacity);
+            opacity += prev.a * (1.0 - opacity);
         }
         writeVolume(root.Vol0, root.Vol1, root.Vol2, root.Vol3, cascade, texelCoord, float4(totalRadiance, opacity));
     }

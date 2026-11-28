@@ -250,7 +250,7 @@ public bool voxel_decode_accum(
     uint4 packed,
     out float3 albedo,
     out float3 normalWS,
-    out float3 emissive,
+    out float3 premultipliedEmissive,
     out float opacity)
 {
     uint rawCount = packed.w & 0xFFFFu;
@@ -258,7 +258,7 @@ public bool voxel_decode_accum(
     {
         albedo = float3(0.0);
         normalWS = float3(0.0);
-        emissive = float3(0.0);
+        premultipliedEmissive = float3(0.0);
         opacity = 0.0;
         return false;
     }
@@ -274,9 +274,7 @@ public bool voxel_decode_accum(
     float nLenSq = dot(nVec, nVec);
     normalWS = nLenSq > 1e-4 ? nVec * rsqrt(nLenSq) : float3(0.0);
 
-    float3 eSum = float3(packed.z & 0x3FFu, (packed.z >> 10) & 0x3FFu, (packed.z >> 20) & 0x3FFu);
-    float3 eRoot = eSum * (invN / 5.0);
-    emissive = eRoot * eRoot;
+    premultipliedEmissive = voxel_rgb9e5_decode(packed.z);
 
     uint opSum = packed.w >> 16;
     opacity = saturate(float(opSum) * (invN / 15.0));

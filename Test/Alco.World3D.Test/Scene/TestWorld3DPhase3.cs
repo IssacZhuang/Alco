@@ -322,6 +322,62 @@ public sealed class TestWorld3DPhase3
         Assert.That(avgFloorFullBack, Is.GreaterThan(avgFloorOff + 18.0), "Toggling back to full-res VoxelGI must continue illuminating shaded Cornell floor.");
     }
 
+    /// <summary>Checks that a sub-voxel emitter does not get brighter when sampled from a coarser cascade.</summary>
+    [Test]
+    public void VulkanGpuSmallEmissive_DoesNotBrightenOnCoarserCascade()
+    {
+        using SceneHarness harness = new(GraphicsBackend.VulkanCompact);
+        const int size = 160;
+        using Texture output = harness.CreateOutput(size, size);
+
+        World3DScene scene = harness.Scene;
+        scene.Shadows.Enabled = false;
+        scene.Lighting = scene.Lighting with { SunIntensity = 0f, SkyExposure = 0f, AmbientFloor = 0f, NightFloor = 0f };
+        scene.LightingDebugView = World3DLightingDebugView.GiDiffuse;
+        scene.VoxelGi.Resolution = 64;
+        scene.VoxelGi.StaticBrickPoolCapacity = 512;
+        scene.VoxelGi.DynamicBrickPoolCapacity = 128;
+        scene.VoxelGi.BootstrapFullVolumeOnReset = true;
+
+        Assert.That(scene.TryAttachSector(out WorldSectorHandle sector), Is.True);
+        Assert.That(scene.TryRegisterGeometry(s_boxMin, s_boxMax, out WorldGeometryHandle geometry), Is.True);
+        Assert.That(scene.TryQueueGeometryLod(geometry, 0, s_boxVertices, s_boxIndices), Is.True);
+        Assert.That(scene.TryRegisterMaterial(new World3DMaterialDesc { BaseColor = Vector4.One }, out WorldMaterialHandle wallMat), Is.True);
+        Assert.That(scene.TryRegisterMaterial(new World3DMaterialDesc { Emissive = new Vector3(6f, 0f, 0f) }, out WorldMaterialHandle lightMat), Is.True);
+        AddWall(scene, sector, geometry, wallMat, Vector3.Zero, 0.125f, 0f, 2f, 0.125f, 1.5f, 1.5f);
+        AddWall(scene, sector, geometry, lightMat, Vector3.Zero, -1.7f, 0.38f, 2.14f, 0.035f, 0.055f, 0.055f);
+
+        World3DCamera near = LookAt(new Vector3(-4f, 0f, 2f), new Vector3(0f, 0f, 2f));
+        // Match the wall footprint at three times the viewing distance, outside cascade 0's 8 m half-extent.
+        World3DCamera far = near with
+        {
+            Eye = new World3DPosition(-12f, 0f, 2f),
+            Fov = 2f * MathF.Atan(MathF.Tan(near.Fov * 0.5f) / 3f),
+        };
+
+        double nearTint = MeasureWallTint(near);
+        double farTint = MeasureWallTint(far);
+        Assert.That(Math.Min(nearTint, farTint), Is.GreaterThan(3.0), "The wall must receive emissive GI in both cascades.");
+        Assert.That(farTint, Is.EqualTo(nearTint).Within(5.0), $"Wall tint must stay consistent across cascades: near={nearTint:F1}, far={farTint:F1}.");
+
+        double MeasureWallTint(World3DCamera camera)
+        {
+            const int min = size / 2 - 20;
+            const int max = size / 2 + 20;
+            const int samples = 4;
+            double tint = 0.0;
+            for (int i = 0; i < 8; ++i)
+                harness.SubmitFrame(output, camera);
+            for (int i = 0; i < samples; ++i)
+            {
+                harness.SubmitFrame(output, camera);
+                (double red, double green, _) = AverageRegionRgb(ReadPixels(harness.System, output, size), size, min, max, min, max);
+                tint += red - green;
+            }
+            return tint / samples;
+        }
+    }
+
     /// <summary>Verifies custom IVoxelFeedSurface voxelization and dynamic instance GI movement with zero residual ghosts.</summary>
     [Test]
     public void VulkanGpuCustomSurfaceAndDynamicInstances_FeedAndTrackMovesCleanly()

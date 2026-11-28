@@ -85,6 +85,80 @@ float3 computeBarycentrics(float3 p, float3 a, float3 b, float3 c)
     return sum > 0.0 ? float3(u, v, w) * rcp(sum) : float3(1.0 / 3.0);
 }
 
+// A triangle clipped against a voxel's six planes has at most nine vertices.
+static const uint MaxClippedVertices = 9u;
+
+uint clipVoxelPolygon(float3 polygon[MaxClippedVertices], uint count, uint axis, float boundary, float side,
+    out float3 clipped[MaxClippedVertices])
+{
+    uint outCount = 0u;
+    float3 prev = polygon[count - 1u];
+    float prevDist = (prev[axis] - boundary) * side;
+    for (uint i = 0u; i < count; ++i)
+    {
+        float3 point = polygon[i];
+        float dist = (point[axis] - boundary) * side;
+        if ((prevDist >= 0.0) != (dist >= 0.0))
+        {
+            float3 intersection = lerp(prev, point, prevDist / (prevDist - dist));
+            intersection[axis] = boundary;
+            clipped[outCount++] = intersection;
+        }
+        if (dist >= 0.0)
+            clipped[outCount++] = point;
+        prev = point;
+        prevDist = dist;
+    }
+    return outCount;
+}
+
+float voxelProjectedArea(float3 p0, float3 p1, float3 p2)
+{
+    if (all(min(p0, min(p1, p2)) >= 0.0) && all(max(p0, max(p1, p2)) <= 1.0))
+        return abs(cross(p1 - p0, p2 - p0).z) * 0.5;
+
+    float3 polygon[MaxClippedVertices];
+    float3 clipped[MaxClippedVertices];
+    polygon[0] = p0;
+    polygon[1] = p1;
+    polygon[2] = p2;
+    uint count = 3u;
+    for (uint axis = 0u; axis < 3u; ++axis)
+    {
+        count = clipVoxelPolygon(polygon, count, axis, 0.0, 1.0, clipped);
+        if (count < 3u)
+            return 0.0;
+        count = clipVoxelPolygon(clipped, count, axis, 1.0, -1.0, polygon);
+        if (count < 3u)
+            return 0.0;
+    }
+
+    float2 origin = polygon[0].xy;
+    float area = 0.0;
+    for (uint i = 1u; i + 1u < count; ++i)
+    {
+        float2 a = polygon[i].xy - origin;
+        float2 b = polygon[i + 1u].xy - origin;
+        area += a.x * b.y - a.y * b.x;
+    }
+    return abs(area) * 0.5;
+}
+
+void accumulateEmissive(GPUBufferView view, float3 radiance)
+{
+    uint packed = 0u;
+    while (true)
+    {
+        uint next = voxel_rgb9e5_encode(voxel_rgb9e5_decode(packed) + radiance);
+        if (next == packed)
+            return;
+        uint observed = gpu_atomic_cas_u32(view, packed, next);
+        if (observed == packed)
+            return;
+        packed = observed;
+    }
+}
+
 [shader("compute")]
 [numthreads(64, 1, 1)]
 public void csMain<T : IVoxelFeedSurface>(
@@ -256,6 +330,14 @@ public void csMain<T : IVoxelFeedSurface>(
                 GPUBufferView w2View = gpu_offset_bytes(poolView, voxelBaseByte + 8u);
                 GPUBufferView w3View = gpu_offset_bytes(poolView, voxelBaseByte + 12u);
 
+                if (any(emissive > 0.0))
+                {
+                    float3 voxelOrigin = float3(iu, iv, iw);
+                    float coverage = voxelProjectedArea(q0 - voxelOrigin, q1 - voxelOrigin, q2 - voxelOrigin);
+                    if (coverage > 0.0)
+                        accumulateEmissive(w2View, max(emissive, float3(0.0)) * (coverage * finalOpacity));
+                }
+
                 uint curW3 = gpu_load<uint>(w3View);
                 if ((curW3 & 0xFFFFu) >= 31u)
                     continue;
@@ -271,9 +353,6 @@ public void csMain<T : IVoxelFeedSurface>(
 
                 uint3 nq = uint3(clamp(round((normalWS * 0.5 + 0.5) * 31.0), 0.0, 31.0));
                 gpu_atomic_add_u32(w1View, nq.x | (nq.y << 10) | (nq.z << 20));
-
-                uint3 eq = uint3(clamp(round(sqrt(max(emissive, float3(0.0))) * 5.0), 0.0, 31.0));
-                gpu_atomic_add_u32(w2View, eq.x | (eq.y << 10) | (eq.z << 20));
             }
         }
     }

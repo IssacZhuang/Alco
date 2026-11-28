@@ -150,28 +150,34 @@ float4 traceCone(
     float3 originAnchorRel,
     float3 dir,
     float tanHalfAngle,
-    float localVoxelSize,
+    float voxelSize0,
+    float minDistance,
     float maxDistance,
     uint maxSteps)
 {
     float3 accumRgb = float3(0.0);
     float accumA = 0.0;
-    float t = localVoxelSize * 1.25;
+    float t = voxelSize0 * 1.25;
 
     for (uint i = 0u; i < maxSteps && t < maxDistance && accumA < 0.96; ++i)
     {
-        float diam = max(localVoxelSize, 2.0 * tanHalfAngle * t);
-        float3 samplePos = originAnchorRel + dir * t;
+        float diam = max(voxelSize0, 2.0 * tanHalfAngle * t);
+        float stepDist = max(diam * 0.68, voxelSize0 * 0.90);
+        float clearanceWeight = saturate((t + stepDist - minDistance) / stepDist);
+        if (clearanceWeight > 0.0)
+        {
+            float4 tap;
+            float sampledVoxelSize;
+            float3 samplePos = originAnchorRel + dir * t;
+            if (!trySampleClipmap(frame, vol0, vol1, vol2, vol3, samplePos, diam, tap, sampledVoxelSize))
+                break;
 
-        float4 tap;
-        float stepVoxel;
-        if (!trySampleClipmap(frame, vol0, vol1, vol2, vol3, samplePos, diam, tap, stepVoxel))
-            break;
-
-        float w = 1.0 - accumA;
-        accumRgb += tap.rgb * w;
-        accumA += tap.a * w;
-        t += max(max(diam, stepVoxel) * 0.68, stepVoxel * 0.90);
+            float stepCoverage = stepDist / max(stepDist, sampledVoxelSize * 0.90);
+            float w = (1.0 - accumA) * clearanceWeight * stepCoverage;
+            accumRgb += tap.rgb * w;
+            accumA += tap.a * w;
+        }
+        t += stepDist;
     }
 
     float visibility = saturate(1.0 - accumA);
@@ -194,6 +200,7 @@ float4 traceSpecularCone(
     GPUTextureId vol2,
     GPUTextureId vol3,
     float3 originAnchorRel,
+    float3 extraOriginBias,
     float3 dir,
     float roughness,
     float tanHalfAngle,
@@ -204,11 +211,12 @@ float4 traceSpecularCone(
 {
     float3 accumRgb = float3(0.0);
     float accumA = 0.0;
+    float coneOffset = max(0.0, dot(extraOriginBias, dir));
     float t = localVoxelSize * 1.15;
 
     for (uint i = 0u; i < maxSteps && t < maxDistance && accumA < 0.96; ++i)
     {
-        float diam = max(localVoxelSize, 2.0 * tanHalfAngle * t);
+        float diam = max(localVoxelSize, 2.0 * tanHalfAngle * (t + coneOffset));
         float3 samplePos = originAnchorRel + dir * t;
 
         float4 tap;
@@ -371,7 +379,12 @@ public void csMain(uint3 id : SV_DispatchThreadID)
 
     float3 viewDir = -normalize(eyeRelPos);
     float3 biasNormal = dot(geomNormal, viewDir) >= 0.0 ? geomNormal : -geomNormal;
-    float3 traceOrigin = anchorRelPos + biasNormal * (localVoxelSize * 1.45) + shadingNormal * (localVoxelSize * 0.45);
+    float3 originBiasPerVoxel = biasNormal * 1.45 + shadingNormal * 0.45;
+    float3 diffuseBias = originBiasPerVoxel * voxelSize0;
+    float3 diffuseOrigin = anchorRelPos + diffuseBias;
+    // Clip the coarse layer's self-hit interval without moving the diffuse cone or restarting its march.
+    float diffuseClearance = max(0.0, 1.5 * localVoxelSize - max(1.5 * voxelSize0, dot(diffuseBias, biasNormal)));
+    float3 extraOriginBias = originBiasPerVoxel * (localVoxelSize - voxelSize0);
 
     Texture2D<float4> bnTex = gpu_texture<Texture2D<float4>>(frame.BlueNoiseTex.index);
     float4 bn = bnTex.Load(int3(int2(id.xy & 63u), 0));
@@ -388,7 +401,8 @@ public void csMain(uint3 id : SV_DispatchThreadID)
     const float tanHalfDiffuse = 0.57735027;
 
     float4 centerCone = traceCone(frame, root.Vol0, root.Vol1, root.Vol2, root.Vol3,
-        traceOrigin, shadingNormal, tanHalfDiffuse, localVoxelSize, maxTraceDist, 14u);
+        diffuseOrigin, shadingNormal, tanHalfDiffuse, voxelSize0,
+        diffuseClearance / max(0.25, dot(shadingNormal, biasNormal)), maxTraceDist, 14u);
     diffAccum += centerCone.rgb * 0.28;
     visAccum += centerCone.a * 0.28;
 
@@ -399,7 +413,8 @@ public void csMain(uint3 id : SV_DispatchThreadID)
         float3 localDir = float3(cos(phi) * coneTilt, sin(phi) * coneTilt, coneUp);
         float3 worldDir = tangent * localDir.x + bitangent * localDir.y + shadingNormal * localDir.z;
         float4 cTap = traceCone(frame, root.Vol0, root.Vol1, root.Vol2, root.Vol3,
-            traceOrigin, worldDir, tanHalfDiffuse, localVoxelSize, maxTraceDist, 12u);
+            diffuseOrigin, worldDir, tanHalfDiffuse, voxelSize0,
+            diffuseClearance / max(0.25, dot(worldDir, biasNormal)), maxTraceDist, 12u);
         diffAccum += cTap.rgb * 0.18;
         visAccum += cTap.a * 0.18;
     }
@@ -416,7 +431,7 @@ public void csMain(uint3 id : SV_DispatchThreadID)
     float specTan = clamp(roughness * roughness * 1.4, 0.055, 0.75);
     float diffuseSkyVis = saturate(visAccum);
     float4 specCone = traceSpecularCone(frame, root.Vol0, root.Vol1, root.Vol2, root.Vol3,
-        traceOrigin, reflDir, roughness, specTan, localVoxelSize, maxTraceDist, diffuseSkyVis, 14u);
+        diffuseOrigin + extraOriginBias, extraOriginBias, reflDir, roughness, specTan, localVoxelSize, maxTraceDist, diffuseSkyVis, 14u);
 
     float3 specRadiance = lerp(specCone.rgb, diffAccum, smoothstep(0.35, 0.90, roughness) * 0.85) * horizonOcc;
     outDiff[id.xy] = float4(diffAccum, diffuseSkyVis);
