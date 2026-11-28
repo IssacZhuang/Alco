@@ -29,6 +29,22 @@ public struct SsrCompositeRoot
     public uint DisableVoxelFallback;
 };
 
+float ssrLuma(float3 c)
+{
+    return dot(c, float3(0.2126, 0.7152, 0.0722));
+}
+
+float3 ssrToTonemap(float3 c)
+{
+    float3 clamped = max(c, float3(0.0));
+    return clamped / (1.0 + ssrLuma(clamped));
+}
+
+float3 ssrFromTonemap(float3 c)
+{
+    return c / max(1.0 - ssrLuma(c), 1e-3);
+}
+
 float3 ssrEnvSpecularBrdfApprox(float3 f0, float roughness, float ndotV)
 {
     const float4 c0 = float4(-1.0, -0.0275, -0.572, 0.022);
@@ -48,16 +64,22 @@ float4 sampleBilateralSsr(
     int2 fullDims,
     float2 uv,
     float3 centerNormal,
-    float centerDepth)
+    float centerDepth,
+    float roughness)
 {
     float centerLinearZ = view.EyeLocalNear.w / max(centerDepth, 1e-6);
     float2 tracePos = uv * float2(traceDims) - float2(0.5);
     int2 baseCoord = int2(floor(tracePos));
     int2 maxTrace = int2(traceDims) - int2(1, 1);
     int2 maxFull = fullDims - int2(1, 1);
+    float normExp = lerp(8.0, 2.0, saturate(roughness * 1.8));
+    float depthTol = max(centerLinearZ * 0.1, 0.25);
 
-    float4 accum = float4(0.0);
-    float weightSum = 0.0;
+    float confAccum = 0.0;
+    float confWeight = 0.0;
+    float3 rgbTmAccum = float3(0.0);
+    float rgbWeight = 0.0;
+
     [unroll]
     for (int dy = 0; dy <= 1; ++dy)
     {
@@ -73,18 +95,29 @@ float4 sampleBilateralSsr(
 
             float tLinearZ = view.EyeLocalNear.w / max(td, 1e-6);
             float3 tn = normalize(normalTex.Load(int3(fullCoord, 0)).xyz * 2.0 - 1.0);
-            float depthW = exp(-abs(tLinearZ - centerLinearZ) / max(centerLinearZ * 0.1, 0.25));
-            float normW = pow(saturate(dot(centerNormal, tn)), 4.0);
+            float depthW = exp(-abs(tLinearZ - centerLinearZ) / depthTol);
+            float normW = pow(saturate(dot(centerNormal, tn)), normExp);
             float2 delta = float2(tc) - tracePos;
             float spatialW = exp(-dot(delta, delta) * 1.15);
             float w = spatialW * depthW * normW;
-            accum += ssrTex.Load(int3(tc, 0)) * w;
-            weightSum += w;
+
+            float4 s = ssrTex.Load(int3(tc, 0));
+            confAccum += s.a * w;
+            confWeight += w;
+            if (s.a > 0.001)
+            {
+                float cw = w * s.a;
+                rgbTmAccum += ssrToTonemap(s.rgb) * cw;
+                rgbWeight += cw;
+            }
         }
     }
-    return weightSum > 1e-5
-        ? accum / weightSum
-        : ssrTex.SampleLevel(shared_sampler_linear_clamp(), uv, 0.0);
+
+    float conf = confWeight > 1e-5
+        ? confAccum / confWeight
+        : ssrTex.SampleLevel(shared_sampler_linear_clamp(), uv, 0.0).a;
+    float3 rgb = rgbWeight > 1e-5 ? ssrFromTonemap(rgbTmAccum / rgbWeight) : float3(0.0);
+    return float4(rgb, saturate(conf));
 }
 
 [shader("compute")]
@@ -113,38 +146,39 @@ public void csMain(uint3 id : SV_DispatchThreadID)
         return;
     }
 
+    Texture2D<float4> matTex = gpu_texture<Texture2D<float4>>(root.MaterialTex.index);
     Texture2D<float4> normalTex = gpu_texture<Texture2D<float4>>(root.NormalTex.index);
     Texture2D<float4> ssrTex = gpu_texture<Texture2D<float4>>(root.ResolvedSsrTex.index);
+    float3 mat = matTex.Load(int3(id.xy, 0)).rgb;
+    float roughness = clamp(mat.y, 0.02, 1.0);
     float3 n = normalize(normalTex.Load(int3(id.xy, 0)).xyz * 2.0 - 1.0);
     float2 uv = (float2(id.xy) + 0.5) * view.ViewportSizeInvSize.zw;
 
     float4 ssr = root.HalfResolution != 0u
-        ? sampleBilateralSsr(ssrTex, normalTex, depthTex, view, uint2(root.TraceWidth, root.TraceHeight), int2(fullDims), uv, n, depth)
+        ? sampleBilateralSsr(ssrTex, normalTex, depthTex, view, uint2(root.TraceWidth, root.TraceHeight), int2(fullDims), uv, n, depth, roughness)
         : ssrTex.Load(int3(id.xy, 0));
+
+    float roughFade = 1.0 - smoothstep(root.MaxRoughness * 0.65, root.MaxRoughness, roughness);
+    float conf = saturate(ssr.a * roughFade);
 
     if (shadowFrame.DebugView == 12u)
     {
-        hdrOut[id.xy] = float4(ssr.rgb * ssr.a * root.Intensity, 1.0);
+        hdrOut[id.xy] = float4(ssr.rgb * conf * root.Intensity, 1.0);
         return;
     }
     if (shadowFrame.DebugView == 13u)
     {
-        hdrOut[id.xy] = float4(ssr.aaa, 1.0);
+        hdrOut[id.xy] = float4(conf.xxx, 1.0);
         return;
     }
 
-    Texture2D<float4> matTex = gpu_texture<Texture2D<float4>>(root.MaterialTex.index);
-    Texture2D<float4> albedoTex = gpu_texture<Texture2D<float4>>(root.AlbedoTex.index);
-    float3 mat = matTex.Load(int3(id.xy, 0)).rgb;
-    float roughness = clamp(mat.y, 0.02, 1.0);
-    float roughFade = 1.0 - smoothstep(root.MaxRoughness * 0.65, root.MaxRoughness, roughness);
-    float conf = saturate(ssr.a * roughFade);
     if (conf <= 0.001)
     {
         hdrOut[id.xy] = baseHdr;
         return;
     }
 
+    Texture2D<float4> albedoTex = gpu_texture<Texture2D<float4>>(root.AlbedoTex.index);
     float3 srgbAlbedo = albedoTex.Load(int3(id.xy, 0)).rgb;
     float3 lo = srgbAlbedo * (1.0 / 12.92);
     float3 hi = pow(max((srgbAlbedo + 0.055) * (1.0 / 1.055), 0.0), float3(2.4));
@@ -152,8 +186,9 @@ public void csMain(uint3 id : SV_DispatchThreadID)
 
     float2 ndc = uv * float2(2.0, -2.0) + float2(-1.0, 1.0);
     float4 eyeH = mul(float4(ndc, depth, 1.0), view.CameraInvVP);
-    float3 ray = normalize(eyeH.xyz);
-    float ndotV = saturate(dot(n, -ray));
+    float3 eyeRelPos = eyeH.xyz / max(eyeH.w, 1e-6);
+    float3 v = normalize(-eyeRelPos);
+    float ndotV = saturate(dot(n, v));
     float3 f0 = lerp(float3(0.04), albedo, mat.x);
     float3 envBrdf = ssrEnvSpecularBrdfApprox(f0, roughness, ndotV);
 

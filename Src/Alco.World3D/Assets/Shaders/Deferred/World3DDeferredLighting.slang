@@ -278,10 +278,12 @@ void MainCS(uint3 id : SV_DispatchThreadID)
     float3 indirect;
     if (giActive)
     {
+        float roughness = clamp(material.y, 0.02, 1.0);
         float ndotV = saturate(dot(n, v));
         float3 f0 = lerp(float3(0.04), albedo, material.x);
-        float3 envBrdf = envSpecularBrdfApprox(f0, material.y, ndotV);
-        float3 giDiffuseTerm = giDiff.rgb * root.GiDiffuseScale * albedo * (1.0 - material.x) * material.z;
+        float3 envBrdf = envSpecularBrdfApprox(f0, roughness, ndotV);
+        float3 kD = (1.0 - saturate(envBrdf)) * (1.0 - material.x);
+        float3 giDiffuseTerm = giDiff.rgb * root.GiDiffuseScale * albedo * kD * material.z;
         float3 giSpecularTerm = giSpec.rgb * root.GiSpecularScale * envBrdf * material.z;
         indirect = giDiffuseTerm + giSpecularTerm;
     }

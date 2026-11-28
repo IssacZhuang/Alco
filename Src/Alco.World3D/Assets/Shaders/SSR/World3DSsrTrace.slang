@@ -27,37 +27,25 @@ public struct SsrTraceRoot
     public uint Reserved0;
 };
 
-float ssrLinearViewZ(World3DView view, float depth)
+float ssrLinearViewZ(float nearPlane, float depth)
 {
-    return view.EyeLocalNear.w / max(depth, 1e-6);
+    return nearPlane / max(depth, 1e-6);
 }
 
-float3 ssrSampleGGX(float2 xi, float roughness, float3 n)
+float ssrLuma(float3 c)
 {
-    float a = max(roughness * roughness, 0.004);
-    float phi = 2.0 * WORLD3D_PI * xi.x;
-    float cosTheta = sqrt(saturate((1.0 - xi.y) / (1.0 + (a * a - 1.0) * xi.y)));
-    float sinTheta = sqrt(saturate(1.0 - cosTheta * cosTheta));
-
-    float3 hLocal = float3(cos(phi) * sinTheta, sin(phi) * sinTheta, cosTheta);
-    float3 up = abs(n.z) < 0.999 ? float3(0.0, 0.0, 1.0) : float3(1.0, 0.0, 0.0);
-    float3 tangent = normalize(cross(up, n));
-    float3 bitangent = cross(n, tangent);
-    return normalize(tangent * hLocal.x + bitangent * hLocal.y + n * hLocal.z);
+    return dot(c, float3(0.2126, 0.7152, 0.0722));
 }
 
-float2 ssrProjectToUvZ(row_major float4x4 vp, float3 eyeRelPos, out float clipW, out float revZ)
+float3 ssrToTonemap(float3 c)
 {
-    float4 clip = mul(float4(eyeRelPos, 1.0), vp);
-    clipW = clip.w;
-    if (clip.w <= 1e-5)
-    {
-        revZ = 1.0;
-        return float2(-1.0, -1.0);
-    }
-    float invW = rcp(clip.w);
-    revZ = saturate(clip.z * invW);
-    return (clip.xy * invW) * float2(0.5, -0.5) + float2(0.5, 0.5);
+    float3 clamped = max(c, float3(0.0));
+    return clamped / (1.0 + ssrLuma(clamped));
+}
+
+float3 ssrFromTonemap(float3 c)
+{
+    return c / max(1.0 - ssrLuma(c), 1e-3);
 }
 
 [shader("compute")]
@@ -93,37 +81,34 @@ public void csMain(uint3 id : SV_DispatchThreadID)
     float3 mat = matTex.Load(int3(fullCoord, 0)).rgb;
     float roughness = clamp(mat.y, 0.02, 1.0);
     float maxRoughness = root.SsrParams.z;
-    if (roughness > maxRoughness)
+    if (roughness >= maxRoughness)
     {
         outColor[id.xy] = float4(0.0);
         outMeta[id.xy] = float4(uv, 0.0, roughness);
         return;
     }
 
-    Texture2D<float4> normalTex = gpu_texture<Texture2D<float4>>(root.NormalTex.index);
-    float3 n = normalize(normalTex.Load(int3(fullCoord, 0)).xyz * 2.0 - 1.0);
-
     float2 ndc = uv * float2(2.0, -2.0) + float2(-1.0, 1.0);
     float4 eyeH = mul(float4(ndc, depth, 1.0), view.CameraInvVP);
     float3 eyeRelPos = eyeH.xyz / max(eyeH.w, 1e-6);
-    float3 v = normalize(-eyeRelPos);
+    float viewDist = length(eyeRelPos);
+    float3 v = -eyeRelPos / max(viewDist, 1e-6);
 
-    Texture2D<float4> blueNoiseTex = gpu_texture<Texture2D<float4>>(root.BlueNoiseTex.index);
-    uint2 bnCoord = (id.xy + uint2((root.FrameIndex * 19u) & 127u, (root.FrameIndex * 37u) & 127u)) & 127u;
-    float4 bn = blueNoiseTex.Load(int3(bnCoord, 0));
-
-    float3 reflDir;
-    if (roughness < 0.05)
+    Texture2D<float4> normalTex = gpu_texture<Texture2D<float4>>(root.NormalTex.index);
+    float3 n = normalize(normalTex.Load(int3(fullCoord, 0)).xyz * 2.0 - 1.0);
+    float ndotV = dot(n, v);
+    if (ndotV < -0.15)
     {
-        reflDir = reflect(-v, n);
+        outColor[id.xy] = float4(0.0);
+        outMeta[id.xy] = float4(uv, 0.0, roughness);
+        return;
     }
-    else
-    {
-        float3 h = ssrSampleGGX(bn.xy, roughness * 0.75, n);
-        reflDir = reflect(-v, h);
-    }
+    if (ndotV < 0.02)
+        n = normalize(n + v * (0.02 - ndotV));
 
-    if (dot(reflDir, n) <= 0.0)
+    float3 reflDir = reflect(-v, n);
+    float facingWeight = 1.0 - smoothstep(0.25, 0.75, dot(reflDir, v));
+    if (facingWeight <= 0.001)
     {
         outColor[id.xy] = float4(0.0);
         outMeta[id.xy] = float4(uv, 0.0, roughness);
@@ -132,16 +117,16 @@ public void csMain(uint3 id : SV_DispatchThreadID)
 
     float maxDist = max(root.SsrParams.x, 1.0);
     float nearPlane = max(view.EyeLocalNear.w, 0.05);
-    float3 rayOrigin = eyeRelPos + n * 0.025;
+    float originBias = clamp(viewDist * 0.005, 0.02, 0.15);
+    float3 rayOrigin = eyeRelPos + n * originBias;
     float4 c0 = mul(float4(rayOrigin, 1.0), view.CameraVP);
     float4 c1 = mul(float4(rayOrigin + reflDir * maxDist, 1.0), view.CameraVP);
 
     // Clip ray segment against W >= nearPlane in clip space so projection never flips behind camera.
-    float clipTMax = 1.0;
     if (c1.w < nearPlane)
     {
-        clipTMax = saturate((nearPlane - c0.w) / (c1.w - c0.w));
-        c1 = lerp(c0, c1, clipTMax);
+        float clipT = saturate((nearPlane - c0.w) / (c1.w - c0.w));
+        c1 = lerp(c0, c1, clipT);
     }
 
     float2 startUv = (c0.xy / max(c0.w, 1e-5)) * float2(0.5, -0.5) + float2(0.5, 0.5);
@@ -149,77 +134,181 @@ public void csMain(uint3 id : SV_DispatchThreadID)
     float2 endUv = (c1.xy / max(c1.w, 1e-5)) * float2(0.5, -0.5) + float2(0.5, 0.5);
     float endZ = saturate(c1.z / max(c1.w, 1e-5));
 
-    float3 rayStart = float3(startUv, startZ);
-    float3 rayDelta = float3(endUv - startUv, endZ - startZ);
-    if (dot(rayDelta.xy, rayDelta.xy) < 1e-8)
+    // Strictly clip projected screen ray to [0, 1]^2 so Hi-Z DDA never marches off-screen.
+    float2 rawDeltaUv = endUv - startUv;
+    float rawDeltaZ = endZ - startZ;
+    float tMin = 0.0;
+    float tMax = 1.0;
+    if (abs(rawDeltaUv.x) > 1e-6)
+    {
+        float tx0 = (0.0 - startUv.x) / rawDeltaUv.x;
+        float tx1 = (1.0 - startUv.x) / rawDeltaUv.x;
+        tMin = max(tMin, min(tx0, tx1));
+        tMax = min(tMax, max(tx0, tx1));
+    }
+    else if (startUv.x < 0.0 || startUv.x > 1.0)
+    {
+        tMax = -1.0;
+    }
+    if (abs(rawDeltaUv.y) > 1e-6)
+    {
+        float ty0 = (0.0 - startUv.y) / rawDeltaUv.y;
+        float ty1 = (1.0 - startUv.y) / rawDeltaUv.y;
+        tMin = max(tMin, min(ty0, ty1));
+        tMax = min(tMax, max(ty0, ty1));
+    }
+    else if (startUv.y < 0.0 || startUv.y > 1.0)
+    {
+        tMax = -1.0;
+    }
+
+    if (tMax <= tMin)
     {
         outColor[id.xy] = float4(0.0);
         outMeta[id.xy] = float4(uv, 0.0, roughness);
         return;
     }
 
-    uint maxSteps = clamp(uint(root.ScreenAndStepParams.w), 8u, 128u);
-    float dt = 1.0 / float(maxSteps);
-    float t = dt * (0.35 + 0.65 * bn.x);
-    bool useHiZ = root.HiZActive != 0u && root.HiZTex.index != 0u;
-    int maxMip = max(int(root.ScreenAndStepParams.z) - 1, 0);
-    int mip = useHiZ ? min(2, maxMip) : 0;
+    float3 rayStart = float3(startUv, startZ) + float3(rawDeltaUv, rawDeltaZ) * tMin;
+    float3 rayDelta = float3(rawDeltaUv, rawDeltaZ) * (tMax - tMin);
+    float2 pStart = rayStart.xy * float2(fullDims);
+    float2 pDelta = rayDelta.xy * float2(fullDims);
+    float pixelLen = length(pDelta);
+    if (pixelLen < 1.5)
+    {
+        outColor[id.xy] = float4(0.0);
+        outMeta[id.xy] = float4(uv, 0.0, roughness);
+        return;
+    }
 
-    Texture2D<float2> hizTex = gpu_texture<Texture2D<float2>>(root.HiZTex.index);
-    float startLinearZ = ssrLinearViewZ(view, startZ);
-    float endLinearZ = ssrLinearViewZ(view, endZ);
+    // Static spatial-only blue noise eliminates frame-to-frame shimmer on stationary cameras.
+    Texture2D<float4> blueNoiseTex = gpu_texture<Texture2D<float4>>(root.BlueNoiseTex.index);
+    float4 bn = blueNoiseTex.Load(int3(id.xy & 127u, 0));
+
+    uint maxSteps = clamp(uint(root.ScreenAndStepParams.w), 8u, 128u);
+    float curT = min((1.5 + bn.x) / max(pixelLen, 1.0), 0.04);
+    float prevT = curT;
+    bool useHiZ = root.HiZActive != 0u && root.HiZTex.index != 0u;
+    int hizMipCount = int(root.ScreenAndStepParams.z);
 
     bool hitFound = false;
     float hitT = 0.0;
-    float prevT = 0.0;
 
-    for (uint iter = 0u; iter < maxSteps && t <= 1.0; ++iter)
+    if (useHiZ && hizMipCount > 0)
     {
-        float stepScale = useHiZ ? float(1u << uint(max(mip, 0))) * dt : dt;
-        float nextT = min(t + stepScale, 1.0);
-        float3 sampleMid = rayStart + rayDelta * t;
-        float3 sampleFar = rayStart + rayDelta * nextT;
+        Texture2D<float2> hizTex = gpu_texture<Texture2D<float2>>(root.HiZTex.index);
+        // Level 0 = full-res 1x1 depthTex, level k >= 1 = hizTex mip (k - 1).
+        int maxLevel = min(hizMipCount, 6);
+        int level = min(2, maxLevel);
+        uint2 mip0Dims = max(uint2(1u), fullDims >> 1u);
+        float pxEps = 0.05 / max(pixelLen, 1.0);
 
-        if (sampleMid.x < 0.0 || sampleMid.x > 1.0 || sampleMid.y < 0.0 || sampleMid.y > 1.0)
-            break;
-
-        if (useHiZ && mip > 0)
+        for (uint iter = 0u; iter < maxSteps && curT < 1.0; ++iter)
         {
-            float cellMaxZ = hizTex.SampleLevel(shared_sampler_nearest_clamp(), sampleMid.xy, float(mip)).g;
-            float segFarthestZ = min(sampleMid.z, sampleFar.z);
-            if (segFarthestZ > cellMaxZ + 1e-5)
-            {
-                prevT = t;
-                t = nextT;
-                mip = min(mip + 1, maxMip);
-            }
-            else
-            {
-                mip = max(mip - 1, 0);
-            }
-            continue;
-        }
-
-        int2 px = clamp(int2(sampleMid.xy * float2(fullDims)), int2(0, 0), maxFull);
-        float sceneDepth = depthTex.Load(int3(px, 0));
-        if (sceneDepth > 0.0)
-        {
-            // Perspective-correct linear depth interpolation along clip ray.
-            float rayLinearZ = rcp(lerp(rcp(max(startLinearZ, 0.01)), rcp(max(endLinearZ, 0.01)), t));
-            float sceneLinearZ = ssrLinearViewZ(view, sceneDepth);
-            float thickness = root.SsrParams.y * (1.0 + t * maxDist * 0.03);
-            if (rayLinearZ >= sceneLinearZ && rayLinearZ - sceneLinearZ <= thickness)
-            {
-                hitFound = true;
-                hitT = t;
+            float2 curPx = pStart + pDelta * curT;
+            if (curPx.x < 0.0 || curPx.x >= float(fullDims.x) || curPx.y < 0.0 || curPx.y >= float(fullDims.y))
                 break;
-            }
-        }
 
-        prevT = t;
-        t = nextT;
-        if (useHiZ)
-            mip = min(mip + 1, maxMip);
+            int2 levelDims = level == 0 ? int2(fullDims) : max(int2(1, 1), int2(mip0Dims >> uint(level - 1)));
+            float cellSize = float(1u << uint(level));
+            int2 cell = clamp(int2(floor(curPx / cellSize)), int2(0, 0), levelDims - int2(1, 1));
+
+            float nextEdgeX = pDelta.x >= 0.0
+                ? (cell.x == levelDims.x - 1 ? float(fullDims.x) : float(cell.x + 1) * cellSize)
+                : float(cell.x) * cellSize;
+            float nextEdgeY = pDelta.y >= 0.0
+                ? (cell.y == levelDims.y - 1 ? float(fullDims.y) : float(cell.y + 1) * cellSize)
+                : float(cell.y) * cellSize;
+
+            float tx = abs(pDelta.x) > 1e-4 ? (nextEdgeX - curPx.x) / pDelta.x : 1.0e9;
+            float ty = abs(pDelta.y) > 1e-4 ? (nextEdgeY - curPx.y) / pDelta.y : 1.0e9;
+            float stepT = max(min(tx, ty), 0.0) + pxEps;
+            float nextT = min(curT + stepT, 1.0);
+
+            float curZ = rayStart.z + rayDelta.z * curT;
+            float nextZ = rayStart.z + rayDelta.z * nextT;
+            float segMinZ = min(curZ, nextZ);
+            float segMaxZ = max(curZ, nextZ);
+
+            if (level > 0)
+            {
+                float2 cellZ = hizTex.Load(int3(cell, level - 1));
+                if (segMinZ > cellZ.y + 1e-6)
+                {
+                    prevT = curT;
+                    curT = nextT;
+                    level = min(level + 1, maxLevel);
+                    continue;
+                }
+
+                float cellThickness = root.SsrParams.y * (1.0 + nextT * 0.5);
+                if (cellZ.x > 0.0 && segMaxZ < cellZ.x)
+                {
+                    float segNearLinZ = ssrLinearViewZ(nearPlane, segMaxZ);
+                    float cellFarLinZ = ssrLinearViewZ(nearPlane, cellZ.x);
+                    if ((segNearLinZ - cellFarLinZ) > cellThickness * 1.5)
+                    {
+                        prevT = curT;
+                        curT = nextT;
+                        level = min(level + 1, maxLevel);
+                        continue;
+                    }
+                }
+
+                level -= 1;
+                continue;
+            }
+
+            float sampleT = 0.5 * (curT + nextT);
+            float rayZ = rayStart.z + rayDelta.z * sampleT;
+            float sceneDepth = depthTex.Load(int3(cell, 0));
+            if (sceneDepth > 0.0 && rayZ <= sceneDepth)
+            {
+                float rayLinZ = ssrLinearViewZ(nearPlane, rayZ);
+                float sceneLinZ = ssrLinearViewZ(nearPlane, sceneDepth);
+                float zSpan = abs(ssrLinearViewZ(nearPlane, nextZ) - ssrLinearViewZ(nearPlane, curZ));
+                float thickness = max(root.SsrParams.y * (1.0 + sampleT * 0.5), min(zSpan * 1.5, root.SsrParams.y * 2.5));
+                if (rayLinZ - sceneLinZ <= thickness)
+                {
+                    hitFound = true;
+                    prevT = curT;
+                    hitT = sampleT;
+                    break;
+                }
+            }
+
+            prevT = curT;
+            curT = nextT;
+            level = 1;
+        }
+    }
+    else
+    {
+        float dt = 1.0 / float(maxSteps);
+        float t = curT;
+        for (uint iter = 0u; iter < maxSteps && t <= 1.0; ++iter)
+        {
+            float2 sampleUv = rayStart.xy + rayDelta.xy * t;
+            int2 px = clamp(int2(sampleUv * float2(fullDims)), int2(0, 0), maxFull);
+            float sceneDepth = depthTex.Load(int3(px, 0));
+            float rayZ = rayStart.z + rayDelta.z * t;
+            if (sceneDepth > 0.0 && rayZ <= sceneDepth)
+            {
+                float rayLinZ = ssrLinearViewZ(nearPlane, rayZ);
+                float sceneLinZ = ssrLinearViewZ(nearPlane, sceneDepth);
+                float prevZ = rayStart.z + rayDelta.z * prevT;
+                float zSpan = abs(rayLinZ - ssrLinearViewZ(nearPlane, prevZ));
+                float thickness = max(root.SsrParams.y * (1.0 + t * 0.5), min(zSpan * 1.5, root.SsrParams.y * 2.5));
+                if (rayLinZ - sceneLinZ <= thickness)
+                {
+                    hitFound = true;
+                    hitT = t;
+                    break;
+                }
+            }
+            prevT = t;
+            t = min(t + dt, 1.0 + 1e-4);
+        }
     }
 
     if (!hitFound)
@@ -239,9 +328,8 @@ public void csMain(uint3 id : SV_DispatchThreadID)
         float2 midUv = rayStart.xy + rayDelta.xy * midT;
         int2 px = clamp(int2(midUv * float2(fullDims)), int2(0, 0), maxFull);
         float sd = depthTex.Load(int3(px, 0));
-        float rayLin = rcp(lerp(rcp(max(startLinearZ, 0.01)), rcp(max(endLinearZ, 0.01)), midT));
-        float scnLin = sd > 0.0 ? ssrLinearViewZ(view, sd) : 1.0e8;
-        if (rayLin >= scnLin)
+        float midRayZ = rayStart.z + rayDelta.z * midT;
+        if (sd > 0.0 && midRayZ <= sd)
             hi = midT;
         else
             lo = midT;
@@ -257,10 +345,22 @@ public void csMain(uint3 id : SV_DispatchThreadID)
 
     int2 hitPx = clamp(int2(hitUv * float2(fullDims)), int2(0, 0), maxFull);
     float finalSceneDepth = depthTex.Load(int3(hitPx, 0));
-    float finalRayLinearZ = rcp(lerp(rcp(max(startLinearZ, 0.01)), rcp(max(endLinearZ, 0.01)), hi));
-    float finalSceneLinearZ = finalSceneDepth > 0.0 ? ssrLinearViewZ(view, finalSceneDepth) : 1.0e8;
-    float finalThickness = root.SsrParams.y * (1.0 + hi * maxDist * 0.05);
-    if (finalSceneDepth <= 0.0 || abs(finalRayLinearZ - finalSceneLinearZ) > finalThickness)
+    float finalRayZ = rayStart.z + rayDelta.z * hi;
+    float finalRayLinZ = ssrLinearViewZ(nearPlane, finalRayZ);
+    float finalSceneLinZ = finalSceneDepth > 0.0 ? ssrLinearViewZ(nearPlane, finalSceneDepth) : 1.0e8;
+    float finalThickness = root.SsrParams.y * (1.0 + hi * 0.5);
+    if (finalSceneDepth <= 0.0 || abs(finalRayLinZ - finalSceneLinZ) > finalThickness)
+    {
+        outColor[id.xy] = float4(0.0);
+        outMeta[id.xy] = float4(uv, 0.0, roughness);
+        return;
+    }
+
+    float2 hitNdc = hitUv * float2(2.0, -2.0) + float2(-1.0, 1.0);
+    float4 hitEyeH = mul(float4(hitNdc, finalSceneDepth, 1.0), view.CameraInvVP);
+    float3 hitEyeRel = hitEyeH.xyz / max(hitEyeH.w, 1e-6);
+    float hitWorldDist = length(hitEyeRel - eyeRelPos);
+    if (hitWorldDist < originBias * 1.25 || hitWorldDist > maxDist * 1.05)
     {
         outColor[id.xy] = float4(0.0);
         outMeta[id.xy] = float4(uv, 0.0, roughness);
@@ -279,16 +379,54 @@ public void csMain(uint3 id : SV_DispatchThreadID)
     }
 
     Texture2D<float4> hdrIn = gpu_texture<Texture2D<float4>>(root.HdrInTex.index);
-    float3 hitColor = hdrIn.SampleLevel(shared_sampler_linear_clamp(), hitUv, 0.0).rgb;
+    float3 cCenter = hdrIn.SampleLevel(shared_sampler_linear_clamp(), hitUv, 0.0).rgb;
+    float3 hitColor = cCenter;
+
+    if (roughness > 0.06)
+    {
+        float blurPx = clamp(roughness * roughness * (hitWorldDist / max(finalSceneLinZ, 0.5)) * 24.0, 0.0, 10.0);
+        if (blurPx > 0.75)
+        {
+            static const float2 diskOffsets[4] = {
+                float2( 0.85,  0.25),
+                float2(-0.25,  0.85),
+                float2(-0.85, -0.25),
+                float2( 0.25, -0.85)
+            };
+            float3 tmAccum = ssrToTonemap(cCenter);
+            float wAccum = 1.0;
+            float depthTol = max(finalSceneLinZ * 0.12, 0.35);
+            float2 minUv = view.ViewportSizeInvSize.zw * 0.5;
+            float2 maxUv = 1.0 - minUv;
+
+            [unroll]
+            for (uint ti = 0u; ti < 4u; ++ti)
+            {
+                float2 rotOff = float2(
+                    diskOffsets[ti].x * bn.z - diskOffsets[ti].y * bn.w,
+                    diskOffsets[ti].x * bn.w + diskOffsets[ti].y * bn.z);
+                float2 tapUv = clamp(hitUv + rotOff * blurPx * view.ViewportSizeInvSize.zw, minUv, maxUv);
+                int2 tapPx = clamp(int2(tapUv * float2(fullDims)), int2(0, 0), maxFull);
+                float tapDepth = depthTex.Load(int3(tapPx, 0));
+                if (tapDepth <= 0.0)
+                    continue;
+
+                float tapLinZ = ssrLinearViewZ(nearPlane, tapDepth);
+                float w = exp(-abs(tapLinZ - finalSceneLinZ) / depthTol);
+                float3 tapRgb = hdrIn.SampleLevel(shared_sampler_linear_clamp(), tapUv, 0.0).rgb;
+                tmAccum += ssrToTonemap(tapRgb) * w;
+                wAccum += w;
+            }
+            hitColor = ssrFromTonemap(tmAccum / max(wAccum, 1e-4));
+        }
+    }
 
     float edgeFade = max(root.SsrParams.w, 0.01);
     float edgeDist = min(min(hitUv.x, 1.0 - hitUv.x), min(hitUv.y, 1.0 - hitUv.y));
     float borderWeight = smoothstep(0.0, edgeFade, edgeDist);
-    float roughWeight = 1.0 - smoothstep(maxRoughness * 0.65, maxRoughness, roughness);
-    float distFrac = hi * clipTMax;
-    float distWeight = 1.0 - smoothstep(0.75, 1.0, distFrac);
-    float confidence = saturate(borderWeight * roughWeight * distWeight);
+    float distWeight = 1.0 - smoothstep(0.75, 1.0, saturate(hitWorldDist / maxDist));
+    float confidence = saturate(borderWeight * distWeight * facingWeight);
 
     outColor[id.xy] = float4(hitColor, confidence);
-    outMeta[id.xy] = float4(hitUv, max(distFrac * maxDist, 0.01), roughness);
+    outMeta[id.xy] = float4(hitUv, max(hitWorldDist, 0.01), roughness);
 }

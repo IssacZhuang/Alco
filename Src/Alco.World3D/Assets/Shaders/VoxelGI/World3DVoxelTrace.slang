@@ -187,6 +187,63 @@ float4 traceCone(
     return float4(accumRgb, visibility);
 }
 
+float4 traceSpecularCone(
+    World3DVoxelFrameGpu frame,
+    GPUTextureId vol0,
+    GPUTextureId vol1,
+    GPUTextureId vol2,
+    GPUTextureId vol3,
+    float3 originAnchorRel,
+    float3 dir,
+    float roughness,
+    float tanHalfAngle,
+    float localVoxelSize,
+    float maxDistance,
+    float diffuseSkyVis,
+    uint maxSteps)
+{
+    float3 accumRgb = float3(0.0);
+    float accumA = 0.0;
+    float t = localVoxelSize * 1.15;
+
+    for (uint i = 0u; i < maxSteps && t < maxDistance && accumA < 0.96; ++i)
+    {
+        float diam = max(localVoxelSize, 2.0 * tanHalfAngle * t);
+        float3 samplePos = originAnchorRel + dir * t;
+
+        float4 tap;
+        float stepVoxel;
+        if (!trySampleClipmap(frame, vol0, vol1, vol2, vol3, samplePos, diam, tap, stepVoxel))
+            break;
+
+        float stepDist = max(max(diam, stepVoxel) * 0.65, max(stepVoxel * 0.85, t * 0.35));
+        float tapA = saturate(tap.a);
+        float3 surfaceRad = tapA > 1e-4 ? (tap.rgb / tapA) : float3(0.0);
+        float stepAlpha = saturate(tapA * clamp(stepDist / max(stepVoxel, 1e-3), 1.0, 2.0));
+        float w = 1.0 - accumA;
+        accumRgb += surfaceRad * (stepAlpha * w);
+        accumA += stepAlpha * w;
+        t += stepDist;
+    }
+
+    float visibility = saturate(1.0 - accumA);
+    if (visibility > 0.001)
+    {
+        float skyHorizonW = smoothstep(-0.08 - roughness * 0.25, 0.18 + roughness * 0.65, dir.z);
+        float3 skyCol = lerp(
+            frame.SkyHorizonAndAmbientFloor.rgb * 0.65,
+            frame.SkyZenithAndFrameIndex.rgb,
+            pow(saturate(dir.z), 0.55)) * skyHorizonW;
+        float3 groundBounce = lerp(float3(0.04, 0.036, 0.032), float3(0.08, 0.095, 0.12), saturate(dir.z * 0.5 + 0.5));
+        float skyOcc = saturate(diffuseSkyVis * 1.15);
+        skyOcc *= skyOcc;
+        float roughSkyAtten = lerp(0.55, 0.18, saturate(roughness));
+        accumRgb += (skyCol * (skyOcc * roughSkyAtten) + frame.SkyHorizonAndAmbientFloor.a * groundBounce * diffuseSkyVis) * visibility;
+    }
+
+    return float4(accumRgb, visibility);
+}
+
 float3 evaluateRsmNearBounce(
     World3DVoxelFrameGpu frame,
     World3DView view,
@@ -349,14 +406,19 @@ public void csMain(uint3 id : SV_DispatchThreadID)
 
     diffAccum += evaluateRsmNearBounce(frame, view, shadowFrame, anchorRelPos, shadingNormal, bn, voxelSize0);
 
-    float3 reflDir = reflect(-viewDir, shadingNormal);
+    float3 rawReflDir = reflect(-viewDir, shadingNormal);
+    float horizonOcc = saturate(1.0 + 1.3 * dot(rawReflDir, geomNormal));
+    horizonOcc *= horizonOcc;
+    float3 reflDir = rawReflDir;
     if (dot(reflDir, geomNormal) < 0.0)
         reflDir = normalize(reflDir - geomNormal * dot(reflDir, geomNormal) + geomNormal * 0.05);
-    float roughness = clamp(material.y, 0.05, 1.0);
-    float specTan = clamp(roughness * roughness * 0.72, 0.025, 0.65);
-    float4 specCone = traceCone(frame, root.Vol0, root.Vol1, root.Vol2, root.Vol3,
-        traceOrigin, reflDir, specTan, localVoxelSize, maxTraceDist, 14u);
+    float roughness = clamp(material.y, 0.02, 1.0);
+    float specTan = clamp(roughness * roughness * 1.4, 0.055, 0.75);
+    float diffuseSkyVis = saturate(visAccum);
+    float4 specCone = traceSpecularCone(frame, root.Vol0, root.Vol1, root.Vol2, root.Vol3,
+        traceOrigin, reflDir, roughness, specTan, localVoxelSize, maxTraceDist, diffuseSkyVis, 14u);
 
-    outDiff[id.xy] = float4(diffAccum, saturate(visAccum));
-    outSpec[id.xy] = float4(specCone.rgb, 1.0);
+    float3 specRadiance = lerp(specCone.rgb, diffAccum, smoothstep(0.35, 0.90, roughness) * 0.85) * horizonOcc;
+    outDiff[id.xy] = float4(diffAccum, diffuseSkyVis);
+    outSpec[id.xy] = float4(specRadiance, 1.0);
 }
