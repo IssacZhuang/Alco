@@ -205,6 +205,25 @@ internal sealed class World3DVoxelClipmap
         return true;
     }
 
+    public bool TryGetCoarsestCommittedWorldBounds(out World3DPosition min, out World3DPosition max)
+    {
+        if (!_committedValid)
+        {
+            min = default;
+            max = default;
+            return false;
+        }
+        int c = CascadeCount - 1;
+        double brickMeters = (double)_committedBaseVoxelSize * (1 << c) * BrickSize;
+        double spanMeters = brickMeters * (_committedResolution / BrickSize);
+        min = new World3DPosition(
+            _committedOriginX[c] * brickMeters,
+            _committedOriginY[c] * brickMeters,
+            _committedOriginZ[c] * brickMeters);
+        max = new World3DPosition(min.X + spanMeters, min.Y + spanMeters, min.Z + spanMeters);
+        return true;
+    }
+
     private static long ComputeStep(double targetCenterBricks, long currentCenterBricks)
     {
         double diff = targetCenterBricks - currentCenterBricks;

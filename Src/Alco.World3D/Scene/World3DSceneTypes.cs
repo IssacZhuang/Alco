@@ -131,3 +131,30 @@ public readonly record struct World3DSceneSyncStats(ulong GeometryBytes, int Geo
 /// <param name="MdiCalls">The number of indexed indirect API calls.</param>
 /// <param name="IndirectSlots">The total submitted commands, including commands with zero instances.</param>
 public readonly record struct World3DDrawStats(int MdiCalls, int IndirectSlots);
+
+/// <summary>Snapshot of live handles, GPU pages, and pending retirements in a <see cref="World3DScene"/>.</summary>
+/// <param name="LiveSectors">Number of attached live sectors.</param>
+/// <param name="LiveInstances">Number of live scene instances.</param>
+/// <param name="LiveMaterials">Number of live registered materials.</param>
+/// <param name="LiveGeometries">Number of live registered geometries.</param>
+/// <param name="LiveTextures">Total number of registered textures (owned plus external).</param>
+/// <param name="OwnedTextures">Number of scene-owned textures created via <see cref="World3DScene.TryCreateTexture"/>.</param>
+/// <param name="ExternalTextures">Number of caller-owned textures registered via <see cref="World3DScene.TryRegisterExternalTexture"/>.</param>
+/// <param name="LiveGeometryPages">Number of allocated GPU geometry payload pages.</param>
+/// <param name="LiveGeometryPageBytes">Total capacity in bytes across all allocated GPU geometry payload pages.</param>
+/// <param name="LiveTablePages">Total number of allocated GPU descriptor table pages.</param>
+/// <param name="PendingLodUploads">Number of geometry LOD uploads currently queued or in progress.</param>
+/// <param name="PendingRetirementBatches">Number of deferred retirement batches awaiting completion or drain.</param>
+public readonly record struct World3DSceneResourceStats(
+    int LiveSectors,
+    int LiveInstances,
+    int LiveMaterials,
+    int LiveGeometries,
+    int LiveTextures,
+    int OwnedTextures,
+    int ExternalTextures,
+    int LiveGeometryPages,
+    ulong LiveGeometryPageBytes,
+    int LiveTablePages,
+    int PendingLodUploads,
+    int PendingRetirementBatches);

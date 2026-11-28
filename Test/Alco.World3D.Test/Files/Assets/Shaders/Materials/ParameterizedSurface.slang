@@ -1,74 +1,83 @@
-// Test-only surface for exercising the native Slang material-parameter path:
-// the standard glTF surface plus a sinusoidal emissive pulse. Its [MaterialParams]
-// block mixes scalar/vector members with natural packing and is named freely
-// (the marker, not the name, makes it a parameter block); offsets come from
-// Slang reflection and the buffer is filled by name.
-
 #language slang 2025
 module ParameterizedSurface;
 
-import AlcoRendering_Core; // [MaterialParams]
-import AlcoWorld3D_Surface;
+import Core;
+import World3DSurface;
 
-// The engine binds the per-frame global render data buffer to every material;
-// x = time, y = deltaTime, z = sinTime, w = cosTime. Comes first in the
-// surface's set. Unmarked: engine data, not a material parameter.
-public struct GlobalRenderDataParams
+static const uint InvalidTexture = 0xffffffffu;
+
+float4 sampleTexture(GPUTextureId id, SurfaceInput input)
 {
-    public float4 time;
-};
+    Texture2D<float4> tex = gpu_texture<Texture2D<float4>>(gpu_nonuniform_index(id.index));
+    SamplerState sampler = gpu_sampler(gpu_nonuniform_index(input.Material.Sampler.index));
+    return tex.SampleGrad(sampler, input.UV, input.DdxUV, input.DdyUV);
+}
 
-public ParameterBlock<GlobalRenderDataParams> globalRenderData;
-
-// Mixed-type parameter block plus the surface's resources, in one block that
-// owns the rest of the set. The material compiler reads each member's type
-// and byte offset from Slang reflection and fills the buffer by name.
-public struct PulseParamsData
+float4 sampleTextureLevel(GPUTextureId id, GPUSamplerId samplerId, float2 uv, float lod)
 {
-    public float pulseSpeed;       // pulses per second
-    public float pulseIntensity;   // peak emissive multiplier
-    public float3 pulseColor;      // linear pulse color
-    public float bandFrequency;    // world-space bands per unit (0 = uniform pulse)
+    Texture2D<float4> tex = gpu_texture<Texture2D<float4>>(gpu_nonuniform_index(id.index));
+    SamplerState sampler = gpu_sampler(gpu_nonuniform_index(samplerId.index));
+    return tex.SampleLevel(sampler, uv, lod);
+}
 
-    public Texture2D<float4> albedoTexture;
-    public Texture2D<float4> normalTexture;
-    public Texture2D<float4> metallicRoughnessTexture;
-};
-
-[MaterialParams]
-public ParameterBlock<PulseParamsData> pulseParams;
-
-public struct Surface : ISurface
+public struct ParameterizedSurface : ISurface
 {
+    public override float4 getVoxelBaseColor(VoxelSurfaceInput input)
+    {
+        float4 factor = input.Material.BaseColor;
+        GPUTextureId texture = input.Material.BaseColorTexture;
+        if (texture.index != InvalidTexture)
+            factor *= sampleTextureLevel(texture, input.Material.Sampler, input.UV, input.TextureLod);
+        return float4(factor.rgb * float3(0.4, 1.0, 0.75), factor.a);
+    }
+
+    public override float3 getVoxelEmissive(VoxelSurfaceInput input)
+    {
+        float3 factor = input.Material.EmissiveAlphaCutoff.rgb;
+        GPUTextureId texture = input.Material.EmissiveTexture;
+        if (texture.index != InvalidTexture)
+            factor *= sampleTextureLevel(texture, input.Material.Sampler, input.UV, input.TextureLod).rgb;
+        return factor + float3(0.05, 0.25, 0.15);
+    }
+
     public override float4 getBaseColor(SurfaceInput input)
     {
-        return pulseParams.albedoTexture.Sample(samplers.linearRepeat, input.uv) * input.baseColorFactor;
+        float4 baseCol = input.Material.BaseColor;
+        GPUTextureId texture = input.Material.BaseColorTexture;
+        if (texture.index != InvalidTexture)
+            baseCol *= sampleTexture(texture, input);
+
+        // Distinct UV-modulated stripe pattern to identify custom ISurface shading in readback tests.
+        float2 cell = floor(input.UV * 4.0);
+        float checker = ((uint(cell.x) + uint(cell.y)) & 1u) != 0u ? 1.0 : 0.35;
+        return float4(baseCol.rgb * float3(0.25, 1.0, 0.75) * checker, baseCol.a);
     }
 
     public override float3 getNormalTS(SurfaceInput input)
     {
-        float2 normalXY = pulseParams.normalTexture.Sample(samplers.linearRepeat, input.uv).rg * 2.0 - 1.0;
-        return float3(normalXY, sqrt(saturate(1.0 - dot(normalXY, normalXY))));
+        GPUTextureId texture = input.Material.NormalTexture;
+        if (texture.index == InvalidTexture)
+            return float3(0.0, 0.0, 1.0);
+
+        float2 xy = sampleTexture(texture, input).rg * 2.0 - 1.0;
+        return float3(xy, sqrt(saturate(1.0 - dot(xy, xy))));
     }
 
     public override float3 getMetallicRoughnessAO(SurfaceInput input)
     {
-        float4 mrTex = pulseParams.metallicRoughnessTexture.Sample(samplers.linearRepeat, input.uv);
-        return float3(
-            input.metallicRoughnessAO.x * mrTex.b,
-            input.metallicRoughnessAO.y * mrTex.g,
-            input.metallicRoughnessAO.z);
+        float2 factors = input.Material.MetallicRoughness;
+        GPUTextureId texture = input.Material.MetallicRoughnessTexture;
+        if (texture.index != InvalidTexture)
+            factors *= sampleTexture(texture, input).bg;
+        return float3(factors, 1.0);
     }
 
     public override float3 getEmissive(SurfaceInput input)
     {
-        // Sinusoidal pulse, optionally modulated by world-space bands so the
-        // pulse travels across the object (bandFrequency > 0).
-        float phase = globalRenderData.time.x * pulseParams.pulseSpeed;
-        float band = pulseParams.bandFrequency > 0.0
-            ? sin((input.worldPos.x + input.worldPos.y + input.worldPos.z) * pulseParams.bandFrequency - phase * 6.2831853)
-            : 1.0;
-        float pulse = saturate(sin(phase * 6.2831853) * 0.5 + 0.5) * band;
-        return pulseParams.pulseColor * pulseParams.pulseIntensity * pulse;
+        float3 factor = input.Material.EmissiveAlphaCutoff.rgb;
+        GPUTextureId texture = input.Material.EmissiveTexture;
+        if (texture.index != InvalidTexture)
+            factor *= sampleTexture(texture, input).rgb;
+        return factor;
     }
-}
+};

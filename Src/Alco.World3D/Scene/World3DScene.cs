@@ -186,18 +186,11 @@ public sealed partial class World3DScene : IDisposable
             MarkShadowSceneDirty();
             if (hadNonBlendGi || route.AlphaMode != World3DAlphaMode.Blend)
             {
-                if (material.Instances.Count > 48)
+                foreach (int slot in material.Instances)
                 {
-                    _voxelGiForceReset = true;
-                }
-                else
-                {
-                    foreach (int slot in material.Instances)
-                    {
-                        InstanceEntry inst = _instances.GetLive(slot);
-                        if (!inst.Description.Dynamic && inst.Description.AffectsGlobalIllumination)
-                            MarkVoxelGiSpatialDirty(inst.Spatial);
-                    }
+                    InstanceEntry inst = _instances.GetLive(slot);
+                    if (!inst.Description.Dynamic && inst.Description.AffectsGlobalIllumination)
+                        MarkVoxelGiSpatialDirty(inst.Spatial);
                 }
             }
         }
@@ -277,7 +270,7 @@ public sealed partial class World3DScene : IDisposable
                 _system.UploadTexture(texture, mipData.Slice(offset, mipSizes[mip]), new TextureCopyDesc { MipLevel = (uint)mip });
                 offset += mipSizes[mip];
             }
-            if (_textures.TryAdd(new TextureEntry(texture), out int slot, out uint generation))
+            if (_textures.TryAdd(new TextureEntry(texture, ownsTexture: true), out int slot, out uint generation))
             {
                 handle = new WorldTextureHandle(_id, slot, generation);
                 return true;
@@ -292,6 +285,28 @@ public sealed partial class World3DScene : IDisposable
         return false;
     }
 
+    /// <summary>Registers an external sampled 2D texture owned by the scene's rendering system without transferring GPU object ownership.</summary>
+    /// <param name="texture">An undisposed, sampled single-layer 2D color texture belonging to the same <see cref="RenderingSystem"/>.</param>
+    /// <param name="handle">Receives the scene texture handle on success.</param>
+    /// <returns>Whether the texture was valid and descriptor table capacity was available.</returns>
+    public bool TryRegisterExternalTexture(Texture texture, out WorldTextureHandle handle)
+    {
+        BeginEdit();
+        handle = default;
+        if (texture == null || texture.IsDisposed || !_system.OwnsTexture(texture) ||
+            texture.SampledIndex == Texture.NoIndex ||
+            texture.Desc.Type != TextureType.TwoD || texture.Desc.LayerCount != 1 || texture.Desc.SampleCount != 1 ||
+            (uint)texture.Desc.Format >= (uint)Format.Undefined)
+            return false;
+        TextureFormatInfo format = Texture.GetFormatInfo(texture.Desc.Format);
+        if (format.Depth || format.Stencil)
+            return false;
+        if (!_textures.TryAdd(new TextureEntry(texture, ownsTexture: false), out int slot, out uint generation))
+            return false;
+        handle = new WorldTextureHandle(_id, slot, generation);
+        return true;
+    }
+
     /// <summary>Releases a texture no longer leased by live or in-flight material entries.</summary>
     /// <param name="handle">The texture to remove.</param>
     /// <returns>Whether the texture was live and its material leases had retired.</returns>
@@ -302,8 +317,45 @@ public sealed partial class World3DScene : IDisposable
             return false;
         _textures.Remove(handle.Slot);
         _textures.Reclaim(handle.Slot);
-        texture.Texture.Dispose();
+        if (texture.OwnsTexture)
+            texture.Texture.Dispose();
         return true;
+    }
+
+    /// <summary>Captures a snapshot of live handles, GPU allocations, and pending work in this scene.</summary>
+    /// <returns>The current resource statistics for this scene.</returns>
+    public World3DSceneResourceStats GetResourceStats()
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (_recordedFrame == 0 || _context == null || _context.CurrentFrameId != _recordedFrame)
+        {
+            ReconcileFrame();
+            DrainRetired();
+        }
+        int ownedTextures = 0;
+        int externalTextures = 0;
+        foreach (TextureEntry texture in _textures.LiveValues())
+        {
+            if (texture.OwnsTexture)
+                ++ownedTextures;
+            else
+                ++externalTextures;
+        }
+        _gpu.GetStats(out int liveGeometryPages, out ulong liveGeometryPageBytes, out int liveTablePages);
+        int pendingRetirementBatches = _retired.Count + (_retireOnSubmit.Count > 0 ? 1 : 0);
+        return new World3DSceneResourceStats(
+            _sectors.Count,
+            _instances.Count,
+            _materials.Count,
+            _geometries.Count,
+            _textures.Count,
+            ownedTextures,
+            externalTextures,
+            liveGeometryPages,
+            liveGeometryPageBytes,
+            liveTablePages,
+            _pendingLods.Count,
+            pendingRetirementBatches);
     }
 
     /// <summary>Adds an instance referencing live resources and a live sector in this scene.</summary>
@@ -405,7 +457,10 @@ public sealed partial class World3DScene : IDisposable
         _phase2DrawRefs?.Dispose();
         _gpu.Dispose();
         foreach (TextureEntry texture in _textures.LiveValues())
-            texture.Texture.Dispose();
+        {
+            if (texture.OwnsTexture)
+                texture.Texture.Dispose();
+        }
         foreach (PendingLod pending in _pendingLods)
             pending.Source?.Dispose();
         _textures.Clear();
@@ -425,6 +480,11 @@ public sealed partial class World3DScene : IDisposable
         if (_recordedFrame != 0 && _context!.CurrentFrameId == _recordedFrame)
             throw new InvalidOperationException("Submit or discard the recorded World3D frame before editing the scene.");
         ReconcileFrame();
+        DrainRetired();
+    }
+
+    private void DrainRetired()
+    {
         while (_retired.TryDequeue(out Action[]? batch))
         {
             foreach (Action reclaim in batch)
@@ -572,9 +632,10 @@ public sealed partial class World3DScene : IDisposable
         public readonly HashSet<int> Instances = [];
     }
 
-    private sealed class TextureEntry(Texture texture)
+    private sealed class TextureEntry(Texture texture, bool ownsTexture)
     {
         public readonly Texture Texture = texture;
+        public readonly bool OwnsTexture = ownsTexture;
         public int References;
     }
 

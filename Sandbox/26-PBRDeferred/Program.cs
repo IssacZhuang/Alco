@@ -6,8 +6,13 @@ using Alco.Engine;
 using Alco.Graphics;
 using Alco.World3D;
 
-if (args.Length == 0 && Environment.GetEnvironmentVariable("WORLD3D_SANDBOX_ARGS") is { Length: > 0 } envArgs)
-    args = envArgs.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+if (args.Length == 0)
+{
+    string? envArgs = Environment.GetEnvironmentVariable("WORLD3D_SANDBOX_ARGS")
+        ?? Environment.GetEnvironmentVariable("ALCO_PBR_ARGS");
+    if (!string.IsNullOrWhiteSpace(envArgs))
+        args = envArgs.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+}
 
 if (!SandboxOptions.TryParse(args, out SandboxOptions options, out string? error))
 {
@@ -43,11 +48,16 @@ var setting = new GameEngineSetting
 try
 {
     int exitCode;
-    using (var game = new Game(setting, options, bistroDirectory, camera))
+    var game = new Game(setting, options, bistroDirectory, camera);
+    try
     {
         game.Run();
-        exitCode = game.ExitCode;
     }
+    finally
+    {
+        game.Dispose();
+    }
+    exitCode = game.ExitCode;
     AllocationTracker.CheckAllocated();
     return exitCode;
 }
@@ -64,12 +74,13 @@ internal sealed record SandboxOptions
     private const int DefaultFrames = 3;
 
     /// <summary>Gets the supported command-line switches.</summary>
-    public const string Usage = "26-PBRDeferred [--backend=VulkanCompact] [--interior | --procedural] " +
+    public const string Usage = "26-PBRDeferred [--backend=VulkanCompact] [--interior | --procedural | --large-world] " +
+        "[--large-world-offset=X,Y,Z] [--streaming-radius=N] " +
         "[--asset-root=<parent of Bistro>] [--require-bistro] [--bistro-legacy-metallic] [--software-bc] " +
         "[--no-gi] [--no-clouds] [--no-vollight] [--no-ssr] [--no-forward] [--rsm=on|off] " +
         "[--gi-debug=<view|0..13>] [--bootstrap-gi] [--fly-stress] [--point-lights] " +
         "[--pos=x,y,z] [--look=x,y,z] [--size=1280x720] [--headless] [--frames=N] [--capture=<path.png>]\n" +
-        "Bistro loads the exterior and interior together. --interior starts the camera indoors.";
+        "Bistro loads the exterior and interior together. --interior starts the camera indoors. --large-world launches the 8 km streaming stress city.";
 
     /// <summary>Gets the requested graphics backend, VulkanCompact by default.</summary>
     public GraphicsBackend Backend { get; private init; } = GraphicsBackend.VulkanCompact;
@@ -77,6 +88,12 @@ internal sealed record SandboxOptions
     public bool Interior { get; private init; }
     /// <summary>Gets whether to use the explicit synthetic scene.</summary>
     public bool Procedural { get; private init; }
+    /// <summary>Gets whether to launch the 8 km streamed open-world stress scene.</summary>
+    public bool LargeWorld { get; private init; }
+    /// <summary>Gets the double-precision center coordinate of the large-world stress grid.</summary>
+    public World3DPosition LargeWorldOffset { get; private init; } = new(120_000.0, -80_000.0, 0.0);
+    /// <summary>Gets the active sector ring radius around the camera in <see cref="LargeWorld"/> mode.</summary>
+    public int StreamingRadius { get; private init; } = 3;
     /// <summary>Gets whether the real Bistro import and its first deferred draw are required.</summary>
     public bool RequireBistro { get; private init; }
     /// <summary>Gets whether to compare Bistro's legacy implicit dielectric factor.</summary>
@@ -139,6 +156,13 @@ internal sealed record SandboxOptions
                 case "--help" or "-h" when equals < 0: options = options with { Help = true }; break;
                 case "--interior" when equals < 0: options = options with { Interior = true }; break;
                 case "--procedural" when equals < 0: options = options with { Procedural = true }; break;
+                case "--large-world" when equals < 0: options = options with { LargeWorld = true }; break;
+                case "--large-world-offset" when TryParseDoubleVector(value, out World3DPosition worldOffset):
+                    options = options with { LargeWorldOffset = worldOffset };
+                    break;
+                case "--streaming-radius" when int.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out int rad) && rad is >= 1 and <= 8:
+                    options = options with { StreamingRadius = rad };
+                    break;
                 case "--require-bistro" when equals < 0: options = options with { RequireBistro = true }; break;
                 case "--bistro-legacy-metallic" when equals < 0: options = options with { LegacyMetallic = true }; break;
                 case "--software-bc" when equals < 0: options = options with { SoftwareBc = true }; break;
@@ -184,9 +208,14 @@ internal sealed record SandboxOptions
             }
         }
 
-        if (options.Procedural && (options.RequireBistro || options.Interior || options.LegacyMetallic || options.AssetRoot != null))
+        if (options.Procedural && (options.LargeWorld || options.RequireBistro || options.Interior || options.LegacyMetallic || options.AssetRoot != null))
         {
-            error = "--procedural cannot be combined with Bistro scene or validation options.";
+            error = "--procedural cannot be combined with --large-world or Bistro options.";
+            return false;
+        }
+        if (options.LargeWorld && (options.RequireBistro || options.Interior || options.LegacyMetallic || options.AssetRoot != null))
+        {
+            error = "--large-world cannot be combined with Bistro scene or validation options.";
             return false;
         }
         if (options.Backend == GraphicsBackend.NoGPU && (options.RequireBistro || options.CapturePath != null))
@@ -213,12 +242,12 @@ internal sealed record SandboxOptions
         return Enum.TryParse(value, ignoreCase: true, out view) && Enum.IsDefined(view);
     }
 
-    /// <summary>Resolves the directory containing both Bistro glTF files, unless procedural was requested.</summary>
+    /// <summary>Resolves the directory containing both Bistro glTF files, unless procedural or large-world was requested.</summary>
     public bool TryResolveBistro(out string? directory, [NotNullWhen(false)] out string? error)
     {
         directory = null;
         error = null;
-        if (Procedural)
+        if (Procedural || LargeWorld)
             return true;
         string packaged = Path.Combine(AppContext.BaseDirectory, "Assets");
         string root = AssetRoot ?? FindSourceAssets(AppContext.BaseDirectory) ??
@@ -240,12 +269,28 @@ internal sealed record SandboxOptions
     /// <summary>Creates the startup World3D camera from the default pose and any command-line overrides.</summary>
     public bool TryGetCamera(out World3DCamera camera, [NotNullWhen(false)] out string? error)
     {
-        (Vector3 eye, Vector3 target) = Procedural ? (new Vector3(8, 10, 6), new Vector3(0, 0, 0.7f)) : Interior
-            ? (new Vector3(7.8f, 5.4f, 2.1f), new Vector3(0.3f, 6.2f, 1.85f))
-            : (new Vector3(-9, -4, 3.5f), new Vector3(-0.3f, 4.3f, 3));
-        eye = Position ?? eye;
-        target = Look ?? target;
-        Vector3 direction = target - eye;
+        World3DPosition eyePos;
+        World3DPosition lookPos;
+        if (LargeWorld)
+        {
+            eyePos = new World3DPosition(LargeWorldOffset.X - 65.0, LargeWorldOffset.Y - 45.0, LargeWorldOffset.Z + 48.0);
+            lookPos = new World3DPosition(LargeWorldOffset.X + 45.0, LargeWorldOffset.Y + 35.0, LargeWorldOffset.Z + 18.0);
+        }
+        else
+        {
+            (Vector3 eye, Vector3 target) = Procedural ? (new Vector3(8, 10, 6), new Vector3(0, 0, 0.7f)) : Interior
+                ? (new Vector3(7.8f, 5.4f, 2.1f), new Vector3(0.3f, 6.2f, 1.85f))
+                : (new Vector3(-9, -4, 3.5f), new Vector3(-0.3f, 4.3f, 3));
+            eyePos = new World3DPosition(eye.X, eye.Y, eye.Z);
+            lookPos = new World3DPosition(target.X, target.Y, target.Z);
+        }
+
+        if (Position is Vector3 posOverride)
+            eyePos = LargeWorld ? new World3DPosition(LargeWorldOffset.X + posOverride.X, LargeWorldOffset.Y + posOverride.Y, LargeWorldOffset.Z + posOverride.Z) : new World3DPosition(posOverride.X, posOverride.Y, posOverride.Z);
+        if (Look is Vector3 lookOverride)
+            lookPos = LargeWorld ? new World3DPosition(LargeWorldOffset.X + lookOverride.X, LargeWorldOffset.Y + lookOverride.Y, LargeWorldOffset.Z + lookOverride.Z) : new World3DPosition(lookOverride.X, lookOverride.Y, lookOverride.Z);
+
+        Vector3 direction = new((float)(lookPos.X - eyePos.X), (float)(lookPos.Y - eyePos.Y), (float)(lookPos.Z - eyePos.Z));
         float length = direction.LengthSquared();
         camera = default;
         error = null;
@@ -260,7 +305,7 @@ internal sealed record SandboxOptions
         Vector3 up = Vector3.Cross(forward, right);
         Quaternion rotation = Quaternion.CreateFromRotationMatrix(new Matrix4x4(
             forward.X, forward.Y, forward.Z, 0, right.X, right.Y, right.Z, 0, up.X, up.Y, up.Z, 0, 0, 0, 0, 1));
-        camera = new World3DCamera(new World3DPosition(eye.X, eye.Y, eye.Z), rotation, 0.83f, 0.1f);
+        camera = new World3DCamera(eyePos, rotation, 0.83f, LargeWorld ? 0.2f : 0.1f);
         if (!World3DView.TryCreate(camera, new Extent2D(Width, Height), null, out _))
         {
             error = "The camera lies outside the supported World3D coordinate range.";
@@ -324,5 +369,18 @@ internal sealed record SandboxOptions
 
         static bool Parse(string part, out float component) =>
             float.TryParse(part, NumberStyles.Float, CultureInfo.InvariantCulture, out component) && float.IsFinite(component);
+    }
+
+    private static bool TryParseDoubleVector(string value, out World3DPosition result)
+    {
+        result = default;
+        string[] parts = value.Split(',');
+        if (parts.Length != 3 || !Parse(parts[0], out double x) || !Parse(parts[1], out double y) || !Parse(parts[2], out double z))
+            return false;
+        result = new World3DPosition(x, y, z);
+        return World3DSceneCoordinates.TrySplitPosition(result, out _, out _);
+
+        static bool Parse(string part, out double component) =>
+            double.TryParse(part, NumberStyles.Float, CultureInfo.InvariantCulture, out component) && double.IsFinite(component);
     }
 }

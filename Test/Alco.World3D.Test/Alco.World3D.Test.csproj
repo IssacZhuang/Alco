@@ -23,11 +23,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Re-enable legacy fixtures with their migrated production code. -->
-    <Compile Remove="AssetPipeline\**\*.cs;DummyRenderingSystemHost.cs;TestPBRDeferredPreset.cs;TestSlangMaterialCompiler.cs;Utility.cs;ValidateShader.cs;ValidateWorld3DSlangModules.cs" />
-  </ItemGroup>
-
-  <ItemGroup>
     <Content Include="Files\Assets\**\*.*">
       <Link>Assets/%(RecursiveDir)%(Filename)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

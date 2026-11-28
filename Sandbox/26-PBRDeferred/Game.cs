@@ -3,6 +3,7 @@ using System.Numerics;
 using Alco;
 using Alco.Engine;
 using Alco.Graphics;
+using Alco.Graphics.LowLevel;
 using Alco.ImGUI;
 using Alco.Rendering;
 using Alco.World3D;
@@ -22,8 +23,10 @@ internal sealed class Game : GameEngine
     private readonly RenderContext _context;
     private readonly World3DScene _scene;
     private readonly Texture? _offscreen;
+    private readonly RenderingMemoryStats _preSceneMemory;
     private readonly List<double> _flyRecordMs = [];
     private BistroImporter? _importer;
+    private LargeWorldStressScene? _largeWorld;
     private ImGUISystem? _imGui;
     private World3DCamera _camera;
     private float _flySpeed = 3f;
@@ -50,6 +53,13 @@ internal sealed class Game : GameEngine
         try
         {
             context = new RenderContext(RenderingSystem, frameDataByteCount: 8 * 1024 * 1024);
+            _offscreen = setting.Platform is ConsolePlatform ? RenderingSystem.CreateTexture(new TextureDesc
+            {
+                Extent = new Extent3D(options.Width, options.Height, 1),
+                Format = Format.Rgba8Srgb,
+                Usage = TextureUsage.ColorAttachment | TextureUsage.TransferSource,
+            }) : null;
+            _preSceneMemory = RenderingSystem.GetMemoryStats();
             scene = new World3DScene(RenderingSystem);
             scene.VoxelGi.Enabled = options.GiEnabled;
             scene.VolumetricClouds.Enabled = options.CloudsEnabled;
@@ -61,23 +71,19 @@ internal sealed class Game : GameEngine
                 scene.Shadows.Rsm.Enabled = options.RsmEnabled.Value;
             scene.LightingDebugView = options.GiDebugView;
             _demoLightsEnabled = options.AddDemoLights;
-            _offscreen = setting.Platform is ConsolePlatform ? RenderingSystem.CreateTexture(new TextureDesc
-            {
-                Extent = new Extent3D(options.Width, options.Height, 1),
-                Format = Format.Rgba8Srgb,
-                Usage = TextureUsage.ColorAttachment | TextureUsage.TransferSource,
-            }) : null;
         }
         catch
         {
             scene?.Dispose();
+            _offscreen?.Dispose();
             context?.Dispose();
             base.Dispose();
             throw;
         }
         _scene = scene;
         _context = context;
-        ApplyDemoPointLights(_demoLightsEnabled);
+        if (!options.LargeWorld)
+            ApplyDemoPointLights(_demoLightsEnabled);
     }
 
     /// <summary>Gets the process result, including incomplete requested verification.</summary>
@@ -99,6 +105,15 @@ internal sealed class Game : GameEngine
         {
             _imGui = new ImGUISystem(this);
             AddSystem(_imGui);
+        }
+        if (_options.LargeWorld)
+        {
+            Log.Info($"Large-World Stress Scene: origin=({_options.LargeWorldOffset.X:F0}, {_options.LargeWorldOffset.Y:F0}, {_options.LargeWorldOffset.Z:F0}), " +
+                $"streamingRadius={_options.StreamingRadius}");
+            _largeWorld = new LargeWorldStressScene(RenderingSystem, _scene,
+                _options.LargeWorldOffset, _options.StreamingRadius, GraphicsDevice.ActiveBackend != GraphicsBackend.NoGPU);
+            _largeWorld.ConfigureAndPopulateInitial(in _camera);
+            return;
         }
         if (_bistroDirectory == null)
         {
@@ -143,15 +158,23 @@ internal sealed class Game : GameEngine
                 UpdateFlyCamera(delta, ImGui.GetIO().WantCaptureMouse, captureKeyboard);
             }
             if (_options.FlyStress)
-                UpdateFlyStressCamera(_renderedFrames);
+            {
+                if (_largeWorld != null)
+                    _camera = _largeWorld.ComputeFlyStressCamera(_renderedFrames);
+                else
+                    UpdateFlyStressCamera(_renderedFrames);
+            }
+            _largeWorld?.PrepareFrame(in _camera, _renderedFrames);
             long startStamp = Stopwatch.GetTimestamp();
             if (!TryRecordFrame(output, _offscreen != null ? RGUsage.TransferRead : RGUsage.ColorAttachment, delta))
             {
                 Fail("World3D rejected the camera or output viewport.");
                 return;
             }
+            double recordMs = Stopwatch.GetElapsedTime(startStamp).TotalMilliseconds;
             if (_options.FlyStress && _renderedFrames >= 1)
-                _flyRecordMs.Add(Stopwatch.GetElapsedTime(startStamp).TotalMilliseconds);
+                _flyRecordMs.Add(recordMs);
+            _largeWorld?.RecordFrameTelemetry(_renderedFrames, recordMs);
             World3DDrawStats draws = _scene.LastRecordedDraws;
             if (_options.RequireBistro && (draws.MdiCalls == 0 || draws.IndirectSlots == 0))
             {
@@ -195,8 +218,27 @@ internal sealed class Game : GameEngine
         {
             ReleaseMouseLook();
             RenderingSystem.WaitIdle();
+            _largeWorld?.Dispose();
+            _largeWorld = null;
             _importer?.Dispose();
             _scene.Dispose();
+            RenderingSystem.WaitIdle();
+            RenderingSystem.Tick();
+            if (_options.LargeWorld && !RenderingSystem.IsDisposed)
+            {
+                RenderingMemoryStats post = RenderingSystem.GetMemoryStats();
+                bool vramClean = post.LiveBuffers == _preSceneMemory.LiveBuffers
+                    && post.LiveTextures == _preSceneMemory.LiveTextures
+                    && post.LiveSamplers == _preSceneMemory.LiveSamplers
+                    && post.GpuBufferPool.UsedBytes == _preSceneMemory.GpuBufferPool.UsedBytes
+                    && post.CpuBufferPool.UsedBytes == _preSceneMemory.CpuBufferPool.UsedBytes
+                    && post.TexturePool.UsedBytes == _preSceneMemory.TexturePool.UsedBytes;
+                Log.Info($"[World3D VRAM Check] buffers={post.LiveBuffers}/{_preSceneMemory.LiveBuffers}, " +
+                    $"textures={post.LiveTextures}/{_preSceneMemory.LiveTextures}, samplers={post.LiveSamplers}/{_preSceneMemory.LiveSamplers}, " +
+                    $"LEAK_CHECK={(vramClean ? "PASS" : "FAIL")}");
+                if (!vramClean)
+                    _failed = true;
+            }
             _offscreen?.Dispose();
             _context.Dispose();
         }
@@ -597,6 +639,18 @@ internal sealed class Game : GameEngine
 
     private bool PrepareScene()
     {
+        if (_largeWorld != null)
+        {
+            if (_largeWorld.HasPendingGeometryUploads)
+            {
+                if (!TryRecordFrame())
+                    Fail("World3D rejected a Large-World geometry upload frame.");
+                return false;
+            }
+            Log.Info($"Large-World ready: sectors={_largeWorld.ActiveSectorCount}, instances={_scene.InstanceCount}");
+            _ready = true;
+            return true;
+        }
         if (_importer is BistroImporter importer)
         {
             if (!importer.AllQueued)
@@ -699,12 +753,45 @@ internal sealed class Game : GameEngine
 
         if (_options.CapturePath is string path)
         {
-            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-            using FileStream png = File.Create(path);
+            string fullPath = Path.GetFullPath(path);
+            if (Path.GetDirectoryName(fullPath) is { Length: > 0 } dir)
+                Directory.CreateDirectory(dir);
+            using FileStream png = File.Create(fullPath);
             TextureUtility.EncodeTextureToPNG(RenderingSystem, _offscreen!, png);
-            Log.Info($"Captured submitted World3D frame to '{path}'.");
+            Log.Info($"Captured submitted World3D frame to '{fullPath}'.");
+        }
+        if (_largeWorld != null && !_largeWorld.TeardownAndVerifyNoSceneLeaks(
+            _context,
+            (in World3DCamera cam) => SubmitEmptyRetirementFrame(in cam),
+            in _camera))
+        {
+            _failed = true;
+            return;
         }
         _completed = true;
+    }
+
+    private bool SubmitEmptyRetirementFrame(in World3DCamera camera)
+    {
+        _context.BeginFrame();
+        try
+        {
+            RenderGraphTarget target = _offscreen != null ? RenderGraphTarget.FromTexture(_offscreen) : default;
+            RGUsage usage = _offscreen != null ? RGUsage.TransferRead : RGUsage.None;
+            if (_scene.TryRecordFrame(_context, in camera, _initialExtent, out _, target, usage, renderWorld: false))
+            {
+                _context.SubmitWithCompletion().Wait();
+                RenderingSystem.Tick();
+                return true;
+            }
+        }
+        catch
+        {
+            _context.DiscardFrame();
+            throw;
+        }
+        _context.DiscardFrame();
+        return false;
     }
 
     private void Fail(string error)

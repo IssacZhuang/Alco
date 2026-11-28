@@ -192,6 +192,9 @@ public sealed partial class World3DScene
 
     private void MarkVoxelGiSpatialDirty(World3DInstanceSpatialGpu spatial)
     {
+        if (!_voxelClipmap.TryGetCoarsestCommittedWorldBounds(out World3DPosition clipMin, out World3DPosition clipMax))
+            return;
+
         double cellBaseX = (double)spatial.Cell.X * World3DSceneCoordinates.CellSize;
         double cellBaseY = (double)spatial.Cell.Y * World3DSceneCoordinates.CellSize;
         double cellBaseZ = (double)spatial.Cell.Z * World3DSceneCoordinates.CellSize;
@@ -201,25 +204,41 @@ public sealed partial class World3DScene
         double ex = Math.Max(0.0, spatial.BoundsExtent.X) + 0.05;
         double ey = Math.Max(0.0, spatial.BoundsExtent.Y) + 0.05;
         double ez = Math.Max(0.0, spatial.BoundsExtent.Z) + 0.05;
+
+        double minX = cx - ex;
+        double minY = cy - ey;
+        double minZ = cz - ez;
+        double maxX = cx + ex;
+        double maxY = cy + ey;
+        double maxZ = cz + ez;
+        if (maxX < clipMin.X || minX > clipMax.X ||
+            maxY < clipMin.Y || minY > clipMax.Y ||
+            maxZ < clipMin.Z || minZ > clipMax.Z)
+            return;
+
+        World3DPosition dirtyMin = new(Math.Max(minX, clipMin.X), Math.Max(minY, clipMin.Y), Math.Max(minZ, clipMin.Z));
+        World3DPosition dirtyMax = new(Math.Min(maxX, clipMax.X), Math.Min(maxY, clipMax.Y), Math.Min(maxZ, clipMax.Z));
         if (_dirtyVoxelStaticBounds.Count < 48)
         {
-            _dirtyVoxelStaticBounds.Add(new StaticDirtyBounds(
-                new World3DPosition(cx - ex, cy - ey, cz - ez),
-                new World3DPosition(cx + ex, cy + ey, cz + ez)));
+            _dirtyVoxelStaticBounds.Add(new StaticDirtyBounds(dirtyMin, dirtyMax));
         }
         else
         {
-            _voxelGiForceReset = true;
+            StaticDirtyBounds last = _dirtyVoxelStaticBounds[^1];
+            _dirtyVoxelStaticBounds[^1] = new StaticDirtyBounds(
+                new World3DPosition(
+                    Math.Min(last.MinWorld.X, dirtyMin.X),
+                    Math.Min(last.MinWorld.Y, dirtyMin.Y),
+                    Math.Min(last.MinWorld.Z, dirtyMin.Z)),
+                new World3DPosition(
+                    Math.Max(last.MaxWorld.X, dirtyMax.X),
+                    Math.Max(last.MaxWorld.Y, dirtyMax.Y),
+                    Math.Max(last.MaxWorld.Z, dirtyMax.Z)));
         }
     }
 
     private void MarkVoxelGiMaterialDirty(MaterialEntry material)
     {
-        if (material.Instances.Count > 48)
-        {
-            _voxelGiForceReset = true;
-            return;
-        }
         foreach (int slot in material.Instances)
         {
             InstanceEntry inst = _instances.GetLive(slot);
@@ -231,11 +250,6 @@ public sealed partial class World3DScene
 
     private void MarkVoxelGiGeometryDirty(GeometryEntry geometry)
     {
-        if (geometry.Instances.Count > 48)
-        {
-            _voxelGiForceReset = true;
-            return;
-        }
         foreach (int slot in geometry.Instances)
         {
             InstanceEntry inst = _instances.GetLive(slot);

@@ -18,6 +18,15 @@ public enum PipelineMissPolicy : byte
     Throw,
 }
 
+/// <summary>Snapshot of live GPU resources and backing heap pool usage in a <see cref="RenderingSystem"/>.</summary>
+public readonly record struct RenderingMemoryStats(
+    uint LiveBuffers,
+    uint LiveTextures,
+    uint LiveSamplers,
+    HeapPoolStatistics CpuBufferPool,
+    HeapPoolStatistics GpuBufferPool,
+    HeapPoolStatistics TexturePool);
+
 /// <summary>Owns shared GPU storage and descriptor heaps. Independent resources may be created and reclaimed concurrently.</summary>
 /// <remarks>Initialize and destroy with exclusive access; keep the device alive until destruction.</remarks>
 public sealed class RenderingSystem : IDisposable
@@ -199,6 +208,39 @@ public sealed class RenderingSystem : IDisposable
 
     /// <summary>Whether this rendering system has been disposed.</summary>
     public bool IsDisposed => _destroyed;
+
+    /// <summary>Captures current live GPU resource counts and backing heap pool statistics.</summary>
+    /// <returns>A snapshot of active buffers, textures, samplers, and heap pools.</returns>
+    public RenderingMemoryStats GetMemoryStats()
+    {
+        ObjectDisposedException.ThrowIf(_destroyed, this);
+        uint liveBuffers;
+        HeapPoolStatistics cpuBufferPool;
+        HeapPoolStatistics gpuBufferPool;
+        lock (_bufferLock)
+        {
+            liveBuffers = _liveBuffers;
+            cpuBufferPool = _bufferPool.GetStatistics();
+            gpuBufferPool = _gpuBufferPool?.GetStatistics() ?? default;
+        }
+        uint liveTextures;
+        HeapPoolStatistics texturePool;
+        lock (_textureLock)
+        {
+            liveTextures = _liveTextures;
+            texturePool = _texturePool.GetStatistics();
+        }
+        uint liveSamplers;
+        lock (_samplerLock)
+            liveSamplers = _liveSamplers;
+        return new RenderingMemoryStats(liveBuffers, liveTextures, liveSamplers, cpuBufferPool, gpuBufferPool, texturePool);
+    }
+
+    /// <summary>Reports whether <paramref name="texture"/> is non-null, undisposed, and owned by this system.</summary>
+    /// <param name="texture">The texture to test.</param>
+    /// <returns><see langword="true"/> when the texture belongs to this live rendering system.</returns>
+    public bool OwnsTexture(Texture texture) =>
+        !_destroyed && texture != null && !texture.IsDisposed && ReferenceEquals(texture.System, this);
 
     /// <summary>Reports whether <paramref name="format"/> supports <paramref name="usage"/> on this device.</summary>
     /// <param name="format">The pixel format.</param>

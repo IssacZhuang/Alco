@@ -1,6 +1,11 @@
+using System.Buffers;
+using System.Buffers.Binary;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
+using System.Numerics;
+using System.Runtime.InteropServices;
 using Alco.Graphics;
+using Alco.IO;
 using Alco.Rendering;
 
 namespace Alco.World3D;
@@ -28,6 +33,9 @@ public readonly struct MeshAssetLod
     /// <summary>Content entry name of the index payload.</summary>
     public string IndexEntry { get; }
 
+    /// <summary>Content entry name of the optional M3 cluster table, or empty when absent.</summary>
+    public string ClusterEntry { get; }
+
     /// <summary>Creates a LOD descriptor.</summary>
     /// <param name="vertexCount">Vertex count.</param>
     /// <param name="indexCount">Index count.</param>
@@ -35,7 +43,9 @@ public readonly struct MeshAssetLod
     /// <param name="bounds">LOD bounds.</param>
     /// <param name="vertexEntry">Vertex payload entry name.</param>
     /// <param name="indexEntry">Index payload entry name.</param>
-    public MeshAssetLod(uint vertexCount, uint indexCount, float maxError, in BoundingBox3D bounds, string vertexEntry, string indexEntry)
+    /// <param name="clusterEntry">Optional M3 cluster table entry name.</param>
+    public MeshAssetLod(uint vertexCount, uint indexCount, float maxError, in BoundingBox3D bounds,
+        string vertexEntry, string indexEntry, string clusterEntry = "")
     {
         VertexCount = vertexCount;
         IndexCount = indexCount;
@@ -43,13 +53,12 @@ public readonly struct MeshAssetLod
         Bounds = bounds;
         VertexEntry = vertexEntry;
         IndexEntry = indexEntry;
+        ClusterEntry = clusterEntry;
     }
 }
 
 /// <summary>
-/// Descriptor of one submesh (material slot) of a <see cref="MeshAsset"/>: a named
-/// index range. Materials bind to slot names in the composition layer (prefab) — the mesh
-/// itself carries no material references.
+/// Descriptor of one submesh (material slot) of a <see cref="MeshAsset"/>: a named index range.
 /// </summary>
 public readonly struct MeshAssetSubMesh
 {
@@ -75,44 +84,313 @@ public readonly struct MeshAssetSubMesh
 }
 
 /// <summary>
-/// Lightweight handle to a mesh asset (.amsh): the parsed meta tables plus a positional
-/// file reader. Holds no geometry in memory — geometry streams into GPU residency on demand via
-/// <see cref="LoadLodAsync"/>. Bounds and structure are available before any payload load.
+/// Pure CPU representation of one decoded mesh LOD read from a <see cref="MeshAsset"/>.
+/// </summary>
+public sealed class MeshLodData
+{
+    private readonly MeshVertexStream[] _streams;
+    private readonly MeshAssetSubMesh[] _subMeshes;
+
+    internal MeshLodData(
+        int lodIndex,
+        byte[] vertexData,
+        byte[] indexData,
+        IndexType indexType,
+        uint vertexStride,
+        uint vertexCount,
+        uint indexCount,
+        MeshVertexStream[] streams,
+        MeshAssetSubMesh[] subMeshes)
+    {
+        LodIndex = lodIndex;
+        VertexData = vertexData;
+        IndexData = indexData;
+        IndexType = indexType;
+        VertexStride = vertexStride;
+        VertexCount = vertexCount;
+        IndexCount = indexCount;
+        _streams = streams;
+        _subMeshes = subMeshes;
+    }
+
+    /// <summary>Zero-based LOD index.</summary>
+    public int LodIndex { get; }
+
+    /// <summary>Hash-verified interleaved vertex bytes.</summary>
+    public byte[] VertexData { get; }
+
+    /// <summary>Hash-verified index bytes.</summary>
+    public byte[] IndexData { get; }
+
+    /// <summary>Element format stored in <see cref="IndexData"/>.</summary>
+    public IndexType IndexType { get; }
+
+    /// <summary>Byte stride per vertex in <see cref="VertexData"/>.</summary>
+    public uint VertexStride { get; }
+
+    /// <summary>Number of vertices in <see cref="VertexData"/>.</summary>
+    public uint VertexCount { get; }
+
+    /// <summary>Number of indices in <see cref="IndexData"/>.</summary>
+    public uint IndexCount { get; }
+
+    /// <summary>Stream descriptors describing the vertex layout.</summary>
+    public IReadOnlyList<MeshVertexStream> Streams => _streams;
+
+    /// <summary>Submesh index ranges within this LOD.</summary>
+    public IReadOnlyList<MeshAssetSubMesh> SubMeshes => _subMeshes;
+
+    /// <summary>
+    /// Extracts compacted <see cref="VertexPBR"/> vertices, zero-based 32-bit triangle indices,
+    /// and tight local bounds for a single submesh in this LOD.
+    /// </summary>
+    /// <param name="submeshIndex">Zero-based submesh index within <see cref="SubMeshes"/>.</param>
+    /// <param name="vertices">Receives the compacted PBR vertices referenced by the submesh.</param>
+    /// <param name="indices">Receives submesh-local 32-bit triangle indices.</param>
+    /// <param name="boundsMin">Receives the tight local minimum bound.</param>
+    /// <param name="boundsMax">Receives the tight local maximum bound.</param>
+    /// <returns><see langword="true"/> when the submesh and stream formats were valid for World3D extraction.</returns>
+    public bool TryExtractWorld3DGeometry(
+        int submeshIndex,
+        out VertexPBR[] vertices,
+        out uint[] indices,
+        out Vector3 boundsMin,
+        out Vector3 boundsMax)
+    {
+        vertices = [];
+        indices = [];
+        boundsMin = default;
+        boundsMax = default;
+
+        if ((uint)submeshIndex >= (uint)_subMeshes.Length || VertexStride == 0 || VertexCount == 0)
+            return false;
+
+        MeshAssetSubMesh subMesh = _subMeshes[submeshIndex];
+        if (subMesh.IndexCount == 0 || subMesh.IndexCount % 3 != 0 ||
+            (ulong)subMesh.FirstIndex + subMesh.IndexCount > IndexCount)
+            return false;
+
+        if (!TryFindStream(MeshStreamSemantic.Position, out MeshVertexStream posStream) ||
+            posStream.Format is not (MeshVertexFormat.R32G32B32Float or MeshVertexFormat.R32G32B32A32Float) ||
+            posStream.Offset + MeshVertexLayout.GetFormatSize(posStream.Format) > VertexStride)
+            return false;
+
+        bool hasNormal = TryFindStream(MeshStreamSemantic.Normal, out MeshVertexStream normalStream) &&
+            IsValidNormalFormat(normalStream.Format) &&
+            normalStream.Offset + MeshVertexLayout.GetFormatSize(normalStream.Format) <= VertexStride;
+        bool hasUv = TryFindStream(MeshStreamSemantic.TexCoord0, out MeshVertexStream uvStream) &&
+            IsValidUvFormat(uvStream.Format) &&
+            uvStream.Offset + MeshVertexLayout.GetFormatSize(uvStream.Format) <= VertexStride;
+        bool hasTangent = TryFindStream(MeshStreamSemantic.Tangent, out MeshVertexStream tangentStream) &&
+            IsValidTangentFormat(tangentStream.Format) &&
+            tangentStream.Offset + MeshVertexLayout.GetFormatSize(tangentStream.Format) <= VertexStride;
+
+        int indexCount = checked((int)subMesh.IndexCount);
+        int vertexCountInt = checked((int)VertexCount);
+        int[] remap = ArrayPool<int>.Shared.Rent(vertexCountInt);
+        try
+        {
+            remap.AsSpan(0, vertexCountInt).Fill(-1);
+            indices = new uint[indexCount];
+            int compactCount = 0;
+
+            ReadOnlySpan<byte> indexBytes = IndexData;
+            for (int i = 0; i < indexCount; ++i)
+            {
+                uint srcIndex = ReadIndex(indexBytes, subMesh.FirstIndex + (uint)i, IndexType);
+                if (srcIndex >= VertexCount)
+                {
+                    vertices = [];
+                    indices = [];
+                    return false;
+                }
+
+                int mapped = remap[(int)srcIndex];
+                if (mapped < 0)
+                {
+                    mapped = compactCount++;
+                    remap[(int)srcIndex] = mapped;
+                }
+                indices[i] = (uint)mapped;
+            }
+
+            vertices = new VertexPBR[compactCount];
+            ReadOnlySpan<byte> vertexBytes = VertexData;
+            int strideInt = checked((int)VertexStride);
+            Vector3 min = new(float.MaxValue);
+            Vector3 max = new(float.MinValue);
+
+            for (int i = 0; i < indexCount; ++i)
+            {
+                uint srcVertex = ReadIndex(indexBytes, subMesh.FirstIndex + (uint)i, IndexType);
+                int dstVertex = (int)indices[i];
+                if (remap[(int)srcVertex] == int.MaxValue)
+                    continue;
+                remap[(int)srcVertex] = int.MaxValue;
+
+                int baseOffset = checked((int)srcVertex * strideInt);
+                Vector3 position = ReadVector3(vertexBytes.Slice(baseOffset + (int)posStream.Offset));
+                if (!IsFinite(position))
+                {
+                    vertices = [];
+                    indices = [];
+                    return false;
+                }
+
+                Vector3 normal = hasNormal
+                    ? ReadNormal(vertexBytes.Slice(baseOffset + (int)normalStream.Offset), normalStream.Format)
+                    : Vector3.UnitZ;
+                Vector2 uv = hasUv
+                    ? ReadUv(vertexBytes.Slice(baseOffset + (int)uvStream.Offset), uvStream.Format)
+                    : Vector2.Zero;
+                Vector4 tangent = hasTangent
+                    ? ReadTangent(vertexBytes.Slice(baseOffset + (int)tangentStream.Offset), tangentStream.Format)
+                    : new Vector4(1f, 0f, 0f, 1f);
+
+                vertices[dstVertex] = new VertexPBR(position, normal, uv, tangent);
+                min = Vector3.Min(min, position);
+                max = Vector3.Max(max, position);
+            }
+
+            boundsMin = min;
+            boundsMax = max;
+            return true;
+        }
+        finally
+        {
+            ArrayPool<int>.Shared.Return(remap);
+        }
+    }
+
+    private bool TryFindStream(MeshStreamSemantic semantic, out MeshVertexStream stream)
+    {
+        foreach (MeshVertexStream candidate in _streams)
+        {
+            if (candidate.Semantic == semantic)
+            {
+                stream = candidate;
+                return true;
+            }
+        }
+        stream = default;
+        return false;
+    }
+
+    private static uint ReadIndex(ReadOnlySpan<byte> indexBytes, uint indexSlot, IndexType indexType)
+    {
+        return indexType switch
+        {
+            IndexType.UInt16 => BinaryPrimitives.ReadUInt16LittleEndian(indexBytes.Slice(checked((int)(indexSlot * 2u)), 2)),
+            IndexType.UInt32 => BinaryPrimitives.ReadUInt32LittleEndian(indexBytes.Slice(checked((int)(indexSlot * 4u)), 4)),
+            _ => throw new NotSupportedException($"Unsupported mesh index type {indexType}."),
+        };
+    }
+
+    private static bool IsValidNormalFormat(MeshVertexFormat format) => format is
+        MeshVertexFormat.R32G32B32Float or MeshVertexFormat.R32G32B32A32Float or
+        MeshVertexFormat.R16G16B16A16Float or MeshVertexFormat.R8G8B8A8Unorm;
+
+    private static bool IsValidUvFormat(MeshVertexFormat format) => format is
+        MeshVertexFormat.R32G32Float or MeshVertexFormat.R16G16Float;
+
+    private static bool IsValidTangentFormat(MeshVertexFormat format) => format is
+        MeshVertexFormat.R32G32B32A32Float or MeshVertexFormat.R16G16B16A16Float;
+
+    private static Vector3 ReadVector3(ReadOnlySpan<byte> src) => new(
+        BinaryPrimitives.ReadSingleLittleEndian(src),
+        BinaryPrimitives.ReadSingleLittleEndian(src[4..]),
+        BinaryPrimitives.ReadSingleLittleEndian(src[8..]));
+
+    private static Vector3 ReadNormal(ReadOnlySpan<byte> src, MeshVertexFormat format)
+    {
+        return format switch
+        {
+            MeshVertexFormat.R32G32B32Float or MeshVertexFormat.R32G32B32A32Float => ReadVector3(src),
+            MeshVertexFormat.R16G16B16A16Float => new Vector3(
+                (float)BinaryPrimitives.ReadHalfLittleEndian(src),
+                (float)BinaryPrimitives.ReadHalfLittleEndian(src[2..]),
+                (float)BinaryPrimitives.ReadHalfLittleEndian(src[4..])),
+            MeshVertexFormat.R8G8B8A8Unorm => new Vector3(
+                src[0] * (2f / 255f) - 1f,
+                src[1] * (2f / 255f) - 1f,
+                src[2] * (2f / 255f) - 1f),
+            _ => Vector3.UnitZ,
+        };
+    }
+
+    private static Vector2 ReadUv(ReadOnlySpan<byte> src, MeshVertexFormat format)
+    {
+        return format switch
+        {
+            MeshVertexFormat.R32G32Float => new Vector2(
+                BinaryPrimitives.ReadSingleLittleEndian(src),
+                BinaryPrimitives.ReadSingleLittleEndian(src[4..])),
+            MeshVertexFormat.R16G16Float => new Vector2(
+                (float)BinaryPrimitives.ReadHalfLittleEndian(src),
+                (float)BinaryPrimitives.ReadHalfLittleEndian(src[2..])),
+            _ => Vector2.Zero,
+        };
+    }
+
+    private static Vector4 ReadTangent(ReadOnlySpan<byte> src, MeshVertexFormat format)
+    {
+        return format switch
+        {
+            MeshVertexFormat.R32G32B32A32Float => new Vector4(
+                BinaryPrimitives.ReadSingleLittleEndian(src),
+                BinaryPrimitives.ReadSingleLittleEndian(src[4..]),
+                BinaryPrimitives.ReadSingleLittleEndian(src[8..]),
+                BinaryPrimitives.ReadSingleLittleEndian(src[12..])),
+            MeshVertexFormat.R16G16B16A16Float => new Vector4(
+                (float)BinaryPrimitives.ReadHalfLittleEndian(src),
+                (float)BinaryPrimitives.ReadHalfLittleEndian(src[2..]),
+                (float)BinaryPrimitives.ReadHalfLittleEndian(src[4..]),
+                (float)BinaryPrimitives.ReadHalfLittleEndian(src[6..])),
+            _ => new Vector4(1f, 0f, 0f, 1f),
+        };
+    }
+
+    private static bool IsFinite(Vector3 v) =>
+        float.IsFinite(v.X) && float.IsFinite(v.Y) && float.IsFinite(v.Z);
+}
+
+/// <summary>
+/// Pure CPU/IO handle to a mesh asset package (<c>.amsh</c>): parsed headers, bounds, M3 cluster/page
+/// metadata, and hash-verified positional LOD reads. Contains no GPU dependency.
 /// </summary>
 public sealed class MeshAsset : AutoDisposable
 {
-    // Feature flags this runtime consumes; anything else on the load path is rejected.
-    private const MeshAssetFlags SupportedFlags = MeshAssetFlags.Interleaved | MeshAssetFlags.HasLods;
+    // Interleaved LOD reads remain valid alongside M3 cluster/page metadata chunks.
+    private const MeshAssetFlags SupportedInterleavedFlags =
+        MeshAssetFlags.Interleaved | MeshAssetFlags.HasLods | MeshAssetFlags.HasClusters | MeshAssetFlags.Paged;
 
     private readonly MeshAssetReader _reader;
-    private readonly GPUDevice? _device;
     private readonly MeshVertexStream[] _streams;
     private readonly MeshAssetLod[] _lods;
     private readonly MeshAssetSubMesh[] _subMeshes;
     private readonly uint[] _lodSubMeshFirst;
     private readonly uint[] _lodSubMeshCount;
-    private readonly StreamableMesh?[] _residencies;
-    private readonly Task<StreamableMesh>?[] _loading;
-    private readonly object _lock = new();
+    private readonly string _pageTableEntry;
+    private readonly string _pageDataEntry;
+    private readonly Lock _lock = new();
 
-    /// <summary>
-    /// Creates a handle over an opened reader. Pass a device to enable GPU residency loads;
-    /// structure queries work without one.
-    /// </summary>
-    /// <param name="reader">The reader; ownership transfers to this asset.</param>
-    /// <param name="device">The GPU device for residency uploads, null for header-only usage.</param>
-    internal MeshAsset(MeshAssetReader reader, GPUDevice? device)
+    /// <summary>Creates a mesh asset handle over an opened <see cref="MeshAssetReader"/>.</summary>
+    /// <param name="reader">The opened reader; ownership transfers to this asset.</param>
+    internal MeshAsset(MeshAssetReader reader)
     {
         _reader = reader;
-        _device = device;
-
         MeshAssetMeta meta = reader.Meta;
 
         Name = meta.Name;
         Bounds = meta.Bounds;
         Flags = meta.Flags;
+        IndexType = meta.IndexFormat;
         LodCount = meta.Lods.Count;
         HasClusters = Flags.HasFlag(MeshAssetFlags.HasClusters);
+        IsPaged = Flags.HasFlag(MeshAssetFlags.Paged);
+        PageSize = meta.PageSize;
+        _pageTableEntry = meta.PageTableEntry;
+        _pageDataEntry = meta.PageDataEntry;
 
         _streams = new MeshVertexStream[meta.Streams.Count];
         for (int i = 0; i < _streams.Length; i++)
@@ -134,13 +412,15 @@ public sealed class MeshAsset : AutoDisposable
         for (int i = 0; i < _lods.Length; i++)
         {
             MeshLodMeta lod = meta.Lods[i];
-            _lods[i] = new MeshAssetLod(lod.VertexCount, lod.IndexCount, lod.MaxError, lod.Bounds, lod.VertexEntry, lod.IndexEntry);
+            _lods[i] = new MeshAssetLod(lod.VertexCount, lod.IndexCount, lod.MaxError, lod.Bounds,
+                lod.VertexEntry, lod.IndexEntry, lod.ClusterEntry);
             _lodSubMeshFirst[i] = lod.SubMeshFirst;
             _lodSubMeshCount[i] = lod.SubMeshCount;
 
             if (lod.SubMeshFirst + lod.SubMeshCount > (uint)meta.SubMeshes.Count)
             {
-                throw new InvalidDataException($"Mesh asset '{meta.Name}' LOD {i} submesh range [{lod.SubMeshFirst}, {lod.SubMeshFirst + lod.SubMeshCount}) exceeds the submesh table ({meta.SubMeshes.Count} entries).");
+                throw new InvalidDataException(
+                    $"Mesh asset '{meta.Name}' LOD {i} submesh range [{lod.SubMeshFirst}, {lod.SubMeshFirst + lod.SubMeshCount}) exceeds the submesh table ({meta.SubMeshes.Count} entries).");
             }
         }
 
@@ -150,10 +430,6 @@ public sealed class MeshAsset : AutoDisposable
             MeshSubMeshMeta subMesh = meta.SubMeshes[i];
             _subMeshes[i] = new MeshAssetSubMesh(subMesh.Name, subMesh.FirstIndex, subMesh.IndexCount);
         }
-
-        // Residency/loading slots are indexed by LOD; the count is fixed by the meta.
-        _residencies = new StreamableMesh?[meta.Lods.Count];
-        _loading = new Task<StreamableMesh>?[meta.Lods.Count];
     }
 
     /// <summary>Gets the mesh name.</summary>
@@ -165,304 +441,173 @@ public sealed class MeshAsset : AutoDisposable
     /// <summary>Feature flags of the file.</summary>
     public MeshAssetFlags Flags { get; }
 
+    /// <summary>Global index element format.</summary>
+    public IndexType IndexType { get; }
+
     /// <summary>Number of LOD levels in the file.</summary>
     public int LodCount { get; }
 
-    /// <summary>Whether the file carries a cluster table (M3 virtual geometry capability).</summary>
+    /// <summary>Whether the file carries M3 cluster tables.</summary>
     public bool HasClusters { get; }
+
+    /// <summary>Whether the file carries M3 fixed-size page tables and data.</summary>
+    public bool IsPaged { get; }
+
+    /// <summary>Fixed byte size per M3 page, or zero when unpaged.</summary>
+    public uint PageSize { get; }
 
     /// <summary>Vertex stream descriptors of the interleaved payload.</summary>
     public ReadOnlySpan<MeshVertexStream> Streams => _streams;
 
-    /// <summary>
-    /// Get the submesh (material slot) descriptors of one LOD. Materials bind to slot names
-    /// externally (prefab layer), never inside the mesh; slot order is stable across LODs, so
-    /// <c>GetSubMeshes(0)</c> is the canonical slot list before any payload load.
-    /// </summary>
-    /// <param name="lodIndex">The LOD index.</param>
+    /// <summary>Opens a mesh asset over a seekable stream, taking stream ownership.</summary>
+    /// <param name="stream">The seekable mesh asset stream.</param>
+    /// <returns>The opened mesh asset.</returns>
+    public static MeshAsset FromStream(Stream stream) => new(MeshAssetReader.Open(stream, string.Empty));
+
+    /// <summary>Opens a mesh asset over an in-memory package byte span.</summary>
+    /// <param name="data">The mesh asset package bytes.</param>
+    /// <returns>The opened mesh asset.</returns>
+    public static MeshAsset FromMemory(ReadOnlySpan<byte> data) => new(MeshAssetReader.OpenMemory(data));
+
+    /// <summary>Gets a LOD descriptor.</summary>
+    /// <param name="lodIndex">The zero-based LOD index.</param>
+    /// <returns>A read-only reference to the LOD descriptor.</returns>
+    public ref readonly MeshAssetLod GetLod(int lodIndex)
+    {
+        if ((uint)lodIndex >= (uint)_lods.Length)
+            throw new ArgumentOutOfRangeException(nameof(lodIndex), lodIndex, "LOD index out of range.");
+        return ref _lods[lodIndex];
+    }
+
+    /// <summary>Gets the submesh (material slot) descriptors of one LOD.</summary>
+    /// <param name="lodIndex">The zero-based LOD index.</param>
     /// <returns>The LOD's submesh descriptors.</returns>
-    /// <exception cref="ArgumentOutOfRangeException">Thrown when the index is out of range.</exception>
     public ReadOnlySpan<MeshAssetSubMesh> GetSubMeshes(int lodIndex)
     {
         if ((uint)lodIndex >= (uint)_lods.Length)
-        {
             throw new ArgumentOutOfRangeException(nameof(lodIndex), lodIndex, "LOD index out of range.");
-        }
-
         return _subMeshes.AsSpan((int)_lodSubMeshFirst[lodIndex], (int)_lodSubMeshCount[lodIndex]);
     }
 
     /// <summary>
-    /// Open a handle over a seekable stream. The stream ownership transfers to the returned asset.
+    /// Synchronously reads and hash-verifies one LOD payload from the underlying package.
     /// </summary>
-    /// <param name="stream">The seekable mesh asset stream.</param>
-    /// <param name="device">The GPU device for residency uploads, null for header-only usage.</param>
-    /// <returns>The asset handle.</returns>
-    internal static MeshAsset FromStream(Stream stream, GPUDevice? device)
-    {
-        return new MeshAsset(MeshAssetReader.Open(stream, string.Empty), device);
-    }
-
-    /// <summary>
-    /// Open a handle over mesh asset bytes held in memory.
-    /// </summary>
-    /// <param name="data">The mesh asset bytes.</param>
-    /// <param name="device">The GPU device for residency uploads, null for header-only usage.</param>
-    /// <returns>The asset handle.</returns>
-    internal static MeshAsset FromMemory(ReadOnlySpan<byte> data, GPUDevice? device)
-    {
-        return new MeshAsset(MeshAssetReader.OpenMemory(data), device);
-    }
-
-    /// <summary>
-    /// Gets a LOD descriptor.
-    /// </summary>
-    /// <param name="lodIndex">The LOD index.</param>
-    /// <returns>The LOD descriptor.</returns>
-    /// <exception cref="ArgumentOutOfRangeException">Thrown when the index is out of range.</exception>
-    public ref readonly MeshAssetLod GetLod(int lodIndex)
-    {
-        if ((uint)lodIndex >= (uint)_lods.Length)
-        {
-            throw new ArgumentOutOfRangeException(nameof(lodIndex), lodIndex, "LOD index out of range.");
-        }
-
-        return ref _lods[lodIndex];
-    }
-
-    /// <summary>
-    /// Stream one LOD into GPU residency: reads its chunks on worker threads, uploads on the
-    /// thread that owns the GPU device (the synchronization context captured at call time, or
-    /// the calling thread when none), and completes with the resident mesh. Idempotent per
-    /// (asset, lod): concurrent calls share one task.
-    /// </summary>
-    /// <param name="lodIndex">The LOD index to load.</param>
-    /// <returns>A task completing with the resident <see cref="StreamableMesh"/>.</returns>
-    /// <exception cref="ObjectDisposedException">Thrown when the stream has been disposed.</exception>
-    /// <exception cref="NotSupportedException">Thrown when the file uses unsupported features.</exception>
-    /// <exception cref="InvalidOperationException">Thrown when no GPU device is bound or the LOD is released mid-load.</exception>
-    public Task<StreamableMesh> LoadLodAsync(int lodIndex)
+    /// <param name="lodIndex">The zero-based LOD index.</param>
+    /// <returns>The decoded CPU LOD payload ready for geometry extraction.</returns>
+    public MeshLodData ReadLod(int lodIndex)
     {
         ObjectDisposedException.ThrowIf(IsDisposed, this);
-
         if ((uint)lodIndex >= (uint)_lods.Length)
-        {
             throw new ArgumentOutOfRangeException(nameof(lodIndex), lodIndex, "LOD index out of range.");
-        }
+        if ((Flags & ~SupportedInterleavedFlags) != 0)
+            throw new NotSupportedException($"Mesh asset '{Name}' uses unsupported interleaved features: {Flags & ~SupportedInterleavedFlags}.");
+        if (_streams.Length == 0)
+            throw new InvalidDataException($"Mesh asset '{Name}' declares no vertex streams.");
 
-        if (_device == null)
-        {
-            throw new InvalidOperationException("The streamable mesh has no GPU device bound; open it through a rendering system to load LODs.");
-        }
-
-        lock (_lock)
-        {
-            StreamableMesh? resident = _residencies[lodIndex];
-            if (resident != null)
-            {
-                return Task.FromResult(resident);
-            }
-
-            Task<StreamableMesh>? existing = _loading[lodIndex];
-            if (existing != null)
-            {
-                return existing;
-            }
-
-            Task<StreamableMesh> task = LoadLodCoreAsync(lodIndex, SynchronizationContext.Current);
-            _loading[lodIndex] = task;
-            return task;
-        }
-    }
-
-    /// <summary>
-    /// Resident LOD lookup. Out-of-range indices report not resident.
-    /// </summary>
-    /// <param name="lodIndex">The LOD index.</param>
-    /// <param name="mesh">The resident mesh when loaded.</param>
-    /// <returns>True while resident; false while loading, after failure, after release or after disposal.</returns>
-    public bool TryGetLoadedLod(int lodIndex, [NotNullWhen(true)] out StreamableMesh? mesh)
-    {
-        if (IsDisposed || (uint)lodIndex >= (uint)_residencies.Length)
-        {
-            mesh = null;
-            return false;
-        }
+        MeshAssetLod lod = _lods[lodIndex];
+        uint stride = _streams[0].Stride;
+        int indexElementSize = IndexType == IndexType.UInt16 ? sizeof(ushort) : sizeof(uint);
+        byte[] vertexBytes = new byte[checked((int)(lod.VertexCount * (ulong)stride))];
+        byte[] indexBytes = new byte[checked((int)(lod.IndexCount * (ulong)indexElementSize))];
 
         lock (_lock)
         {
-            mesh = _residencies[lodIndex];
-            return mesh != null;
-        }
-    }
-
-    /// <summary>
-    /// Dispose the GPU residency of one LOD. Call from the thread that owns the GPU device.
-    /// Out-of-range indices are a no-op.
-    /// </summary>
-    /// <param name="lodIndex">The LOD index.</param>
-    public void ReleaseLod(int lodIndex)
-    {
-        StreamableMesh? mesh;
-        lock (_lock)
-        {
-            if ((uint)lodIndex >= (uint)_residencies.Length)
-            {
-                return;
-            }
-
-            mesh = _residencies[lodIndex];
-            _residencies[lodIndex] = null;
-        }
-
-        mesh?.Dispose();
-    }
-
-    private async Task<StreamableMesh> LoadLodCoreAsync(int lodIndex, SynchronizationContext? synchronizationContext)
-    {
-        try
-        {
-            MeshAssetLod lod = _lods[lodIndex];
+            ObjectDisposedException.ThrowIf(IsDisposed, this);
             MeshChunkMeta vertexChunk = _reader.GetChunk(lod.VertexEntry);
             MeshChunkMeta indexChunk = _reader.GetChunk(lod.IndexEntry);
-            ValidateChunk(vertexChunk, lod.VertexEntry);
-            ValidateChunk(indexChunk, lod.IndexEntry);
-
-            // Read payloads on a worker; the reader supports concurrent positional reads.
-            using SafeMemoryHandle vertexData = new((int)(lod.VertexCount * (long)_streams[0].Stride));
-            using SafeMemoryHandle indexData = new((int)(lod.IndexCount * (long)sizeof(uint)));
-            await Task.Run(() =>
-            {
-                _reader.ReadChunk(vertexChunk, vertexData);
-                _reader.ReadChunk(indexChunk, indexData);
-            }).ConfigureAwait(false);
-
-            // GPU work must run on the device-owning thread: hop to the captured context when
-            // the continuation landed elsewhere (e.g. on the worker).
-            Task<StreamableMesh> upload;
-            if (synchronizationContext != null && SynchronizationContext.Current != synchronizationContext)
-            {
-                TaskCompletionSource<StreamableMesh> completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
-                synchronizationContext.Post(_ =>
-                {
-                    try
-                    {
-                        completion.SetResult(CreateResidency(lodIndex, vertexData, indexData));
-                    }
-                    catch (Exception exception)
-                    {
-                        completion.SetException(exception);
-                    }
-                }, null);
-                upload = completion.Task;
-            }
-            else
-            {
-                upload = Task.FromResult(CreateResidency(lodIndex, vertexData, indexData));
-            }
-
-            StreamableMesh mesh = await upload.ConfigureAwait(false);
-
-            lock (_lock)
-            {
-                _loading[lodIndex] = null;
-
-                if (IsDisposed)
-                {
-                    // The asset was disposed mid-load: drop the residency instead of caching it into a
-                    // dead asset. Its GPU buffers reclaim through their own finalizer-safe path; calling
-                    // Dispose here would run on a worker thread, off the device-owning thread.
-                    throw new ObjectDisposedException(nameof(MeshAsset), $"Mesh asset '{Name}' was disposed while LOD {lodIndex} was loading.");
-                }
-
-                _residencies[lodIndex] = mesh;
-            }
-
-            return mesh;
-        }
-        catch
-        {
-            // A failed load must not pin the slot: clear it so the next LoadLodAsync can retry.
-            lock (_lock)
-            {
-                _loading[lodIndex] = null;
-            }
-
-            throw;
-        }
-    }
-
-    private StreamableMesh CreateResidency(int lodIndex, SafeMemoryHandle vertexData, SafeMemoryHandle indexData)
-    {
-        MeshAssetLod lod = _lods[lodIndex];
-        uint stride = _streams.Length > 0 ? _streams[0].Stride : 0;
-
-        StreamableMesh mesh = new(_device!, (uint)vertexData.AsReadOnlySpan().Length, (uint)indexData.AsReadOnlySpan().Length, stride, lodIndex, Name);
-        mesh.UploadVertex(vertexData.AsReadOnlySpan());
-        mesh.UploadIndices(indexData.AsReadOnlySpan());
-
-        ReadOnlySpan<MeshAssetSubMesh> subMeshTable = GetSubMeshes(lodIndex);
-        Span<SubMeshData> subMeshes = stackalloc SubMeshData[subMeshTable.Length];
-        for (int i = 0; i < subMeshTable.Length; i++)
-        {
-            MeshAssetSubMesh subMesh = subMeshTable[i];
-            subMeshes[i] = new SubMeshData
-            {
-                Index = i,
-                VertexOffset = 0,
-                VertexSize = mesh.VertexBuffer.Size,
-                IndexOffset = (ulong)(subMesh.FirstIndex * sizeof(uint)),
-                IndexSize = (ulong)(subMesh.IndexCount * sizeof(uint)),
-                IndexCount = subMesh.IndexCount,
-                IndexFormat = Alco.Graphics.IndexFormat.UInt32,
-            };
+            _reader.ReadChunk(vertexChunk, vertexBytes);
+            _reader.ReadChunk(indexChunk, indexBytes);
         }
 
-        mesh.SetSubMeshes(subMeshes);
-        mesh.MarkReady();
-        return mesh;
-    }
-
-    private void ValidateChunk(MeshChunkMeta chunk, string entryName)
-    {
-        if (chunk.Codec != MeshChunkCodec.None)
-        {
-            throw new NotSupportedException($"Mesh asset entry '{entryName}' uses unsupported codec {chunk.Codec}.");
-        }
-
-        if ((_reader.Meta.Flags & ~SupportedFlags) != 0)
-        {
-            // Quantization/paging features affect payload interpretation; reject per LOD load.
-            MeshAssetFlags unsupported = _reader.Meta.Flags & ~SupportedFlags;
-            throw new NotSupportedException($"Mesh asset '{Name}' uses unsupported features: {unsupported}.");
-        }
+        MeshAssetSubMesh[] subMeshes = GetSubMeshes(lodIndex).ToArray();
+        return new MeshLodData(lodIndex, vertexBytes, indexBytes, IndexType, stride,
+            lod.VertexCount, lod.IndexCount, (MeshVertexStream[])_streams.Clone(), subMeshes);
     }
 
     /// <summary>
-    /// Disposes the file reader and all GPU residencies. Residencies must be disposed from the
-    /// thread that owns the GPU device — dispose the asset on the main thread. The finalizer path
-    /// (Dispose never called) releases only the file reader; the residencies' GPU buffers reclaim
-    /// through their own finalizer-safe path, never through the device's deferred destroy queue.
+    /// Asynchronously reads and hash-verifies one LOD payload on a background worker.
     /// </summary>
-    /// <param name="disposing">True when called from <see cref="Dispose()"/>, false from the finalizer.</param>
+    /// <param name="lodIndex">The zero-based LOD index.</param>
+    /// <param name="cancellationToken">Optional cancellation token.</param>
+    /// <returns>A task completing with the decoded <see cref="MeshLodData"/>.</returns>
+    public Task<MeshLodData> ReadLodAsync(int lodIndex, CancellationToken cancellationToken = default)
+    {
+        ObjectDisposedException.ThrowIf(IsDisposed, this);
+        if ((uint)lodIndex >= (uint)_lods.Length)
+            throw new ArgumentOutOfRangeException(nameof(lodIndex), lodIndex, "LOD index out of range.");
+        return Task.Run(() => ReadLod(lodIndex), cancellationToken);
+    }
+
+    /// <summary>Tries to resolve the package entry of one LOD's M3 cluster table.</summary>
+    /// <param name="lodIndex">The zero-based LOD index.</param>
+    /// <param name="entry">Receives the cluster table entry descriptor.</param>
+    /// <returns><see langword="true"/> when the LOD carries a cluster table entry.</returns>
+    public bool TryGetClusterTableChunk(int lodIndex, [NotNullWhen(true)] out PackageEntry? entry)
+    {
+        ObjectDisposedException.ThrowIf(IsDisposed, this);
+        entry = null;
+        if ((uint)lodIndex >= (uint)_lods.Length)
+            return false;
+        string name = _lods[lodIndex].ClusterEntry;
+        return !string.IsNullOrEmpty(name) && _reader.TryGetEntry(name, out entry);
+    }
+
+    /// <summary>Reads and hash-verifies the M3 cluster table records of one LOD.</summary>
+    /// <param name="lodIndex">The zero-based LOD index.</param>
+    /// <param name="clusters">Receives the decoded cluster records.</param>
+    /// <returns><see langword="true"/> when a cluster table existed and was read.</returns>
+    public bool TryReadClusters(int lodIndex, [NotNullWhen(true)] out ClusterRecord[]? clusters)
+    {
+        clusters = null;
+        if (!TryGetClusterTableChunk(lodIndex, out PackageEntry? entry))
+            return false;
+        lock (_lock)
+        {
+            ObjectDisposedException.ThrowIf(IsDisposed, this);
+            clusters = _reader.ReadStructChunk<ClusterRecord>(entry);
+            return true;
+        }
+    }
+
+    /// <summary>Tries to resolve the package entry of the M3 page table.</summary>
+    /// <param name="entry">Receives the page table entry descriptor.</param>
+    /// <returns><see langword="true"/> when the mesh carries a page table.</returns>
+    public bool TryGetPageTableChunk([NotNullWhen(true)] out PackageEntry? entry)
+    {
+        ObjectDisposedException.ThrowIf(IsDisposed, this);
+        entry = null;
+        return !string.IsNullOrEmpty(_pageTableEntry) && _reader.TryGetEntry(_pageTableEntry, out entry);
+    }
+
+    /// <summary>Reads and hash-verifies the M3 page records of a paged mesh asset.</summary>
+    /// <param name="pages">Receives the decoded page descriptors.</param>
+    /// <returns><see langword="true"/> when a page table existed and was read.</returns>
+    public bool TryReadPages([NotNullWhen(true)] out PageRecord[]? pages)
+    {
+        pages = null;
+        if (!TryGetPageTableChunk(out PackageEntry? entry))
+            return false;
+        lock (_lock)
+        {
+            ObjectDisposedException.ThrowIf(IsDisposed, this);
+            pages = _reader.ReadStructChunk<PageRecord>(entry);
+            return true;
+        }
+    }
+
+    /// <summary>Tries to resolve the package entry containing concatenated M3 cluster pages.</summary>
+    /// <param name="entry">Receives the page data entry descriptor.</param>
+    /// <returns><see langword="true"/> when the mesh carries page data.</returns>
+    public bool TryGetPageDataChunk([NotNullWhen(true)] out PackageEntry? entry)
+    {
+        ObjectDisposedException.ThrowIf(IsDisposed, this);
+        entry = null;
+        return !string.IsNullOrEmpty(_pageDataEntry) && _reader.TryGetEntry(_pageDataEntry, out entry);
+    }
+
+    /// <inheritdoc />
     protected override void Dispose(bool disposing)
     {
-        if (disposing)
-        {
-            StreamableMesh?[] residencies;
-            lock (_lock)
-            {
-                residencies = (StreamableMesh?[])_residencies.Clone();
-                Array.Clear(_residencies);
-            }
-
-            foreach (StreamableMesh? mesh in residencies)
-            {
-                mesh?.Dispose();
-            }
-        }
-
-        // Pure IO, safe from the finalizer thread.
         _reader.Dispose();
     }
 }

@@ -1,22 +1,20 @@
-#nullable enable
-
+using System.Buffers.Binary;
 using System.Numerics;
-using NUnit.Framework;
 using Alco.Engine;
-using Alco.Graphics;
 using Alco.IO;
 using Alco.Rendering;
+using NUnit.Framework;
 
 namespace Alco.World3D.Test;
 
 /// <summary>
-/// Covers model asset composition, resolving mesh streams and bound materials with slot lookup and default fallback.
+/// Covers model asset composition, resolving pure CPU mesh streams and bound materials with slot lookup and default fallback.
 /// </summary>
+[Category("NoGPU")]
 public class TestModelAsset
 {
     private static MeshAssetBuildData CreateQuadBuildData()
     {
-        // Two material slots over one quad: "wall" covers the first triangle, "roof" the second.
         VertexPBR[] vertices =
         [
             new() { Position = new Vector3(0, 0, 0), Normal = new Vector3(0, 0, 1), UV = new Vector2(0, 0), Tangent = new Vector4(1, 0, 0, 1) },
@@ -28,22 +26,22 @@ public class TestModelAsset
         int cursor = 0;
         void Write(Vector3 value)
         {
-            System.Buffers.Binary.BinaryPrimitives.WriteSingleLittleEndian(vertexBytes.AsSpan(cursor), value.X);
-            System.Buffers.Binary.BinaryPrimitives.WriteSingleLittleEndian(vertexBytes.AsSpan(cursor + 4), value.Y);
-            System.Buffers.Binary.BinaryPrimitives.WriteSingleLittleEndian(vertexBytes.AsSpan(cursor + 8), value.Z);
+            BinaryPrimitives.WriteSingleLittleEndian(vertexBytes.AsSpan(cursor), value.X);
+            BinaryPrimitives.WriteSingleLittleEndian(vertexBytes.AsSpan(cursor + 4), value.Y);
+            BinaryPrimitives.WriteSingleLittleEndian(vertexBytes.AsSpan(cursor + 8), value.Z);
             cursor += 12;
         }
         foreach (VertexPBR vertex in vertices)
         {
             Write(vertex.Position);
             Write(vertex.Normal);
-            System.Buffers.Binary.BinaryPrimitives.WriteSingleLittleEndian(vertexBytes.AsSpan(cursor), vertex.UV.X);
-            System.Buffers.Binary.BinaryPrimitives.WriteSingleLittleEndian(vertexBytes.AsSpan(cursor + 4), vertex.UV.Y);
+            BinaryPrimitives.WriteSingleLittleEndian(vertexBytes.AsSpan(cursor), vertex.UV.X);
+            BinaryPrimitives.WriteSingleLittleEndian(vertexBytes.AsSpan(cursor + 4), vertex.UV.Y);
             cursor += 8;
-            System.Buffers.Binary.BinaryPrimitives.WriteSingleLittleEndian(vertexBytes.AsSpan(cursor), vertex.Tangent.X);
-            System.Buffers.Binary.BinaryPrimitives.WriteSingleLittleEndian(vertexBytes.AsSpan(cursor + 4), vertex.Tangent.Y);
-            System.Buffers.Binary.BinaryPrimitives.WriteSingleLittleEndian(vertexBytes.AsSpan(cursor + 8), vertex.Tangent.Z);
-            System.Buffers.Binary.BinaryPrimitives.WriteSingleLittleEndian(vertexBytes.AsSpan(cursor + 12), vertex.Tangent.W);
+            BinaryPrimitives.WriteSingleLittleEndian(vertexBytes.AsSpan(cursor), vertex.Tangent.X);
+            BinaryPrimitives.WriteSingleLittleEndian(vertexBytes.AsSpan(cursor + 4), vertex.Tangent.Y);
+            BinaryPrimitives.WriteSingleLittleEndian(vertexBytes.AsSpan(cursor + 8), vertex.Tangent.Z);
+            BinaryPrimitives.WriteSingleLittleEndian(vertexBytes.AsSpan(cursor + 12), vertex.Tangent.W);
             cursor += 16;
         }
 
@@ -75,9 +73,7 @@ public class TestModelAsset
         Directory.CreateDirectory(directory);
 
         using (FileStream meshFile = File.Create(Path.Combine(directory, "house.amsh")))
-        {
             MeshAssetWriter.Write(CreateQuadBuildData(), meshFile);
-        }
 
         const string pbrType = "\"$type\": \"Alco.World3D.PbrMaterialAsset\"";
         File.WriteAllText(Path.Combine(directory, "wall.amat"),
@@ -90,11 +86,6 @@ public class TestModelAsset
         return directory;
     }
 
-    /// <summary>
-    /// Runs the test body against a fresh NoGPU engine over the temp directory, then
-    /// tears down: the mesh stream keeps the .amsh open for positional LOD reads, so it
-    /// is unloaded (disposing its reader) before the directory is deleted.
-    /// </summary>
     private static void RunWithAssets(Action<AssetSystem, string> test)
     {
         string directory = CreateAssetDirectory();
@@ -104,9 +95,7 @@ public class TestModelAsset
             engine = new GameEngine(GameEngineSetting.CreateNoGPU());
             AssetSystem assets = engine.AssetSystem;
             assets.AddFileSource(new DirectoryFileSource(directory));
-            // Mesh/model loaders are the pipeline family's; the material loader is
-            // engine infrastructure (GameEngine's default loaders).
-            World3DAssetPipeline.RegisterLoaders(assets, engine.RenderingSystem);
+            World3DAssetPipeline.RegisterLoaders(assets);
             test(assets, directory);
         }
         finally
@@ -142,21 +131,16 @@ public class TestModelAsset
                 Assert.That(model.Name, Is.EqualTo("house"));
                 Assert.That(model.Mesh.LodCount, Is.EqualTo(1));
 
-                // Explicit binding, case-insensitive slot lookup.
                 Assert.That(model.TryGetMaterial("wall", out MaterialAsset? wall), Is.True);
                 Assert.That(wall, Is.SameAs(assets.Load<MaterialAsset>("wall.amat")));
 
-                // Unbound mesh slots ("roof" has no binding) fall back to the default material.
                 Assert.That(model.TryGetMaterial("roof", out MaterialAsset? roofDefault), Is.True);
                 Assert.That(roofDefault, Is.SameAs(model.DefaultMaterial));
 
-                // Bindings targeting slot names the mesh does not carry stay inert.
                 Assert.That(model.TryGetMaterial("does-not-exist", out MaterialAsset? fallback), Is.True);
                 Assert.That(fallback, Is.SameAs(model.DefaultMaterial));
 
                 Assert.That(model.GetUnboundSlotNames(), Is.EqualTo(new[] { "roof" }));
-
-                // Distinct materials across bindings + default.
                 Assert.That(model.EnumerateMaterials().Count, Is.EqualTo(3));
             });
         });
@@ -214,14 +198,11 @@ public class TestModelAsset
 
             Assert.Multiple(() =>
             {
-                // Two slots sharing one material file share the cached instance...
                 Assert.That(a.TryGetMaterial("wall", out MaterialAsset? aw), Is.True);
                 Assert.That(a.TryGetMaterial("roof", out MaterialAsset? ar), Is.True);
                 Assert.That(aw, Is.SameAs(ar));
-                // ...and so do different models referencing the same file.
                 Assert.That(b.TryGetMaterial("wall", out MaterialAsset? bw), Is.True);
                 Assert.That(bw, Is.SameAs(aw));
-                // Without a default material, an unbound slot resolves to nothing.
                 Assert.That(a.TryGetMaterial("missing", out MaterialAsset? none), Is.False);
                 Assert.That(none, Is.Null);
             });

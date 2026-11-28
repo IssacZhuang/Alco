@@ -1,13 +1,10 @@
 using System.Runtime.InteropServices;
 using Alco;
-using Alco.Graphics;
 
 namespace Alco.World3D;
 
 /// <summary>
 /// Alpha handling mode of a material. Values are stable on-disk identifiers, engine-neutral.
-/// Reserved for the upcoming material asset format — mesh assets carry material slots
-/// (names), never material definitions.
 /// </summary>
 public enum MeshAlphaMode : uint
 {
@@ -19,6 +16,42 @@ public enum MeshAlphaMode : uint
 
     /// <summary>Alpha blended.</summary>
     Blend = 2,
+}
+
+/// <summary>
+/// Stable on-disk vertex attribute storage formats for <c>.amsh</c> assets.
+/// </summary>
+public enum MeshVertexFormat : uint
+{
+    /// <summary>Two 32-bit floats.</summary>
+    R32G32Float = 1,
+
+    /// <summary>Three 32-bit floats.</summary>
+    R32G32B32Float = 2,
+
+    /// <summary>Four 32-bit floats.</summary>
+    R32G32B32A32Float = 3,
+
+    /// <summary>Two 16-bit floats.</summary>
+    R16G16Float = 4,
+
+    /// <summary>Four 16-bit floats.</summary>
+    R16G16B16A16Float = 5,
+
+    /// <summary>Four normalized unsigned 8-bit integers.</summary>
+    R8G8B8A8Unorm = 6,
+
+    /// <summary>Four unsigned 8-bit integers.</summary>
+    R8G8B8A8Uint = 7,
+
+    /// <summary>Four unsigned 16-bit integers.</summary>
+    R16G16B16A16Uint = 8,
+
+    /// <summary>One unsigned 32-bit integer.</summary>
+    R32Uint = 9,
+
+    /// <summary>One 32-bit float.</summary>
+    R32Float = 10,
 }
 
 /// <summary>
@@ -60,13 +93,13 @@ public enum MeshChunkType : uint
     /// <summary>Index payload of one LOD.</summary>
     IndexData = 1,
 
-    /// <summary>Fixed-layout <see cref="ClusterRecord"/> array (reserved, M3).</summary>
+    /// <summary>Fixed-layout <see cref="ClusterRecord"/> array (M3 virtual geometry).</summary>
     ClusterTable = 2,
 
-    /// <summary>Fixed-layout <see cref="PageRecord"/> array (reserved, M3).</summary>
+    /// <summary>Fixed-layout <see cref="PageRecord"/> array (M3 virtual geometry).</summary>
     PageTable = 3,
 
-    /// <summary>Concatenated fixed-size cluster pages (reserved, M3).</summary>
+    /// <summary>Concatenated fixed-size cluster pages (M3 virtual geometry).</summary>
     PageData = 4,
 
     /// <summary>Bounds hierarchy for streaming selection (reserved).</summary>
@@ -81,11 +114,11 @@ public enum MeshChunkType : uint
 
 /// <summary>
 /// Payload compression of a mesh asset chunk. Compressed chunks must be decoded on a worker
-/// before upload and can never be direct-uploaded. M1 ships <see cref="None"/> only.
+/// before upload. M1 ships <see cref="None"/> only.
 /// </summary>
 public enum MeshChunkCodec : uint
 {
-    /// <summary>Raw bytes, directly uploadable.</summary>
+    /// <summary>Raw uncompressed bytes.</summary>
     None = 0,
 
     /// <summary>LZ4 block compression (reserved, M2).</summary>
@@ -124,10 +157,10 @@ public enum MeshAssetFlags : uint
     /// <summary>File contains more than one LOD entry set.</summary>
     HasLods = 1 << 4,
 
-    /// <summary>File contains a cluster table (reserved, M3).</summary>
+    /// <summary>File contains a cluster table (M3 virtual geometry).</summary>
     HasClusters = 1 << 5,
 
-    /// <summary>LOD data is organized in fixed-size pages (reserved, M3).</summary>
+    /// <summary>LOD data is accompanied by fixed-size pages (M3 virtual geometry).</summary>
     Paged = 1 << 6,
 
     /// <summary>Bulk payloads live in a sidecar file (reserved).</summary>
@@ -135,17 +168,15 @@ public enum MeshAssetFlags : uint
 }
 
 /// <summary>
-/// Descriptor of one vertex stream inside an interleaved mesh asset vertex payload. The disk format
-/// (<see cref="Format"/>) is the GPU vertex format, so the payload bytes are directly
-/// consumable as a vertex buffer.
+/// Descriptor of one vertex stream inside an interleaved mesh asset vertex payload.
 /// </summary>
 public struct MeshVertexStream
 {
     /// <summary>Semantic of the stream.</summary>
     public MeshStreamSemantic Semantic;
 
-    /// <summary>Disk/GPU vertex format of the stream.</summary>
-    public VertexFormat Format;
+    /// <summary>Stable disk vertex format of the stream.</summary>
+    public MeshVertexFormat Format;
 
     /// <summary>Byte offset of the stream inside the interleaved vertex.</summary>
     public uint Offset;
@@ -155,17 +186,14 @@ public struct MeshVertexStream
 
     /// <summary>
     /// Quantization domain of the stream (Position only): dequantize as
-    /// <c>Min + n * (Max - Min)</c> with n in [0, 1]. Typically the tight position AABB chosen
-    /// at cook time for maximum precision; semantically a decode input, not a culling bound.
-    /// The zero box means not quantized (authoritative gate: <see cref="MeshAssetFlags.QuantizedPositions"/>).
+    /// <c>Min + n * (Max - Min)</c> with n in [0, 1].
     /// </summary>
     public BoundingBox3D QuantBounds;
 }
 
 /// <summary>
-/// Frozen 96-byte cluster descriptor of the mesh asset format. Published with the format so
-/// cookers can start emitting it without a format break; consumed by the M3 virtual geometry
-/// pipeline. Little-endian on disk; blit directly into native/GPU buffers.
+/// Frozen 96-byte cluster descriptor of the mesh asset format (M3 virtual geometry).
+/// Little-endian on disk; blit directly into native/GPU buffers.
 /// </summary>
 [StructLayout(LayoutKind.Sequential)]
 public unsafe struct ClusterRecord
@@ -200,9 +228,7 @@ public unsafe struct ClusterRecord
     /// <summary>Offset into the owning page's index pool.</summary>
     public uint IndexOffset;
 
-    /// <summary>Number of indices (3 * triangle count). Cluster-local indices are 16-bit so the
-    /// same page payload can serve both the software path (storage-buffer reads) and hardware
-    /// raster (index buffer views); 8-bit is not a valid hardware index format.</summary>
+    /// <summary>Number of indices (3 * triangle count).</summary>
     public uint IndexCount;
 
     /// <summary>Index into the group table, -1 for roots.</summary>
@@ -214,8 +240,7 @@ public unsafe struct ClusterRecord
     /// <summary>Index of the owning page.</summary>
     public uint PageIndex;
 
-    /// <summary>Index into the mesh's material slot (submesh) table. Slot order is stable across
-    /// LODs, so this is the position within the owning LOD's submesh range.</summary>
+    /// <summary>Index into the mesh's material slot (submesh) table.</summary>
     public ushort MaterialSlot;
 
     /// <summary>Reserved, must be zero.</summary>
@@ -223,9 +248,7 @@ public unsafe struct ClusterRecord
 }
 
 /// <summary>
-/// Frozen 32-byte page descriptor of the mesh asset format (M3 virtual geometry). Pages have a
-/// fixed size declared in the meta; page N occupies <c>[N * pageSize, (N+1) * pageSize)</c> of
-/// the page data entry, so paging needs no per-page directory.
+/// Frozen 32-byte page descriptor of the mesh asset format (M3 virtual geometry).
 /// </summary>
 [StructLayout(LayoutKind.Sequential)]
 public struct PageRecord
@@ -257,7 +280,7 @@ public struct PageRecord
 /// </summary>
 public static class MeshVertexLayout
 {
-    /// <summary>Stride of the default interleaved PBR vertex (matches <see cref="VertexPBR"/>).</summary>
+    /// <summary>Stride of the default interleaved PBR vertex (matches <see cref="Alco.Rendering.VertexPBR"/>).</summary>
     public const uint VertexPBRStride = 48;
 
     /// <summary>
@@ -269,34 +292,37 @@ public static class MeshVertexLayout
     {
         return
         [
-            new MeshVertexStream { Semantic = MeshStreamSemantic.Position, Format = VertexFormat.Float32x3, Offset = 0, Stride = VertexPBRStride },
-            new MeshVertexStream { Semantic = MeshStreamSemantic.Normal, Format = VertexFormat.Float32x3, Offset = 12, Stride = VertexPBRStride },
-            new MeshVertexStream { Semantic = MeshStreamSemantic.TexCoord0, Format = VertexFormat.Float32x2, Offset = 24, Stride = VertexPBRStride },
-            new MeshVertexStream { Semantic = MeshStreamSemantic.Tangent, Format = VertexFormat.Float32x4, Offset = 32, Stride = VertexPBRStride },
+            new MeshVertexStream { Semantic = MeshStreamSemantic.Position, Format = MeshVertexFormat.R32G32B32Float, Offset = 0, Stride = VertexPBRStride },
+            new MeshVertexStream { Semantic = MeshStreamSemantic.Normal, Format = MeshVertexFormat.R32G32B32Float, Offset = 12, Stride = VertexPBRStride },
+            new MeshVertexStream { Semantic = MeshStreamSemantic.TexCoord0, Format = MeshVertexFormat.R32G32Float, Offset = 24, Stride = VertexPBRStride },
+            new MeshVertexStream { Semantic = MeshStreamSemantic.Tangent, Format = MeshVertexFormat.R32G32B32A32Float, Offset = 32, Stride = VertexPBRStride },
         ];
     }
 
     /// <summary>
-    /// Get the size in bytes of one component tuple of a vertex format.
+    /// Gets the size in bytes of one component tuple of a <see cref="MeshVertexFormat"/>.
     /// </summary>
     /// <param name="format">The vertex format.</param>
     /// <returns>The tuple size in bytes.</returns>
     /// <exception cref="ArgumentOutOfRangeException">Thrown for undefined formats.</exception>
-    public static uint GetFormatSize(VertexFormat format)
+    public static int GetByteSize(MeshVertexFormat format)
     {
         return format switch
         {
-            VertexFormat.Uint8x2 or VertexFormat.Sint8x2 or VertexFormat.Unorm8x2 or VertexFormat.Snorm8x2 => 2,
-            VertexFormat.Uint8x4 or VertexFormat.Sint8x4 or VertexFormat.Unorm8x4 or VertexFormat.Snorm8x4 => 4,
-            VertexFormat.Uint16x2 or VertexFormat.Sint16x2 or VertexFormat.Unorm16x2 or VertexFormat.Snorm16x2
-                or VertexFormat.Float16x2 => 4,
-            VertexFormat.Uint16x4 or VertexFormat.Sint16x4 or VertexFormat.Unorm16x4 or VertexFormat.Snorm16x4
-                or VertexFormat.Float16x4 => 8,
-            VertexFormat.Float32 or VertexFormat.Uint32 or VertexFormat.Sint32 => 4,
-            VertexFormat.Float32x2 or VertexFormat.Uint32x2 or VertexFormat.Sint32x2 => 8,
-            VertexFormat.Float32x3 or VertexFormat.Uint32x3 or VertexFormat.Sint32x3 => 12,
-            VertexFormat.Float32x4 or VertexFormat.Uint32x4 or VertexFormat.Sint32x4 => 16,
-            _ => throw new ArgumentOutOfRangeException(nameof(format), format, "Undefined vertex format."),
+            MeshVertexFormat.R16G16Float or MeshVertexFormat.R8G8B8A8Unorm
+                or MeshVertexFormat.R8G8B8A8Uint or MeshVertexFormat.R32Uint or MeshVertexFormat.R32Float => 4,
+            MeshVertexFormat.R32G32Float or MeshVertexFormat.R16G16B16A16Float
+                or MeshVertexFormat.R16G16B16A16Uint => 8,
+            MeshVertexFormat.R32G32B32Float => 12,
+            MeshVertexFormat.R32G32B32A32Float => 16,
+            _ => throw new ArgumentOutOfRangeException(nameof(format), format, "Undefined mesh vertex format."),
         };
     }
+
+    /// <summary>
+    /// Gets the size in bytes of one component tuple of a <see cref="MeshVertexFormat"/> as an unsigned integer.
+    /// </summary>
+    /// <param name="format">The vertex format.</param>
+    /// <returns>The tuple size in bytes.</returns>
+    public static uint GetFormatSize(MeshVertexFormat format) => (uint)GetByteSize(format);
 }

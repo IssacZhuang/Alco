@@ -44,7 +44,7 @@ public static class MeshAssetFormatVersion
 public sealed class VertexStreamMeta : ISerializable
 {
     private MeshStreamSemantic _semantic;
-    private VertexFormat _format;
+    private MeshVertexFormat _format;
     private uint _offset;
     private uint _stride;
     private BoundingBox3D _quantBounds;
@@ -53,7 +53,7 @@ public sealed class VertexStreamMeta : ISerializable
     public MeshStreamSemantic Semantic => _semantic;
 
     /// <summary>Vertex format.</summary>
-    public VertexFormat Format => _format;
+    public MeshVertexFormat Format => _format;
 
     /// <summary>Byte offset inside the interleaved vertex.</summary>
     public uint Offset => _offset;
@@ -75,7 +75,7 @@ public sealed class VertexStreamMeta : ISerializable
     /// <param name="offset">Byte offset inside the interleaved vertex.</param>
     /// <param name="stride">Interleaved vertex stride in bytes.</param>
     /// <param name="quantBounds">Quantization domain (Position only).</param>
-    public VertexStreamMeta(MeshStreamSemantic semantic, VertexFormat format, uint offset, uint stride, in BoundingBox3D quantBounds)
+    public VertexStreamMeta(MeshStreamSemantic semantic, MeshVertexFormat format, uint offset, uint stride, in BoundingBox3D quantBounds)
     {
         _semantic = semantic;
         _format = format;
@@ -151,7 +151,9 @@ public sealed class MeshLodMeta : ISerializable
     /// <param name="indexEntry">Index payload entry name.</param>
     /// <param name="subMeshFirst">First submesh descriptor of this LOD in the mesh's submesh table.</param>
     /// <param name="subMeshCount">Number of submesh descriptors of this LOD.</param>
-    public MeshLodMeta(uint vertexCount, uint indexCount, float maxError, in BoundingBox3D bounds, string vertexEntry, string indexEntry, uint subMeshFirst, uint subMeshCount)
+    /// <param name="clusterEntry">Optional M3 cluster table entry name.</param>
+    public MeshLodMeta(uint vertexCount, uint indexCount, float maxError, in BoundingBox3D bounds,
+        string vertexEntry, string indexEntry, uint subMeshFirst, uint subMeshCount, string clusterEntry = "")
     {
         _vertexCount = vertexCount;
         _indexCount = indexCount;
@@ -159,6 +161,7 @@ public sealed class MeshLodMeta : ISerializable
         _bounds = bounds;
         _vertexEntry = vertexEntry;
         _indexEntry = indexEntry;
+        _clusterEntry = clusterEntry;
         _subMeshFirst = subMeshFirst;
         _subMeshCount = subMeshCount;
     }
@@ -180,8 +183,7 @@ public sealed class MeshLodMeta : ISerializable
 
 /// <summary>
 /// Serializable descriptor of one submesh (material slot) in a mesh asset file: a named index
-/// range. The slot name is the stable identifier the composition layer (prefab) binds materials
-/// to — the mesh itself never references material assets.
+/// range. The slot name is the stable identifier the composition layer binds materials to.
 /// </summary>
 public sealed class MeshSubMeshMeta : ISerializable
 {
@@ -192,9 +194,7 @@ public sealed class MeshSubMeshMeta : ISerializable
     /// <summary>The slot name (typically the source material name).</summary>
     public string Name => _name;
 
-    /// <summary>First index in the owning LOD's index buffer; the owning LOD is the one whose
-    /// submesh range (<see cref="MeshLodMeta.SubMeshFirst"/>/<see cref="MeshLodMeta.SubMeshCount"/>)
-    /// covers this descriptor.</summary>
+    /// <summary>First index in the owning LOD's index buffer.</summary>
     public uint FirstIndex => _firstIndex;
 
     /// <summary>Number of indices of the submesh.</summary>
@@ -284,8 +284,7 @@ public sealed class MeshChunkMeta : ISerializable
 }
 
 /// <summary>
-/// Concrete package meta of the mesh asset format (.amsh, magic <c>"amsh"</c>). The key-value
-/// section carries all extensible metadata; hot tables and payloads are content entries.
+/// Concrete package meta of the mesh asset format (.amsh, magic <c>"amsh"</c>).
 /// </summary>
 public sealed class MeshAssetMeta : PackageMetaBase, IPackageMeta
 {
@@ -294,8 +293,11 @@ public sealed class MeshAssetMeta : PackageMetaBase, IPackageMeta
     private MeshAssetFlags _flags;
     private ulong _sourceHash;
     private uint _cookerVersion;
-    private IndexFormat _indexFormat;
+    private IndexType _indexFormat = IndexType.UInt32;
     private BoundingBox3D _bounds;
+    private uint _pageSize;
+    private string _pageTableEntry = string.Empty;
+    private string _pageDataEntry = string.Empty;
     private readonly List<VertexStreamMeta> _streams = new();
     private readonly List<MeshLodMeta> _lods = new();
     private readonly List<MeshSubMeshMeta> _subMeshes = new();
@@ -325,8 +327,8 @@ public sealed class MeshAssetMeta : PackageMetaBase, IPackageMeta
         init => _cookerVersion = value;
     }
 
-    /// <summary>Global index format.</summary>
-    public IndexFormat IndexFormat
+    /// <summary>Global index element type.</summary>
+    public IndexType IndexFormat
     {
         get => _indexFormat;
         init => _indexFormat = value;
@@ -339,16 +341,34 @@ public sealed class MeshAssetMeta : PackageMetaBase, IPackageMeta
         init => _bounds = value;
     }
 
+    /// <summary>Fixed page byte size for M3 paged meshes, or zero when unpaged.</summary>
+    public uint PageSize
+    {
+        get => _pageSize;
+        init => _pageSize = value;
+    }
+
+    /// <summary>Content entry name of the M3 <see cref="PageRecord"/> table, or empty when unpaged.</summary>
+    public string PageTableEntry
+    {
+        get => _pageTableEntry;
+        init => _pageTableEntry = value ?? string.Empty;
+    }
+
+    /// <summary>Content entry name of the concatenated M3 cluster page payload, or empty when unpaged.</summary>
+    public string PageDataEntry
+    {
+        get => _pageDataEntry;
+        init => _pageDataEntry = value ?? string.Empty;
+    }
+
     /// <summary>Vertex stream descriptors.</summary>
     public IReadOnlyList<VertexStreamMeta> Streams => _streams;
 
     /// <summary>LOD descriptors; entry i is LOD i.</summary>
     public IReadOnlyList<MeshLodMeta> Lods => _lods;
 
-    /// <summary>Submesh (material slot) descriptors, partitioned per LOD and referenced through
-    /// each LOD's <see cref="MeshLodMeta.SubMeshFirst"/>/<see cref="MeshLodMeta.SubMeshCount"/>
-    /// range. Slot names and order should stay aligned across LODs so composition-layer material
-    /// binding by slot name is LOD-stable; the mesh references no material assets.</summary>
+    /// <summary>Submesh (material slot) descriptors across all LODs.</summary>
     public IReadOnlyList<MeshSubMeshMeta> SubMeshes => _subMeshes;
 
     /// <summary>Typed chunk descriptors linking content entries to their interpretation.</summary>
@@ -383,6 +403,9 @@ public sealed class MeshAssetMeta : PackageMetaBase, IPackageMeta
         node.BindValue(nameof(_cookerVersion), ref _cookerVersion);
         node.BindEnum(nameof(_indexFormat), ref _indexFormat);
         node.BindValue(nameof(_bounds), ref _bounds);
+        node.BindValue(nameof(_pageSize), ref _pageSize);
+        node.BindString(nameof(_pageTableEntry), ref _pageTableEntry);
+        node.BindString(nameof(_pageDataEntry), ref _pageDataEntry);
         node.BindCollectionSerializable(nameof(_streams), _streams);
         node.BindCollectionSerializable(nameof(_lods), _lods);
         node.BindCollectionSerializable(nameof(_subMeshes), _subMeshes);

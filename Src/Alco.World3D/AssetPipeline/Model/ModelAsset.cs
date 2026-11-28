@@ -25,7 +25,7 @@ public readonly struct ModelMaterialSlot
 }
 
 /// <summary>
-/// The composition layer of the 3D asset chain: one <see cref="MeshAsset"/> plus the material bound to each named mesh slot. Holds no GPU resources; geometry streams per LOD via <see cref="Mesh.LoadLodAsync"/>.
+/// The composition layer of the 3D asset chain: one <see cref="MeshAsset"/> plus the material bound to each named mesh slot. Holds no GPU resources; geometry streams per LOD via <see cref="MeshAsset.ReadLod"/> and <see cref="World3DSceneAssets"/>.
 /// </summary>
 public sealed class ModelAsset
 {

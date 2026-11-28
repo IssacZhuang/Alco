@@ -305,6 +305,21 @@ public sealed partial class World3DScene
             InstancePatches = MaterialPatches = GeometryPatches = InitializedTablePages = 0;
         }
 
+        /// <summary>Summarizes live geometry payload pages and descriptor table pages.</summary>
+        public void GetStats(out int liveGeometryPages, out ulong liveGeometryPageBytes, out int liveTablePages)
+        {
+            liveGeometryPages = 0;
+            liveGeometryPageBytes = 0;
+            for (uint i = 0; i < _nextGeometryPage; ++i)
+            {
+                if (_geometryPages[i] is not { } page)
+                    continue;
+                ++liveGeometryPages;
+                liveGeometryPageBytes += page.Buffer.SizeBytes;
+            }
+            liveTablePages = _instances.LivePageCount + _materials.LivePageCount + _geometry.LivePageCount;
+        }
+
         /// <summary>Appends a transfer between two existing buffer slices.</summary>
         public void AddCopy(BufferSlice source, BufferSlice destination) => Copies.Add(new CopyJob(source, destination));
 
@@ -400,6 +415,9 @@ public sealed partial class World3DScene
             private readonly Page?[] _pages = new Page?[TablePageCount];
             private readonly List<int> _dirtyPages = [];
             private readonly List<GpuBuffer> _buffers = [];
+
+            /// <summary>Gets the number of allocated GPU backing pages for this table.</summary>
+            public int LivePageCount => _buffers.Count;
 
             /// <summary>Declares reads of the backing pages, including pages first allocated this frame.</summary>
             public void ReadPages(RenderGraphBuilder builder, RenderGraphPassBuilder pass, RGUsage usage, string name)
