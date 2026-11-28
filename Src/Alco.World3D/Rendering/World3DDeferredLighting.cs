@@ -79,6 +79,10 @@ public sealed partial class World3DScene
         RGNode_Tonemap tonemap = new(_system, chain, name: "World3D.Tonemap") { Operator = TonemapType.ACES };
         RGNode_FXAA fxaa = new(_system, _ => chain.Current, name: "World3D.FXAA");
         _graph.Use(new DeferredLightingNode(this, chain, lightingShader, bloom, tonemap, fxaa))
+            .Use(new VolumetricCloudsPostNode(this, chain))
+            .Use(new VolumetricLightNode(this, chain))
+            .Use(new SsrPasses(this, chain))
+            .Use(new ForwardPasses(this, chain))
             .Use(bloom).Use(tonemap).Use(fxaa);
     }
 
@@ -163,6 +167,8 @@ public sealed partial class World3DScene
                 pass.Read(_scene._frameShadowMinMaxRG, RGUsage.ComputeRead);
             if (_scene._frameFarHeightRG.IsValid)
                 pass.Read(_scene._frameFarHeightRG, RGUsage.ComputeRead);
+            if (_scene._frameCloudShadowRG.IsValid)
+                pass.Read(_scene._frameCloudShadowRG, RGUsage.ComputeRead);
             if (_scene._frameRsmFluxRG.IsValid)
                 pass.Read(_scene._frameRsmFluxRG, RGUsage.ComputeRead);
             if (_scene._frameCurrHiZ.IsValid)
@@ -212,7 +218,9 @@ public sealed partial class World3DScene
                     ? GPUTextureId.FromSampled(context.GetTexture(_scene._frameGiRawDiffuseRG))
                     : GPUTextureId.Invalid;
                 root.GiDiffuseScale = MathF.Max(0f, _scene.VoxelGi.IndirectDiffuseIntensity);
-                root.GiSpecularScale = MathF.Max(0f, _scene.VoxelGi.IndirectSpecularIntensity);
+                root.GiSpecularScale = _scene.Ssr.Enabled && _scene.Ssr.DisableVoxelSpecularFallback
+                    ? 0f
+                    : MathF.Max(0f, _scene.VoxelGi.IndirectSpecularIntensity);
             }
             else
             {

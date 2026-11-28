@@ -764,6 +764,10 @@ public sealed class TestWorld3DPhase3
                     bufferHeapByteCount: bufHeap, uploadStagingByteCount: 512 * 1024);
                 Context = context = new RenderContext(System, frameDataByteCount: 2 * 1024 * 1024);
                 Scene = new World3DScene(System);
+                Scene.Forward.Enabled = false;
+                Scene.VolumetricClouds.Enabled = false;
+                Scene.VolumetricLight.Enabled = false;
+                Scene.Ssr.Enabled = false;
             }
             catch
             {

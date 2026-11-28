@@ -585,6 +585,10 @@ public sealed class TestWorld3DPhase2
                 Scene = new World3DScene(System);
                 Scene.Shadows.Rsm.Enabled = false;
                 Scene.VoxelGi.Enabled = false;
+                Scene.Forward.Enabled = false;
+                Scene.VolumetricClouds.Enabled = false;
+                Scene.VolumetricLight.Enabled = false;
+                Scene.Ssr.Enabled = false;
             }
             catch
             {

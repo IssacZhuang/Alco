@@ -16,11 +16,12 @@
   <ItemGroup>
     <!-- The pre-migration pipeline remains on disk until its passes and loaders are replaced. -->
     <Compile Remove="AssetPipeline\**\*.cs;Rendering\**\*.cs" />
-    <Compile Include="Rendering\Deferred\VoxelGiClipmap.cs;Rendering\Sky\ProceduralSkyUtility.cs;Rendering\World3DRenderPipeline.cs;Rendering\World3DDrawLayout.cs;Rendering\World3DGeometryPasses.cs;Rendering\World3DGBufferPrograms.cs;Rendering\World3DDeferredLighting.cs;Rendering\World3DShadowTypes.cs;Rendering\World3DOcclusion.cs;Rendering\World3DShadows.cs;Rendering\World3DFarShadow.cs;Rendering\World3DVoxelGiTypes.cs;Rendering\World3DVoxelClipmap.cs;Rendering\World3DVoxelGi.cs" />
+    <Compile Include="Rendering\Deferred\VoxelGiClipmap.cs;Rendering\Sky\ProceduralSkyUtility.cs;Rendering\World3DRenderPipeline.cs;Rendering\World3DDrawLayout.cs;Rendering\World3DGeometryPasses.cs;Rendering\World3DGBufferPrograms.cs;Rendering\World3DDeferredLighting.cs;Rendering\World3DShadowTypes.cs;Rendering\World3DOcclusion.cs;Rendering\World3DShadows.cs;Rendering\World3DFarShadow.cs;Rendering\World3DVoxelGiTypes.cs;Rendering\World3DVoxelClipmap.cs;Rendering\World3DVoxelGi.cs;Rendering\World3DPhase4Types.cs;Rendering\World3DForwardLayout.cs;Rendering\World3DForward.cs;Rendering\World3DVolumetricClouds.cs;Rendering\World3DVolumetricLight.cs;Rendering\World3DSsr.cs" />
     <EmbeddedResource Include="Scene\World3DSceneData.slang" LogicalName="World3DSceneData.slang" />
     <EmbeddedResource Include="Assets\Shaders\Phase1\*.slang" LogicalName="%(Filename)%(Extension)" />
     <EmbeddedResource Include="Assets\Shaders\Phase2\*.slang" LogicalName="%(Filename)%(Extension)" />
     <EmbeddedResource Include="Assets\Shaders\Phase3\*.slang" LogicalName="%(Filename)%(Extension)" />
+    <EmbeddedResource Include="Assets\Shaders\Phase4\*.slang" LogicalName="%(Filename)%(Extension)" />
   </ItemGroup>
 
   <ItemGroup>

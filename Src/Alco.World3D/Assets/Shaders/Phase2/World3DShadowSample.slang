@@ -11,6 +11,7 @@ public static const uint WORLD3D_SHADOW_FLAG_STATIC_FAR_ACTIVE = 4u;
 public static const uint WORLD3D_SHADOW_FLAG_FAR_HEIGHT_ACTIVE = 8u;
 public static const uint WORLD3D_SHADOW_FLAG_RSM_ACTIVE = 16u;
 public static const uint WORLD3D_SHADOW_FLAG_HIZ_ACTIVE = 32u;
+public static const uint WORLD3D_SHADOW_FLAG_CLOUD_SHADOW_ACTIVE = 64u;
 
 public struct World3DCascadeGpu
 {
@@ -46,8 +47,10 @@ public struct World3DShadowFrameGpu
     public GPUTextureId HiZTex;
     public GPUTextureId RsmFluxTex;
     public GPUTextureId RsmNormalTex;
+    public GPUTextureId CloudShadowTex;
     public uint Reserved0;
-    public uint Reserved1;
+    public float4 CloudShadowOriginAndExtent;   // xy = cloudAnchorRelEyeXY, z = invExtentMeters, w = strength
+    public float4 CloudShadowAltitudeParams;    // x = eyeAltitudeMeters, y = cloudBottomMeters, z = cloudTopMeters, w = reserved
 };
 
 public struct World3DShadowEval
@@ -250,6 +253,39 @@ public float world3d_sample_far_horizon_shadow(World3DShadowFrameGpu frame, Worl
     return 1.0 - saturate(maxOcc);
 }
 
+/// Evaluates top-down volumetric cloud sun transmittance at the given eye-relative position.
+public float world3d_sample_cloud_shadow(
+    World3DShadowFrameGpu frame,
+    World3DView view,
+    float3 eyeRelPos)
+{
+    if ((frame.Flags & WORLD3D_SHADOW_FLAG_CLOUD_SHADOW_ACTIVE) == 0u || frame.CloudShadowTex.index == 0u)
+        return 1.0;
+
+    float3 sunDir = frame.SunDirectionParams.xyz;
+    if (sunDir.z <= 0.01)
+        return 1.0;
+
+    float worldZ = frame.CloudShadowAltitudeParams.x + eyeRelPos.z;
+    float cloudBottom = frame.CloudShadowAltitudeParams.y;
+    float cloudTop = frame.CloudShadowAltitudeParams.z;
+    if (worldZ >= cloudTop)
+        return 1.0;
+
+    float dz = max(cloudBottom - worldZ, 0.0);
+    float2 hitEyeRel = eyeRelPos.xy + sunDir.xy * (dz / max(sunDir.z, 0.05));
+    float2 uv = (hitEyeRel - frame.CloudShadowOriginAndExtent.xy) * frame.CloudShadowOriginAndExtent.z + 0.5;
+    if (uv.x <= 0.0 || uv.x >= 1.0 || uv.y <= 0.0 || uv.y >= 1.0)
+        return 1.0;
+
+    Texture2D<float> cloudShadowTex = gpu_texture<Texture2D<float>>(frame.CloudShadowTex.index);
+    float shadow = cloudShadowTex.SampleLevel(shared_sampler_linear_clamp(), uv, 0.0).r;
+    float heightFade = saturate((cloudTop - worldZ) / max(cloudTop - cloudBottom, 1.0));
+    float edge = max(abs(uv.x - 0.5), abs(uv.y - 0.5)) * 2.0;
+    float edgeMask = 1.0 - smoothstep(0.84, 1.0, edge);
+    return lerp(1.0, shadow, heightFade * edgeMask);
+}
+
 public World3DShadowEval world3d_evaluate_sun_shadow(
     World3DShadowFrameGpu frame,
     World3DView view,
@@ -262,8 +298,12 @@ public World3DShadowEval world3d_evaluate_sun_shadow(
     eval.MinMaxState = 0u;
     eval.FarBlendWeight = 0.0;
 
+    float cloudShadow = world3d_sample_cloud_shadow(frame, view, eyeRelPos);
     if ((frame.Flags & WORLD3D_SHADOW_FLAG_ENABLED) == 0u)
+    {
+        eval.Visibility = cloudShadow;
         return eval;
+    }
 
     float ndotL = dot(normalWS, frame.SunDirectionParams.xyz);
     if (ndotL <= 0.0)
@@ -340,7 +380,7 @@ public World3DShadowEval world3d_evaluate_sun_shadow(
     if (!foundCascade)
     {
         eval.FarBlendWeight = hasFarHeight ? 1.0 : 0.0;
-        eval.Visibility = farHorizon;
+        eval.Visibility = farHorizon * cloudShadow;
         return eval;
     }
 
@@ -361,6 +401,7 @@ public World3DShadowEval world3d_evaluate_sun_shadow(
         eval.Visibility = lerp(cascadeVis, 1.0, outerFade);
     }
 
+    eval.Visibility *= cloudShadow;
     return eval;
 }
 
@@ -371,8 +412,9 @@ public float world3d_sample_sun_shadow_fast(
     float3 eyeRelPos,
     float3 normalWS)
 {
+    float cloudShadow = world3d_sample_cloud_shadow(frame, view, eyeRelPos);
     if ((frame.Flags & WORLD3D_SHADOW_FLAG_ENABLED) == 0u)
-        return 1.0;
+        return cloudShadow;
 
     float ndotL = dot(normalWS, frame.SunDirectionParams.xyz);
     if (ndotL <= 0.0)
@@ -432,5 +474,67 @@ public float world3d_sample_sun_shadow_fast(
         vis = found ? min(vis, farVis) : farVis;
     }
 
-    return vis;
+    return vis * cloudShadow;
+}
+
+/// Fast single-tap volumetric sun visibility test combining CSM/static far cascades, far horizon, and cloud shadows.
+public float world3d_sample_sun_shadow_volumetric(
+    World3DShadowFrameGpu frame,
+    World3DView view,
+    float3 eyeRelPos)
+{
+    float cloudShadow = world3d_sample_cloud_shadow(frame, view, eyeRelPos);
+    if ((frame.Flags & WORLD3D_SHADOW_FLAG_ENABLED) == 0u)
+        return cloudShadow;
+
+    float vis = 1.0;
+    bool found = false;
+    uint cascadeCount = (frame.Flags & WORLD3D_SHADOW_FLAG_STATIC_FAR_ACTIVE) != 0u ? 5u : 4u;
+    if (frame.ShadowArray.index != 0u)
+    {
+        for (uint c = 0u; c < cascadeCount; ++c)
+        {
+            float3 uvz = projectToCascade(frame, c, view, eyeRelPos, float3(0.0, 0.0, 0.0));
+            if (!insideCascade(uvz, 0.002))
+                continue;
+
+            float cmpDepth = uvz.z;
+            if (cmpDepth <= 0.0)
+            {
+                vis = 1.0;
+                found = true;
+                break;
+            }
+
+            if ((frame.Flags & WORLD3D_SHADOW_FLAG_USE_MINMAX) != 0u && frame.ShadowMinMaxArray.index != 0u)
+            {
+                Texture2DArray<float2> minMaxTex = gpu_texture<Texture2DArray<float2>>(frame.ShadowMinMaxArray.index);
+                int maxMm = int(max(frame.ResolutionParams.z, 1.0)) - 1;
+                int2 mmCoord = clamp(int2(floor(uvz.xy * frame.ResolutionParams.z)), int2(0), int2(maxMm));
+                float2 mm = minMaxTex.Load(int4(mmCoord.x, mmCoord.y, int(c), 0));
+                if (cmpDepth < mm.x - 1e-5)
+                {
+                    vis = 1.0;
+                    found = true;
+                    break;
+                }
+                if (cmpDepth > mm.y + 1e-5)
+                {
+                    vis = 0.0;
+                    found = true;
+                    break;
+                }
+            }
+
+            Texture2DArray<float> shadowTex = gpu_texture<Texture2DArray<float>>(frame.ShadowArray.index);
+            vis = shadowTex.SampleCmpLevelZero(shared_sampler_depth_comparison(), float3(uvz.xy, float(c)), cmpDepth);
+            found = true;
+            break;
+        }
+    }
+
+    if ((frame.Flags & WORLD3D_SHADOW_FLAG_FAR_HEIGHT_ACTIVE) != 0u && !found)
+        vis = world3d_sample_far_horizon_shadow(frame, view, eyeRelPos);
+
+    return vis * cloudShadow;
 }

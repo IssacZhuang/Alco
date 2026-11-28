@@ -54,8 +54,12 @@ public sealed partial class World3DScene
         LastRecordedShadows = default;
         ulong geometryBytes = PrepareGeometryCopies(context);
         PrepareOcclusion(context, viewport);
+        PrepareVolumetricClouds(context, in camera, viewport, in view, deltaTime);
         PrepareGeometryPasses(context);
         PrepareVoxelGi(context, in camera, viewport, in view, deltaTime);
+        PrepareVolumetricLight(viewport, in camera);
+        PrepareSsr(context, viewport, in view);
+        PrepareForwardPasses(context);
         _gpu.PrepareTables(context);
         _graph.Execute(context, output, outputFinalUsage: outputFinalUsage);
         _recordingSucceeded = true;
@@ -76,9 +80,12 @@ public sealed partial class World3DScene
         _submittedWorld = submitted && _recordedWorld;
         CompleteGeometryCopies(submitted);
         ReconcileOcclusion(submitted);
+        ReconcileVolumetricClouds(submitted);
         ReconcileShadows(submitted);
         ReconcileFarShadow(submitted);
         ReconcileVoxelGi(submitted);
+        ReconcileSsr(submitted);
+        ReconcileForwardPasses(submitted);
         _stagedDrawLods.Clear();
         if (_recordedWorld)
         {

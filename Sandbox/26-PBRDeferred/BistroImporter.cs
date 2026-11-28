@@ -52,7 +52,7 @@ internal sealed partial class BistroImporter : IDisposable
 
     /// <summary>Gets a summary of the registered content and upload payloads.</summary>
     public string Summary => $"exterior={_source.Draws.Count - _source.InteriorDraws}, interior={_source.InteriorDraws}, " +
-        $"opaque={_source.Draws.Count - _source.Masked}, mask={_source.Masked}, skippedGlass={_source.SkippedGlass}, " +
+        $"opaque={_source.Draws.Count - _source.Masked - _source.GlassDraws}, mask={_source.Masked}, glass={_source.GlassDraws}, " +
         $"materials={_source.Materials.Count}, textures={_source.Textures.Count}, textureMiB={_source.TextureBytes / (1024.0 * 1024.0):F1}";
 
     /// <summary>Validates both local Bistro glTF files and plans their uploads into one World3D scene.</summary>
@@ -70,7 +70,7 @@ internal sealed partial class BistroImporter : IDisposable
             Source source = new(directory, buffers, [.. exterior.Draws, .. interior.Draws],
                 [.. exterior.Geometries, .. interior.Geometries], [.. exterior.Materials, .. interior.Materials],
                 textures.Plans, textures.UploadBytes, exterior.Masked + interior.Masked,
-                exterior.SkippedGlass + interior.SkippedGlass, interior.Draws.Count);
+                exterior.GlassDraws + interior.GlassDraws, interior.Draws.Count);
             if (!scene.TryAttachSector(out WorldSectorHandle sector))
             {
                 error = "World3D could not attach the Bistro sector.";
@@ -215,12 +215,12 @@ internal sealed partial class BistroImporter : IDisposable
         var geometries = new Dictionary<GeometryKey, GeometryPlan>();
         var materials = new MaterialReader(root, textures) { LegacyMetallic = legacyMetallic };
         int masked = 0;
-        int skippedGlass = 0;
+        int glassDraws = 0;
         foreach (JsonElement node in scene.GetProperty("nodes").EnumerateArray())
             Visit(node.GetInt32(), Matrix4x4.Identity, 0);
         if (draws.Count == 0)
             throw new InvalidDataException("The glTF scene contains no supported draw items.");
-        return new ScenePlan(draws, [.. geometries.Values], materials.DrawMaterials, masked, skippedGlass);
+        return new ScenePlan(draws, [.. geometries.Values], materials.DrawMaterials, masked, glassDraws);
 
         void Visit(int nodeIndex, Matrix4x4 parent, int depth)
         {
@@ -248,10 +248,7 @@ internal sealed partial class BistroImporter : IDisposable
                         ? materialElement.GetInt32() : -1;
                     MaterialPlan? material = materials.GetDrawMaterial(materialIndex);
                     if (material == null)
-                    {
-                        skippedGlass++;
                         continue;
-                    }
                     if (!geometries.TryGetValue(key, out GeometryPlan? geometry))
                     {
                         geometry = ReadGeometry(root, buffers, primitive, bake, material.IsTextured, $"{name}/{key.Primitive}");
@@ -260,6 +257,8 @@ internal sealed partial class BistroImporter : IDisposable
                     draws.Add(new DrawPlan(geometry, material, transform));
                     if (material.Factors.AlphaMode == World3DAlphaMode.Mask)
                         masked++;
+                    else if (material.Factors.AlphaMode == World3DAlphaMode.Blend)
+                        glassDraws++;
                 }
             }
             if (node.TryGetProperty("children", out JsonElement children))
@@ -592,9 +591,9 @@ internal sealed partial class BistroImporter : IDisposable
     private readonly record struct GeometryKey(int Mesh, int Primitive, Matrix4x4 Bake);
     private readonly record struct DrawPlan(GeometryPlan Geometry, MaterialPlan Material, World3DTransform Transform);
     private sealed record ScenePlan(List<DrawPlan> Draws, List<GeometryPlan> Geometries, List<MaterialPlan> Materials,
-        int Masked, int SkippedGlass);
+        int Masked, int GlassDraws);
     private sealed record Source(string Directory, List<FileStream> Buffers, List<DrawPlan> Draws, List<GeometryPlan> Geometries,
-        List<MaterialPlan> Materials, List<TexturePlan> Textures, long TextureBytes, int Masked, int SkippedGlass, int InteriorDraws);
+        List<MaterialPlan> Materials, List<TexturePlan> Textures, long TextureBytes, int Masked, int GlassDraws, int InteriorDraws);
 
     private sealed record GeometryPlan(string Name, Accessor Position, Accessor Normal, Accessor Uv, Accessor Tangent,
         Accessor Index, Matrix4x4 Bake, Matrix4x4 NormalMatrix, int UploadBytes)

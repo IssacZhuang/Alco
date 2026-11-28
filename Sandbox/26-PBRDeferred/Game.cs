@@ -52,6 +52,10 @@ internal sealed class Game : GameEngine
             context = new RenderContext(RenderingSystem, frameDataByteCount: 8 * 1024 * 1024);
             scene = new World3DScene(RenderingSystem);
             scene.VoxelGi.Enabled = options.GiEnabled;
+            scene.VolumetricClouds.Enabled = options.CloudsEnabled;
+            scene.VolumetricLight.Enabled = options.VolLightEnabled;
+            scene.Ssr.Enabled = options.SsrEnabled;
+            scene.Forward.Enabled = options.ForwardEnabled;
             scene.VoxelGi.BootstrapFullVolumeOnReset = options.BootstrapGi || (options.Frames.HasValue && !options.FlyStress);
             if (options.RsmEnabled.HasValue)
                 scene.Shadows.Rsm.Enabled = options.RsmEnabled.Value;
@@ -237,6 +241,14 @@ internal sealed class Game : GameEngine
                 DrawOcclusionControls();
             if (ImGui.CollapsingHeader("Shadows & Far Field", ImGuiTreeNodeFlags.DefaultOpen))
                 DrawShadowControls();
+            if (ImGui.CollapsingHeader("Forward (Glass & Alpha)"))
+                DrawForwardControls();
+            if (ImGui.CollapsingHeader("Volumetric Clouds"))
+                DrawVolumetricCloudsControls();
+            if (ImGui.CollapsingHeader("Volumetric Light"))
+                DrawVolumetricLightControls();
+            if (ImGui.CollapsingHeader("Screen-Space Reflections"))
+                DrawSsrControls();
         }
         finally
         {
@@ -328,7 +340,7 @@ internal sealed class Game : GameEngine
 
         int debugView = (int)_scene.LightingDebugView;
         if (ImGui.Combo("Debug view", ref debugView,
-            "None\0Cascade Index\0Shadow Factor\0Min-Max Early-Out\0Far Shadow Blend\0Hi-Z Mip0\0RSM Flux\0GI Diffuse\0GI Specular\0GI Visibility\0GI Raw Trace\0"))
+            "None\0Cascade Index\0Shadow Factor\0Min-Max Early-Out\0Far Shadow Blend\0Hi-Z Mip0\0RSM Flux\0GI Diffuse\0GI Specular\0GI Visibility\0GI Raw Trace\0Cloud Opacity\0SSR Reflection\0SSR Confidence\0"))
             _scene.LightingDebugView = (World3DLightingDebugView)debugView;
 
         World3DShadowStats stats = _scene.LastRecordedShadows;
@@ -378,6 +390,101 @@ internal sealed class Game : GameEngine
         ImGui.Text($"Shift: 0x{stats.ShiftedCascadeMask:X}  Reset: 0x{stats.ResetCascadeMask:X}  Evicted: {stats.EvictedStaticBricksThisFrame}");
         World3DVoxelGiGpuCounters c = stats.LastReadbackCounters;
         ImGui.Text($"Used(S/D): {c.StaticUsedBricks}/{c.DynamicUsedBricks}  Fallback: {c.StaticFallbackBricks}/{c.DynamicFallbackBricks}  Chunks: {c.BrickDispatchChunks}");
+    }
+
+    private void DrawForwardControls()
+    {
+        World3DForwardSettings fwd = _scene.Forward;
+        bool enabled = fwd.Enabled;
+        bool hiz = fwd.UseHiZOcclusion;
+        bool frontToBack = fwd.SortFrontToBack;
+        bool refr = fwd.EnableRefraction;
+        if (ImGui.Checkbox("Forward enabled", ref enabled)) fwd.Enabled = enabled;
+        ImGui.SameLine();
+        if (ImGui.Checkbox("Hi-Z cull", ref hiz)) fwd.UseHiZOcclusion = hiz;
+        if (ImGui.Checkbox("Sort front-to-back", ref frontToBack)) fwd.SortFrontToBack = frontToBack;
+        ImGui.SameLine();
+        if (ImGui.Checkbox("Refraction", ref refr)) fwd.EnableRefraction = refr;
+        float refrScale = fwd.RefractionScale;
+        if (ImGui.SliderFloat("Refraction scale", ref refrScale, 0f, 0.2f, "%.3f", ImGuiSliderFlags.AlwaysClamp))
+            fwd.RefractionScale = refrScale;
+        World3DForwardStats stats = _scene.LastRecordedForward;
+        ImGui.Text($"Candidates: {stats.CandidateCount}  Visible: {stats.VisibleDraws}  Buckets: {stats.BucketCount}  Refr: {stats.RefractionActive}");
+    }
+
+    private void DrawVolumetricCloudsControls()
+    {
+        World3DVolumetricCloudsSettings clouds = _scene.VolumetricClouds;
+        bool enabled = clouds.Enabled;
+        bool castShadows = clouds.CastShadows;
+        if (ImGui.Checkbox("Clouds enabled", ref enabled)) clouds.Enabled = enabled;
+        ImGui.SameLine();
+        if (ImGui.Checkbox("Cloud shadows", ref castShadows)) clouds.CastShadows = castShadows;
+        float coverage = clouds.Coverage;
+        float density = clouds.Density;
+        float shadowStrength = clouds.ShadowStrength;
+        float temporal = clouds.TemporalBlend;
+        if (ImGui.SliderFloat("Coverage", ref coverage, 0f, 1f, "%.2f", ImGuiSliderFlags.AlwaysClamp))
+            clouds.Coverage = coverage;
+        if (ImGui.SliderFloat("Density", ref density, 0.001f, 0.12f, "%.3f", ImGuiSliderFlags.AlwaysClamp))
+            clouds.Density = density;
+        if (ImGui.SliderFloat("Shadow strength", ref shadowStrength, 0f, 1f, "%.2f", ImGuiSliderFlags.AlwaysClamp))
+            clouds.ShadowStrength = shadowStrength;
+        if (ImGui.SliderFloat("Cloud temporal", ref temporal, 0f, 0.98f, "%.2f", ImGuiSliderFlags.AlwaysClamp))
+            clouds.TemporalBlend = temporal;
+        World3DVolumetricCloudsStats stats = _scene.LastRecordedVolumetricClouds;
+        ImGui.Text($"Trace: {stats.TraceExtent.X}x{stats.TraceExtent.Y}  Shadow: {stats.ShadowExtent.X}x{stats.ShadowExtent.Y}  Hist: {stats.TemporalHistoryValid}");
+    }
+
+    private void DrawVolumetricLightControls()
+    {
+        World3DVolumetricLightSettings vl = _scene.VolumetricLight;
+        bool enabled = vl.Enabled;
+        bool half = vl.HalfResolution;
+        if (ImGui.Checkbox("VolLight enabled", ref enabled)) vl.Enabled = enabled;
+        ImGui.SameLine();
+        if (ImGui.Checkbox("VolLight half-res", ref half)) vl.HalfResolution = half;
+        float intensity = vl.Intensity;
+        float anisotropy = vl.Anisotropy;
+        float baseDensity = vl.BaseDensity;
+        int steps = vl.StepCount;
+        if (ImGui.SliderFloat("Shaft intensity", ref intensity, 0f, 3f, "%.2f", ImGuiSliderFlags.AlwaysClamp))
+            vl.Intensity = intensity;
+        if (ImGui.SliderFloat("Anisotropy", ref anisotropy, -0.9f, 0.95f, "%.2f", ImGuiSliderFlags.AlwaysClamp))
+            vl.Anisotropy = anisotropy;
+        if (ImGui.SliderFloat("Fog density", ref baseDensity, 0f, 0.15f, "%.3f", ImGuiSliderFlags.AlwaysClamp))
+            vl.BaseDensity = baseDensity;
+        if (ImGui.SliderInt("Shaft steps", ref steps, 4, 64))
+            vl.StepCount = steps;
+        World3DVolumetricLightStats stats = _scene.LastRecordedVolumetricLight;
+        ImGui.Text($"Trace: {stats.TraceExtent.X}x{stats.TraceExtent.Y}  Steps: {stats.StepCount}");
+    }
+
+    private void DrawSsrControls()
+    {
+        World3DSsrSettings ssr = _scene.Ssr;
+        bool enabled = ssr.Enabled;
+        bool half = ssr.HalfResolution;
+        bool disableFallback = ssr.DisableVoxelSpecularFallback;
+        if (ImGui.Checkbox("SSR enabled", ref enabled)) ssr.Enabled = enabled;
+        ImGui.SameLine();
+        if (ImGui.Checkbox("SSR half-res", ref half)) ssr.HalfResolution = half;
+        if (ImGui.Checkbox("Disable VoxelGI spec fallback", ref disableFallback))
+            ssr.DisableVoxelSpecularFallback = disableFallback;
+        float intensity = ssr.Intensity;
+        float maxRough = ssr.MaxRoughness;
+        float thickness = ssr.ThicknessMeters;
+        float temporal = ssr.TemporalBlend;
+        if (ImGui.SliderFloat("SSR intensity", ref intensity, 0f, 2f, "%.2f", ImGuiSliderFlags.AlwaysClamp))
+            ssr.Intensity = intensity;
+        if (ImGui.SliderFloat("SSR max roughness", ref maxRough, 0.05f, 1f, "%.2f", ImGuiSliderFlags.AlwaysClamp))
+            ssr.MaxRoughness = maxRough;
+        if (ImGui.SliderFloat("SSR thickness", ref thickness, 0.05f, 3f, "%.2f m", ImGuiSliderFlags.AlwaysClamp))
+            ssr.ThicknessMeters = thickness;
+        if (ImGui.SliderFloat("SSR temporal", ref temporal, 0f, 0.96f, "%.2f", ImGuiSliderFlags.AlwaysClamp))
+            ssr.TemporalBlend = temporal;
+        World3DSsrStats stats = _scene.LastRecordedSsr;
+        ImGui.Text($"Trace: {stats.TraceExtent.X}x{stats.TraceExtent.Y}  HiZ: {stats.HiZActive}  Hist: {stats.TemporalHistoryValid}");
     }
 
     private void ApplyDemoPointLights(bool enabled)
@@ -569,6 +676,14 @@ internal sealed class Game : GameEngine
             Log.Info($"World3D VoxelGI counters: staticUsed={giCounters.StaticUsedBricks}, dynUsed={giCounters.DynamicUsedBricks}, " +
                 $"reclaimed={giCounters.StaticReclaimedThisFrame}, fallback={giCounters.StaticFallbackBricks}/{giCounters.DynamicFallbackBricks}, chunks={giCounters.BrickDispatchChunks}");
         }
+        World3DForwardStats fwdStats = _scene.LastRecordedForward;
+        World3DVolumetricCloudsStats cloudStats = _scene.LastRecordedVolumetricClouds;
+        World3DVolumetricLightStats vlStats = _scene.LastRecordedVolumetricLight;
+        World3DSsrStats ssrStats = _scene.LastRecordedSsr;
+        Log.Info($"World3D Phase4: forward=({fwdStats.Enabled}, cand={fwdStats.CandidateCount}, buckets={fwdStats.BucketCount}), " +
+            $"clouds=({cloudStats.Enabled}, shadow={cloudStats.CastShadows}, hist={cloudStats.TemporalHistoryValid}), " +
+            $"volLight=({vlStats.Enabled}, {vlStats.TraceExtent.X}x{vlStats.TraceExtent.Y}), " +
+            $"ssr=({ssrStats.Enabled}, hiz={ssrStats.HiZActive}, hist={ssrStats.TemporalHistoryValid})");
         if (_options.FlyStress && _flyRecordMs.Count > 0)
         {
             _flyRecordMs.Sort();

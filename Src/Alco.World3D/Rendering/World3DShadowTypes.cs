@@ -119,6 +119,12 @@ public enum World3DLightingDebugView
     GiVisibility = 9,
     /// <summary>Visualizes raw noisy half-res VoxelGI diffuse trace output prior to spatial demosaic.</summary>
     GiRawDiffuseTrace = 10,
+    /// <summary>Visualizes volumetric cloud column opacity and cloud shadow density.</summary>
+    CloudOpacity = 11,
+    /// <summary>Visualizes screen-space glossy reflection radiance prior to composite.</summary>
+    SsrReflection = 12,
+    /// <summary>Visualizes screen-space reflection confidence and hit mask.</summary>
+    SsrConfidence = 13,
 }
 
 /// <summary>Summarizes the recorded occlusion state and latest async GPU culling readback counts.</summary>

@@ -199,19 +199,26 @@ internal sealed partial class BistroImporter
             JsonElement value = index == -1 ? default : At(Property(root, "materials"), index);
             string name = Text(value, "name", index == -1 ? "glTF default" : $"material_{index}");
             string alpha = Text(value, "alphaMode", "OPAQUE");
-            // Phase 1 has no transparent pass. Only Bistro's historical BLEND glass is
-            // omitted; foliage, wire and the other BLEND cutouts use the legacy 0.5 mask.
-            if (alpha == "BLEND" && name.Contains("Glass", StringComparison.OrdinalIgnoreCase))
-            {
-                _materials.Add(index, null);
-                return null;
-            }
+            // Re-enable Bistro glass with physical Blend routing; foliage/wire BLEND entries use Mask cutoff.
             World3DAlphaMode alphaMode = alpha switch
             {
                 "OPAQUE" => World3DAlphaMode.Opaque,
-                "MASK" or "BLEND" => World3DAlphaMode.Mask,
+                "MASK" => World3DAlphaMode.Mask,
+                "BLEND" => name.Contains("Glass", StringComparison.OrdinalIgnoreCase)
+                    ? World3DAlphaMode.Blend : World3DAlphaMode.Mask,
                 _ => throw new InvalidDataException($"Invalid alpha mode '{alpha}' on '{name}'."),
             };
+            float ior = 0f;
+            float transmission = 0f;
+            if (value.TryGetProperty("extensions", out JsonElement ext))
+            {
+                if (ext.TryGetProperty("KHR_materials_ior", out JsonElement iorExt))
+                    ior = Math.Clamp(Scalar(iorExt, "ior", 1.5f), 1f, 3f);
+                if (ext.TryGetProperty("KHR_materials_transmission", out JsonElement transExt))
+                    transmission = Math.Clamp(Scalar(transExt, "transmissionFactor", 0f), 0f, 1f);
+            }
+            if (alphaMode == World3DAlphaMode.Blend && transmission <= 0f)
+                transmission = 0.85f;
             JsonElement pbr = Property(value, "pbrMetallicRoughness");
             TexturePlan? baseColor = ReadTexture(Property(pbr, "baseColorTexture"), srgb: true);
             TexturePlan? roughness = ReadTexture(Property(pbr, "metallicRoughnessTexture"), srgb: false);
@@ -230,6 +237,8 @@ internal sealed partial class BistroImporter
                 AlphaCutoff = alpha == "BLEND" ? 0.5f : Scalar(value, "alphaCutoff", 0.5f),
                 DoubleSided = Property(value, "doubleSided") is { ValueKind: not JsonValueKind.Undefined } twoSided && twoSided.GetBoolean(),
                 Sampler = World3DMaterialSampler.LinearRepeat,
+                Transmission = transmission,
+                Ior = ior,
             };
             material = new MaterialPlan(name, factors, baseColor, normal, roughness, emissive);
             _materials.Add(index, material);

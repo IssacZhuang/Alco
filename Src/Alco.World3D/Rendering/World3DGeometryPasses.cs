@@ -252,6 +252,7 @@ public sealed partial class World3DScene
 
             bool draws = _scene._frameDrawSlots != 0;
             bool occEnabled = _scene._recordedOcclusionEnabled;
+            bool hizBuildEnabled = _scene._recordedHiZBuildEnabled;
             bool twoPhase = _scene._recordedTwoPhaseOcclusion && draws;
 
             RGBuffer views = builder.ImportBuffer(_scene._frameViews.Buffer!, "World3D.Views");
@@ -272,13 +273,13 @@ public sealed partial class World3DScene
 
             RGTexture currHiZ = default;
             RGTexture prevHiZ = default;
-            if (occEnabled && _scene._recordedCurrHiZIndex >= 0)
+            if (hizBuildEnabled && _scene._recordedCurrHiZIndex >= 0)
             {
                 Texture hizTex = _scene._hizTargets[_scene._recordedCurrHiZIndex]!;
                 currHiZ = builder.ImportTexture(hizTex, "World3D.HiZCurr");
                 _scene._frameCurrHiZ = currHiZ;
                 _scene._frameCurrHiZTexture = hizTex;
-                if (_scene._recordedHasPrevHiZ && _scene._recordedPrevHiZIndex >= 0)
+                if (occEnabled && _scene._recordedHasPrevHiZ && _scene._recordedPrevHiZIndex >= 0)
                     prevHiZ = builder.ImportTexture(_scene._hizTargets[_scene._recordedPrevHiZIndex]!, "World3D.HiZPrev");
             }
 
@@ -365,7 +366,7 @@ public sealed partial class World3DScene
                     gbuffer.Read(builder.ImportBuffer(bucket.Key.Page, "World3D.GeometryPayload"), RGUsage.IndexRead | RGUsage.VertexRead);
             }
 
-            if (occEnabled && currHiZ.IsValid)
+            if (hizBuildEnabled && currHiZ.IsValid)
             {
                 uint mips = _scene._recordedHiZMipCount;
                 for (uint mip = 0; mip < mips; ++mip)
@@ -380,7 +381,7 @@ public sealed partial class World3DScene
                     {
                         hizPass.ReadWrite(currHiZ, RGUsage.ComputeReadWrite);
                     }
-                    if (!twoPhase && mip == mips - 1)
+                    if (occEnabled && !twoPhase && mip == mips - 1)
                         hizPass.ProducesOutput();
                 }
 

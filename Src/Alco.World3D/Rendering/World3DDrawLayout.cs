@@ -17,7 +17,10 @@ public sealed partial class World3DScene
     {
         _stagedDrawLods[geometry] = _stagedDrawLods.GetValueOrDefault(geometry) | (1 << lod);
         if (!ReferenceEquals(geometry.Resident[lod]?.Allocation.Buffer, replacement.Allocation.Buffer))
+        {
             _dirtyDrawInstances.UnionWith(geometry.Instances);
+            _forwardLayout.MarkDirtyFromPayloadChange();
+        }
     }
 
     private void RefreshDrawLayout()
@@ -25,8 +28,11 @@ public sealed partial class World3DScene
         foreach (int slot in _dirtyDrawInstances)
         {
             InstanceEntry? instance = _instances.GetSlot(slot);
+            bool isForwardBlend = instance != null && instance.Material.Route.AlphaMode == World3DAlphaMode.Blend;
+            _forwardLayout.SetSlot(slot, isForwardBlend, instance?.Material.Route.SurfaceModule ?? "World3DPbrStandard");
+
             int count = 0;
-            if (instance != null && instance.Material.Route.AlphaMode != World3DAlphaMode.Blend)
+            if (instance != null && !isForwardBlend)
             {
                 DrawRoute route = GetDrawRoute(instance);
                 GeometryEntry geometry = instance.Geometry;

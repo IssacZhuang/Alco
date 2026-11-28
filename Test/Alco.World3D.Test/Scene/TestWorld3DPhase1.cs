@@ -361,6 +361,10 @@ public sealed class TestWorld3DPhase1
                 Scene.Occlusion.Enabled = false;
                 Scene.Shadows.Enabled = false;
                 Scene.VoxelGi.Enabled = false;
+                Scene.Forward.Enabled = false;
+                Scene.VolumetricClouds.Enabled = false;
+                Scene.VolumetricLight.Enabled = false;
+                Scene.Ssr.Enabled = false;
             }
             catch
             {

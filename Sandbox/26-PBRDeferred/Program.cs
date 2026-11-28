@@ -66,7 +66,8 @@ internal sealed record SandboxOptions
     /// <summary>Gets the supported command-line switches.</summary>
     public const string Usage = "26-PBRDeferred [--backend=VulkanCompact] [--interior | --procedural] " +
         "[--asset-root=<parent of Bistro>] [--require-bistro] [--bistro-legacy-metallic] [--software-bc] " +
-        "[--no-gi] [--rsm=on|off] [--gi-debug=<view|0..10>] [--bootstrap-gi] [--fly-stress] [--point-lights] " +
+        "[--no-gi] [--no-clouds] [--no-vollight] [--no-ssr] [--no-forward] [--rsm=on|off] " +
+        "[--gi-debug=<view|0..13>] [--bootstrap-gi] [--fly-stress] [--point-lights] " +
         "[--pos=x,y,z] [--look=x,y,z] [--size=1280x720] [--headless] [--frames=N] [--capture=<path.png>]\n" +
         "Bistro loads the exterior and interior together. --interior starts the camera indoors.";
 
@@ -84,6 +85,14 @@ internal sealed record SandboxOptions
     public bool SoftwareBc { get; private init; }
     /// <summary>Gets whether VoxelGI is enabled.</summary>
     public bool GiEnabled { get; private init; } = true;
+    /// <summary>Gets whether volumetric clouds are enabled.</summary>
+    public bool CloudsEnabled { get; private init; } = true;
+    /// <summary>Gets whether shadowed volumetric light is enabled.</summary>
+    public bool VolLightEnabled { get; private init; } = true;
+    /// <summary>Gets whether Hi-Z screen-space reflections are enabled.</summary>
+    public bool SsrEnabled { get; private init; } = true;
+    /// <summary>Gets whether GPU-driven transparent and glass forward rendering is enabled.</summary>
+    public bool ForwardEnabled { get; private init; } = true;
     /// <summary>Gets an explicit RSM override when specified.</summary>
     public bool? RsmEnabled { get; private init; }
     /// <summary>Gets the requested deferred lighting debug visualization.</summary>
@@ -135,6 +144,10 @@ internal sealed record SandboxOptions
                 case "--software-bc" when equals < 0: options = options with { SoftwareBc = true }; break;
                 case "--headless" when equals < 0: options = options with { Headless = true }; break;
                 case "--no-gi" when equals < 0: options = options with { GiEnabled = false }; break;
+                case "--no-clouds" when equals < 0: options = options with { CloudsEnabled = false }; break;
+                case "--no-vollight" when equals < 0: options = options with { VolLightEnabled = false }; break;
+                case "--no-ssr" when equals < 0: options = options with { SsrEnabled = false }; break;
+                case "--no-forward" when equals < 0: options = options with { ForwardEnabled = false }; break;
                 case "--bootstrap-gi" when equals < 0: options = options with { BootstrapGi = true }; break;
                 case "--fly-stress" when equals < 0: options = options with { FlyStress = true, Headless = true }; break;
                 case "--point-lights" when equals < 0: options = options with { AddDemoLights = true }; break;

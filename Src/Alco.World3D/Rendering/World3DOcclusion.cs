@@ -25,6 +25,7 @@ public sealed partial class World3DScene
     private Extent2D _recordedHiZMip0;
     private uint _recordedHiZMipCount;
     private bool _recordedOcclusionEnabled;
+    private bool _recordedHiZBuildEnabled;
     private bool _recordedTwoPhaseOcclusion;
     private bool _recordedHasPrevHiZ;
     private uint _recordedPrevViewSlot;
@@ -97,13 +98,14 @@ public sealed partial class World3DScene
         _recordedHiZMip0 = default;
         _recordedHiZMipCount = 0;
         _recordedOcclusionEnabled = _recordedWorld && Occlusion.Enabled && viewport.X > 0 && viewport.Y > 0;
+        _recordedHiZBuildEnabled = _recordedWorld && (Occlusion.Enabled || Ssr.Enabled || Forward.Enabled || LightingDebugView == World3DLightingDebugView.HiZMip0) && viewport.X > 0 && viewport.Y > 0;
         _recordedTwoPhaseOcclusion = false;
         _recordedHasPrevHiZ = false;
         _recordedPrevViewSlot = 0;
         _frameCurrHiZ = default;
         _frameCurrHiZTexture = null;
 
-        if (!_recordedOcclusionEnabled)
+        if (!_recordedHiZBuildEnabled)
         {
             LastRecordedOcclusion = new World3DOcclusionStats(false, Occlusion.TwoPhase, default, 0,
                 _hasReadbackOcclusionCounts, _cachedReadbackPhase1Visible, _cachedReadbackOccluded, _cachedReadbackPhase2Visible);
@@ -116,7 +118,8 @@ public sealed partial class World3DScene
         _recordedHiZMip0 = mip0;
         _recordedHiZMipCount = mipCount;
 
-        bool prevValid = _submittedHiZIndex >= 0
+        bool prevValid = _recordedOcclusionEnabled
+            && _submittedHiZIndex >= 0
             && _submittedOcclusionDiscardVersion == context.DiscardVersion
             && _submittedHiZViewport.Equals(viewport)
             && _hizTargets[_submittedHiZIndex] is Texture prevTex
@@ -127,12 +130,13 @@ public sealed partial class World3DScene
 
         int writeIndex = prevValid ? 1 - _submittedHiZIndex : 0;
         EnsureHiZTexture(writeIndex, mip0, mipCount);
+        _frameCurrHiZTexture = _hizTargets[writeIndex];
         _recordedCurrHiZIndex = writeIndex;
         _recordedPrevHiZIndex = prevValid ? _submittedHiZIndex : -1;
         _recordedHasPrevHiZ = prevValid;
-        _recordedTwoPhaseOcclusion = Occlusion.TwoPhase && prevValid;
+        _recordedTwoPhaseOcclusion = _recordedOcclusionEnabled && Occlusion.TwoPhase && prevValid;
 
-        if (_frameDrawSlots != 0 && _instances.End > 0)
+        if (_recordedOcclusionEnabled && _frameDrawSlots != 0 && _instances.End > 0)
         {
             EnsureDrawBuffer(ref _occlusionCounters, OcclusionCounterBytes);
             EnsureDrawBuffer(ref _retestDispatch, IndirectDispatchStride);
@@ -145,10 +149,10 @@ public sealed partial class World3DScene
         }
 
         LastRecordedOcclusion = new World3DOcclusionStats(
-            true,
+            _recordedOcclusionEnabled,
             Occlusion.TwoPhase,
-            mip0,
-            mipCount,
+            _recordedOcclusionEnabled ? mip0 : default,
+            _recordedOcclusionEnabled ? mipCount : 0,
             _hasReadbackOcclusionCounts,
             _cachedReadbackPhase1Visible,
             _cachedReadbackOccluded,
@@ -158,7 +162,7 @@ public sealed partial class World3DScene
     private void ReconcileOcclusion(bool submitted)
     {
         _submittedTwoPhaseOcclusion = submitted && _recordedWorld && _recordedTwoPhaseOcclusion;
-        if (submitted && _recordedWorld && _recordedOcclusionEnabled && _recordedCurrHiZIndex >= 0)
+        if (submitted && _recordedWorld && _recordedHiZBuildEnabled && _recordedCurrHiZIndex >= 0)
         {
             _submittedHiZIndex = _recordedCurrHiZIndex;
             _submittedHiZViewport = _recordedHiZViewport;
@@ -167,7 +171,7 @@ public sealed partial class World3DScene
             _submittedPrevView = _recordedView;
             _submittedOcclusionDiscardVersion = _recordedDiscardVersion;
         }
-        else if (!submitted || !_recordedOcclusionEnabled || !_recordedWorld)
+        else if (!submitted || !_recordedHiZBuildEnabled || !_recordedWorld)
         {
             _submittedHiZIndex = -1;
         }

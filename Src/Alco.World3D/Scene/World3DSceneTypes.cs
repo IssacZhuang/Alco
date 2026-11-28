@@ -90,6 +90,10 @@ public readonly record struct World3DMaterialDesc
     public WorldTextureHandle MetallicRoughnessTexture { get; init; }
     /// <summary>The optional emissive texture; the default handle has no emissive map.</summary>
     public WorldTextureHandle EmissiveTexture { get; init; }
+    /// <summary>Optical transmission factor in [0, 1] for transmissive glass materials; default is 0.</summary>
+    public float Transmission { get; init; }
+    /// <summary>Index of refraction in [1, 3] for dielectrics and transmissive glass; default 0 resolves to 1.5.</summary>
+    public float Ior { get; init; }
     /// <summary>The Slang module exporting an ISurface implementation, or null for the standard PBR surface.</summary>
     public string? SurfaceModule { get; init; }
 }

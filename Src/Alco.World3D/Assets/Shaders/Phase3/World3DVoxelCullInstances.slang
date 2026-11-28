@@ -56,6 +56,10 @@ public void csMain(uint3 id : SV_DispatchThreadID)
         || inst.Fade <= 0.001)
         return;
 
+    World3DMaterialGpu mat = world3d_load_material(root.Directory, inst.MaterialSlot);
+    if ((mat.Flags & WORLD3D_MATERIAL_ALPHA_MODE_MASK) == 2u)
+        return;
+
     bool isDynamic = (inst.Flags & WORLD3D_INSTANCE_DYNAMIC) != 0u;
     if (isDynamic && (root.EnableDynamic == 0u || root.DynamicLevelCount == 0u))
         return;

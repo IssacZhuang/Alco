@@ -141,6 +141,19 @@ float atmosphereSunDisc(float3 ray, float3 directionToSun, float cosRadius)
     return (disc + corona * 0.025) * smoothstep(0.0, 1.0, horizon);
 }
 
+// Direct solar beam transmittance at a given altitude in km above sea level.
+public float3 world3d_atmosphere_sun_transmittance(float altitudeKm, float3 directionToSun, float4 atmosphere)
+{
+    float3 position = float3(0.0, 0.0, EarthRadius + max(altitudeKm, 0.01));
+    float2 sunDensity = atmosphereSunDensity(position, directionToSun);
+    if (sunDensity.x < 0.0)
+        return float3(0.0, 0.0, 0.0);
+
+    float3 betaRayleigh = BetaRayleigh * atmosphere.x;
+    float betaMie = BetaMie * atmosphere.y;
+    return exp(-((betaRayleigh + BetaOzone) * sunDensity.x + betaMie * 1.1 * sunDensity.y));
+}
+
 // The filtered ambient gradient deliberately excludes the visible disc and stars.
 public float3 world3d_sky_color(float3 ray, float3 directionToSun, float4 atmosphere, float4 sky,
     float3 sunColor, float discCosRadius, float discBrightness)

@@ -223,7 +223,8 @@ public sealed partial class World3DScene
         foreach (int slot in material.Instances)
         {
             InstanceEntry inst = _instances.GetLive(slot);
-            if (!inst.Description.Dynamic && inst.Description.AffectsGlobalIllumination)
+            if (!inst.Description.Dynamic && inst.Description.AffectsGlobalIllumination
+                && inst.Material.Route.AlphaMode != World3DAlphaMode.Blend)
                 MarkVoxelGiSpatialDirty(inst.Spatial);
         }
     }
@@ -238,7 +239,8 @@ public sealed partial class World3DScene
         foreach (int slot in geometry.Instances)
         {
             InstanceEntry inst = _instances.GetLive(slot);
-            if (!inst.Description.Dynamic && inst.Description.AffectsGlobalIllumination)
+            if (!inst.Description.Dynamic && inst.Description.AffectsGlobalIllumination
+                && inst.Material.Route.AlphaMode != World3DAlphaMode.Blend)
                 MarkVoxelGiSpatialDirty(inst.Spatial);
         }
     }
@@ -1031,7 +1033,7 @@ public sealed partial class World3DScene
             if (hasInstances)
             {
                 RenderGraphPassBuilder p = builder.AddPass("World3D.Voxel.Cull", PassCullInstances);
-                _scene._gpu.ReadTables(builder, p, RGUsage.ComputeRead, materials: false);
+                _scene._gpu.ReadTables(builder, p, RGUsage.ComputeRead, materials: true);
                 p.Read(_staticDirtyMaskRG, RGUsage.ComputeRead);
                 if (dynActive)
                     p.ReadWrite(_dynDesiredMaskRG, RGUsage.ComputeReadWrite);
@@ -1275,6 +1277,7 @@ public sealed partial class World3DScene
             if (_scene._frameShadowArrayRG.IsValid) p.Read(_scene._frameShadowArrayRG, RGUsage.ComputeRead);
             if (_scene._frameShadowMinMaxRG.IsValid) p.Read(_scene._frameShadowMinMaxRG, RGUsage.ComputeRead);
             if (_scene._frameFarHeightRG.IsValid) p.Read(_scene._frameFarHeightRG, RGUsage.ComputeRead);
+            if (_scene._frameCloudShadowRG.IsValid) p.Read(_scene._frameCloudShadowRG, RGUsage.ComputeRead);
             if (_scene._recordedVoxelHasRsm)
             {
                 if (_scene._frameRsmFluxRG.IsValid) p.Read(_scene._frameRsmFluxRG, RGUsage.ComputeRead);

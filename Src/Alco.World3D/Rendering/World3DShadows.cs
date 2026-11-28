@@ -363,7 +363,8 @@ public sealed partial class World3DScene
         if (_recordedShadowsEnabled && _recordedStaticFarActive) flags |= 4u;
         if (_recordedShadowsEnabled && _recordedFarHeightActive) flags |= 8u;
         if (_recordedShadowsEnabled && _recordedRsmEnabled && _rsmFlux != null) flags |= 16u;
-        if (_recordedOcclusionEnabled && _frameCurrHiZTexture != null) flags |= 32u;
+        if (_recordedHiZBuildEnabled && _frameCurrHiZTexture != null) flags |= 32u;
+        if (_recordedCloudShadowActive && _cloudShadowTex != null) flags |= 64u;
 
         float farCov = Math.Clamp(Shadows.FarField.WorldCoverageMeters, 256f, 65536f);
         float invFarCov = 1f / farCov;
@@ -394,9 +395,13 @@ public sealed partial class World3DScene
             _recordedShadowsEnabled && _shadowArray != null ? GPUTextureId.FromSampled(_shadowArray) : default,
             _recordedShadowsEnabled && _recordedUseMinMax && _shadowMinMaxArray != null ? GPUTextureId.FromSampled(_shadowMinMaxArray) : default,
             _recordedFarHeightActive && _farHeightPyramid != null ? GPUTextureId.FromSampled(_farHeightPyramid) : default,
-            _recordedOcclusionEnabled && _frameCurrHiZTexture != null ? GPUTextureId.FromSampled(_frameCurrHiZTexture) : default,
+            _recordedHiZBuildEnabled && _frameCurrHiZTexture != null ? GPUTextureId.FromSampled(_frameCurrHiZTexture) : default,
             _recordedRsmEnabled && _rsmFlux != null ? GPUTextureId.FromSampled(_rsmFlux) : default,
-            _recordedRsmEnabled && _rsmNormal != null ? GPUTextureId.FromSampled(_rsmNormal) : default);
+            _recordedRsmEnabled && _rsmNormal != null ? GPUTextureId.FromSampled(_rsmNormal) : default,
+            _recordedCloudShadowActive && _cloudShadowTex != null ? GPUTextureId.FromSampled(_cloudShadowTex) : default,
+            0u,
+            _recordedCloudShadowOriginAndExtent,
+            _recordedCloudShadowAltitudeParams);
 
         return context.UploadTransient(in gpu);
     }
@@ -791,7 +796,7 @@ public sealed partial class World3DScene
         [field: FieldOffset(64)] World3DCell CascadeCell,
         [field: FieldOffset(80)] Vector4 CascadeLocal);
 
-    [StructLayout(LayoutKind.Explicit, Size = 640)]
+    [StructLayout(LayoutKind.Explicit, Size = 672)]
     private readonly record struct World3DShadowFrameGpu(
         [field: FieldOffset(0)] World3DCascadeGpu Cascade0,
         [field: FieldOffset(96)] World3DCascadeGpu Cascade1,
@@ -818,8 +823,10 @@ public sealed partial class World3DScene
         [field: FieldOffset(620)] GPUTextureId HiZTex,
         [field: FieldOffset(624)] GPUTextureId RsmFluxTex,
         [field: FieldOffset(628)] GPUTextureId RsmNormalTex,
-        [field: FieldOffset(632)] uint Reserved0 = 0,
-        [field: FieldOffset(636)] uint Reserved1 = 0);
+        [field: FieldOffset(632)] GPUTextureId CloudShadowTex,
+        [field: FieldOffset(636)] uint Reserved0,
+        [field: FieldOffset(640)] Vector4 CloudShadowOriginAndExtent,
+        [field: FieldOffset(656)] Vector4 CloudShadowAltitudeParams);
 
     [StructLayout(LayoutKind.Sequential, Size = 24)]
     private readonly record struct ShadowMinMaxReduceRoot(
