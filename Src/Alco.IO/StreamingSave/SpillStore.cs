@@ -100,6 +100,8 @@ public sealed class SpillStore : IDisposable
         byte schemaVersion = ChunkRecordCodec.DefaultChunkSchemaVersion)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
+        if ((flags & (byte)ChunkIndexFlags.EmptyGenerated) != 0)
+            throw new ArgumentException($"Use {nameof(MarkEmpty)} to spill an EmptyGenerated chunk.", nameof(flags));
 
         int maxCompressed = _codecs.GetMaxCompressedLength(_codecId, uncompressedPayload.Length);
         byte[]? compBuffer = maxCompressed > 0 ? ArrayPool<byte>.Shared.Rent(maxCompressed) : null;
@@ -185,6 +187,18 @@ public sealed class SpillStore : IDisposable
                 return ChunkReadStatus.NotFound;
             }
 
+            if (entry.IsEmptyGenerated)
+            {
+                if (!entry.IsValidEmptyGenerated)
+                {
+                    failureReason = $"EmptyGenerated spill entry for {key} has non-zero storage fields.";
+                    return ChunkReadStatus.Failed;
+                }
+
+                failureReason = null;
+                return ChunkReadStatus.Success;
+            }
+
             if (_handle is null)
             {
                 failureReason = $"Spill handle for session {_sessionGuid:N} is unavailable.";
@@ -224,6 +238,31 @@ public sealed class SpillStore : IDisposable
         finally
         {
             _rwLock.ExitReadLock();
+        }
+    }
+
+    /// <summary>
+    /// Marks <paramref name="key"/> in this spill log as an empty generated chunk without writing payload bytes.
+    /// </summary>
+    /// <param name="key">The chunk key.</param>
+    /// <param name="flags">Optional additional hint flags.</param>
+    /// <param name="schemaVersion">The chunk payload schema version.</param>
+    public void MarkEmpty(
+        ChunkKey key,
+        byte flags = 0,
+        byte schemaVersion = ChunkRecordCodec.DefaultChunkSchemaVersion)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        ChunkIndexEntry entry = ChunkIndexEntry.CreateEmptyGenerated(key, flags, schemaVersion);
+        _rwLock.EnterWriteLock();
+        try
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            _latestEntries[key] = entry;
+        }
+        finally
+        {
+            _rwLock.ExitWriteLock();
         }
     }
 
@@ -306,6 +345,16 @@ public sealed class SpillStore : IDisposable
         for (int i = 0; i < toDrain.Count; i++)
         {
             ChunkIndexEntry entry = toDrain[i];
+            if (entry.IsEmptyGenerated)
+            {
+                if (!entry.IsValidEmptyGenerated)
+                    throw new InvalidDataException($"Spill EmptyGenerated entry for {entry.Key} has non-zero storage fields.");
+
+                committedAll.Add(entry);
+                drainedEntries.Add(entry);
+                continue;
+            }
+
             ChunkCodecId effectiveCodec = targetCodec ?? entry.Codec;
             int start = batchArena.WrittenCount;
 
@@ -338,18 +387,27 @@ public sealed class SpillStore : IDisposable
             batchMeta.Add((entry, effectiveCodec, start, batchArena.WrittenCount - start));
             drainedEntries.Add(entry);
 
-            bool isLast = i == toDrain.Count - 1;
-            if (batchArena.WrittenCount >= MaxDrainBatchBytes || isLast)
+            if (batchArena.WrittenCount >= MaxDrainBatchBytes)
             {
-                ChunkIndexEntry[] batchCommitted = FlushDrainBatch(targetStore, batchArena, batchMeta, flushToDisk && isLast);
+                ChunkIndexEntry[] batchCommitted = FlushDrainBatch(targetStore, batchArena, batchMeta, flushToDisk: false);
                 committedAll.AddRange(batchCommitted);
                 batchArena.Clear();
                 batchMeta.Clear();
             }
         }
 
+        if (batchMeta.Count > 0)
+        {
+            ChunkIndexEntry[] batchCommitted = FlushDrainBatch(targetStore, batchArena, batchMeta, flushToDisk);
+            committedAll.AddRange(batchCommitted);
+            batchArena.Clear();
+            batchMeta.Clear();
+        }
+
+        ChunkIndexEntry[] results = committedAll.ToArray();
+        Array.Sort(results, static (a, b) => a.Key.CompareTo(b.Key));
         CommitDrainedRemovals(drainedEntries);
-        return committedAll.ToArray();
+        return results;
     }
 
     /// <inheritdoc/>
@@ -426,6 +484,36 @@ public sealed class SpillStore : IDisposable
         }
 
         return targetStore.AppendPrecompressedBatch(batch, flushToDisk);
+    }
+
+    /// <summary>
+    /// Best-effort deletes any orphaned session spill files left behind by previous crashed runs.
+    /// </summary>
+    /// <param name="storage">The storage backend holding world save directories.</param>
+    /// <returns>The number of orphan spill files deleted.</returns>
+    public static int DeleteOrphanSpills(IRandomAccessStorage storage)
+    {
+        ArgumentNullException.ThrowIfNull(storage);
+
+        int deleted = 0;
+        IReadOnlyList<string> worldDirs = storage.EnumerateDirectories(StreamingSavePaths.WorldsDirectory);
+        for (int i = 0; i < worldDirs.Count; i++)
+        {
+            if (!StreamingSavePaths.TryParseWorldGuid(worldDirs[i], out Guid worldGuid))
+                continue;
+
+            string sessionDir = StreamingSavePaths.SessionDirectory(worldGuid);
+            IReadOnlyList<string> spillFiles = storage.EnumerateFiles(sessionDir, StreamingSavePaths.SpillFilePattern, recursive: false);
+            for (int j = 0; j < spillFiles.Count; j++)
+            {
+                if (storage.DeleteFile(spillFiles[j]))
+                    deleted++;
+            }
+
+            storage.DeleteDirectoryIfEmpty(sessionDir);
+        }
+
+        return deleted;
     }
 
     private void CommitDrainedRemovals(List<ChunkIndexEntry> drainedEntries)

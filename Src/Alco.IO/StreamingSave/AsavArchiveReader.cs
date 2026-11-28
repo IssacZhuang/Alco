@@ -219,6 +219,9 @@ public sealed class AsavArchiveReader<TMeta> : IChunkReader, IDisposable where T
         if (!ValidateArchiveChunkBounds(entry, out failureReason))
             return false;
 
+        if (entry.IsEmptyGenerated)
+            return true;
+
         return ChunkRecordCodec.TryReadAndDecompressChunkRecord(
             _handle,
             (long)_chunkDataOffset + entry.RecordOffset,
@@ -241,6 +244,9 @@ public sealed class AsavArchiveReader<TMeta> : IChunkReader, IDisposable where T
         if (!ValidateArchiveChunkBounds(entry, out failureReason))
             return false;
 
+        if (entry.IsEmptyGenerated)
+            return true;
+
         return ChunkRecordCodec.TryReadVerifiedCompressedRecord(
             _handle,
             (long)_chunkDataOffset + entry.RecordOffset,
@@ -262,6 +268,18 @@ public sealed class AsavArchiveReader<TMeta> : IChunkReader, IDisposable where T
 
     private bool ValidateArchiveChunkBounds(in ChunkIndexEntry entry, [NotNullWhen(false)] out string? failureReason)
     {
+        if (entry.IsEmptyGenerated)
+        {
+            if (!entry.IsValidEmptyGenerated)
+            {
+                failureReason = $"Archive EmptyGenerated entry {entry.Key} has non-zero storage fields.";
+                return false;
+            }
+
+            failureReason = null;
+            return true;
+        }
+
         if (entry.SegmentId != 0)
         {
             failureReason = $"Archive entry {entry.Key} must have SegmentId 0, got {entry.SegmentId}.";

@@ -147,6 +147,18 @@ public sealed class ChunkSegmentStore : IChunkReader, IDisposable
         ArgumentNullException.ThrowIfNull(uncompressedDestination);
         ObjectDisposedException.ThrowIf(_disposed, this);
 
+        if (entry.IsEmptyGenerated)
+        {
+            if (!entry.IsValidEmptyGenerated)
+            {
+                failureReason = $"EmptyGenerated chunk {entry.Key} has non-zero storage fields.";
+                return false;
+            }
+
+            failureReason = null;
+            return true;
+        }
+
         if (entry.SegmentId == 0)
         {
             failureReason = $"Invalid committed segment ID 0 for chunk {entry.Key}.";
@@ -177,6 +189,18 @@ public sealed class ChunkSegmentStore : IChunkReader, IDisposable
     {
         ArgumentNullException.ThrowIfNull(compressedDestination);
         ObjectDisposedException.ThrowIf(_disposed, this);
+
+        if (entry.IsEmptyGenerated)
+        {
+            if (!entry.IsValidEmptyGenerated)
+            {
+                failureReason = $"EmptyGenerated chunk {entry.Key} has non-zero storage fields.";
+                return false;
+            }
+
+            failureReason = null;
+            return true;
+        }
 
         if (entry.SegmentId == 0)
         {
@@ -218,7 +242,12 @@ public sealed class ChunkSegmentStore : IChunkReader, IDisposable
 
         var keys = new ChunkKey[chunks.Length];
         for (int i = 0; i < chunks.Length; i++)
+        {
+            if ((chunks[i].Flags & (byte)ChunkIndexFlags.EmptyGenerated) != 0)
+                throw new ArgumentException($"Use {nameof(ChunkIndexEntry.CreateEmptyGenerated)} instead of {nameof(AppendBatch)} for EmptyGenerated chunk {chunks[i].Key}.", nameof(chunks));
+
             keys[i] = chunks[i].Key;
+        }
 
         int[] order = SortUniqueIndicesByKey(keys);
         var results = new ChunkIndexEntry[chunks.Length];
@@ -287,6 +316,8 @@ public sealed class ChunkSegmentStore : IChunkReader, IDisposable
         {
             if (!ChunkCodecSet.IsValid(chunks[i].Codec))
                 throw new ArgumentOutOfRangeException(nameof(chunks), $"Unsupported codec {(byte)chunks[i].Codec}.");
+            if ((chunks[i].Flags & (byte)ChunkIndexFlags.EmptyGenerated) != 0)
+                throw new ArgumentException($"Use {nameof(ChunkIndexEntry.CreateEmptyGenerated)} instead of {nameof(AppendPrecompressedBatch)} for EmptyGenerated chunk {chunks[i].Key}.", nameof(chunks));
 
             keys[i] = chunks[i].Key;
         }
@@ -417,6 +448,13 @@ public sealed class ChunkSegmentStore : IChunkReader, IDisposable
         var liveBytesPerSegment = new Dictionary<uint, long>();
         foreach (ChunkIndexEntry entry in liveEntries)
         {
+            if (entry.IsEmptyGenerated)
+            {
+                if (!entry.IsValidEmptyGenerated)
+                    throw new InvalidDataException($"Live EmptyGenerated chunk {entry.Key} has non-zero storage fields.");
+                continue;
+            }
+
             if (!segmentFiles.ContainsKey(entry.SegmentId))
                 throw new InvalidDataException($"Live chunk {entry.Key} references missing segment {entry.SegmentId}.");
 

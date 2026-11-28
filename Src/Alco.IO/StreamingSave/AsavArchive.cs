@@ -309,44 +309,83 @@ public static class AsavArchive
             }
             else
             {
-                // Verify all archive chunks into contiguous slabs before creating any segment file.
-                var slabs = new List<ArrayBufferWriter<byte>>();
-                var currentSlab = new ArrayBufferWriter<byte>(64 * 1024);
-                slabs.Add(currentSlab);
-                var locations = new (int SlabIndex, int Start, int Length)[archiveIndex.Count];
-
+                var emptyEntries = new List<ChunkIndexEntry>();
+                var nonEmptyEntries = new List<ChunkIndexEntry>(archiveIndex.Count);
                 for (int i = 0; i < archiveIndex.Count; i++)
                 {
                     ChunkIndexEntry entry = archiveIndex[i];
-                    if (currentSlab.WrittenCount >= MaxImportSlabBytes)
+                    if (entry.IsEmptyGenerated)
                     {
-                        int hint = Math.Max(64 * 1024, (int)Math.Min(entry.CompressedSize, int.MaxValue));
-                        currentSlab = new ArrayBufferWriter<byte>(hint);
-                        slabs.Add(currentSlab);
+                        if (!entry.IsValidEmptyGenerated)
+                        {
+                            failureReason = $"Archive chunk index entry {i} ({entry.Key}) is malformed EmptyGenerated.";
+                            return false;
+                        }
+
+                        emptyEntries.Add(entry);
+                    }
+                    else
+                    {
+                        nonEmptyEntries.Add(entry);
+                    }
+                }
+
+                if (nonEmptyEntries.Count == 0)
+                {
+                    committedIndex = emptyEntries.ToArray();
+                }
+                else
+                {
+                    // Verify all non-empty archive chunks into contiguous slabs before creating any segment file.
+                    var slabs = new List<ArrayBufferWriter<byte>>();
+                    var currentSlab = new ArrayBufferWriter<byte>(64 * 1024);
+                    slabs.Add(currentSlab);
+                    var locations = new (int SlabIndex, int Start, int Length)[nonEmptyEntries.Count];
+
+                    for (int i = 0; i < nonEmptyEntries.Count; i++)
+                    {
+                        ChunkIndexEntry entry = nonEmptyEntries[i];
+                        if (currentSlab.WrittenCount >= MaxImportSlabBytes)
+                        {
+                            int hint = Math.Max(64 * 1024, (int)Math.Min(entry.CompressedSize, int.MaxValue));
+                            currentSlab = new ArrayBufferWriter<byte>(hint);
+                            slabs.Add(currentSlab);
+                        }
+
+                        int start = currentSlab.WrittenCount;
+                        if (!reader.TryReadCompressedChunk(entry, currentSlab, out failureReason))
+                            return false;
+
+                        locations[i] = (slabs.Count - 1, start, currentSlab.WrittenCount - start);
                     }
 
-                    int start = currentSlab.WrittenCount;
-                    if (!reader.TryReadCompressedChunk(entry, currentSlab, out failureReason))
-                        return false;
+                    var batch = new PrecompressedChunkWrite[nonEmptyEntries.Count];
+                    for (int i = 0; i < nonEmptyEntries.Count; i++)
+                    {
+                        ChunkIndexEntry entry = nonEmptyEntries[i];
+                        (int slabIdx, int start, int length) = locations[i];
+                        batch[i] = new PrecompressedChunkWrite(
+                            entry.Key,
+                            slabs[slabIdx].WrittenMemory.Slice(start, length),
+                            entry.UncompressedSize,
+                            entry.Codec,
+                            entry.Flags,
+                            entry.SchemaVersion);
+                    }
 
-                    locations[i] = (slabs.Count - 1, start, currentSlab.WrittenCount - start);
+                    ChunkIndexEntry[] writtenSegments = targetSegmentStore.AppendPrecompressedBatch(batch, flushToDisk);
+                    if (emptyEntries.Count == 0)
+                    {
+                        committedIndex = writtenSegments;
+                    }
+                    else
+                    {
+                        committedIndex = new ChunkIndexEntry[writtenSegments.Length + emptyEntries.Count];
+                        writtenSegments.CopyTo(committedIndex, 0);
+                        emptyEntries.CopyTo(committedIndex, writtenSegments.Length);
+                        Array.Sort(committedIndex, static (a, b) => a.Key.CompareTo(b.Key));
+                    }
                 }
-
-                var batch = new PrecompressedChunkWrite[archiveIndex.Count];
-                for (int i = 0; i < archiveIndex.Count; i++)
-                {
-                    ChunkIndexEntry entry = archiveIndex[i];
-                    (int slabIdx, int start, int length) = locations[i];
-                    batch[i] = new PrecompressedChunkWrite(
-                        entry.Key,
-                        slabs[slabIdx].WrittenMemory.Slice(start, length),
-                        entry.UncompressedSize,
-                        entry.Codec,
-                        entry.Flags,
-                        entry.SchemaVersion);
-                }
-
-                committedIndex = targetSegmentStore.AppendPrecompressedBatch(batch, flushToDisk);
             }
 
             TMeta finalMeta = rewriteMeta is not null ? rewriteMeta(reader.Meta) : reader.Meta;
@@ -429,6 +468,18 @@ public static class AsavArchive
         for (int i = 0; i < sourceEntries.Length; i++)
         {
             ChunkIndexEntry srcEntry = sourceEntries[i];
+            if (srcEntry.IsEmptyGenerated)
+            {
+                if (!srcEntry.IsValidEmptyGenerated)
+                {
+                    failureReason = $"Snapshot EmptyGenerated entry {srcEntry.Key} has non-zero storage fields.";
+                    return false;
+                }
+
+                archiveEntries[i] = srcEntry;
+                continue;
+            }
+
             compressedScratch.Clear();
             if (!ChunkRecordCodec.TryReadForTargetCodec(
                     segmentStore,

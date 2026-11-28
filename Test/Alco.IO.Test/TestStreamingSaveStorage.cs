@@ -281,7 +281,7 @@ public sealed class TestStreamingSaveStorage
                 var key = new ChunkKey((uint)(i % 2 + 1), i - 9, (i * 3) - 20);
                 byte[] payload = CreateRepetitivePayload(600 + i * 25, seed: 100 + i);
                 expectedByKey[key] = payload;
-                var input = new ChunkWriteInput(key, payload, Flags: (byte)(i & 0x0F));
+                var input = new ChunkWriteInput(key, payload, Flags: (byte)((i & 0x03) | ((i & 0x0C) << 1)));
 
                 if (i < 6) batch1.Add(input);
                 else if (i < 12) batch2.Add(input);
@@ -872,7 +872,7 @@ public sealed class TestStreamingSaveStorage
             var key = new ChunkKey((uint)(i % 2 + 1), i - 4, -i);
             byte[] payload = CreateRepetitivePayload(500 + i * 40, seed: 300 + i);
             expectedChunks[key] = payload;
-            var item = new ChunkWriteInput(key, payload, Flags: (byte)(i + 1));
+            var item = new ChunkWriteInput(key, payload, Flags: (byte)(((i + 1) & 0x03) | (((i + 1) & 0x04) << 1)));
             if (i % 2 == 0) listNone.Add(item);
             else listLz4.Add(item);
         }

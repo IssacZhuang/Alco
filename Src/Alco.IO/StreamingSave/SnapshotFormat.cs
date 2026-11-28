@@ -58,8 +58,15 @@ internal static class SnapshotFormat
             if (!ChunkCodecSet.IsValid(sorted[i].Codec))
                 throw new ArgumentException($"Chunk index entry {i} has unsupported codec {(byte)sorted[i].Codec}.", nameof(entries));
 
-            if (sorted[i].SegmentId == 0)
+            if (sorted[i].IsEmptyGenerated)
+            {
+                if (!sorted[i].IsValidEmptyGenerated)
+                    throw new ArgumentException($"Snapshot EmptyGenerated chunk index entry {i} ({sorted[i].Key}) must have zero segment, offset, size, and None codec.", nameof(entries));
+            }
+            else if (sorted[i].SegmentId == 0)
+            {
                 throw new ArgumentException($"Snapshot chunk index entry {i} ({sorted[i].Key}) must reference a committed segment (>= 1).", nameof(entries));
+            }
 
             if (i > 0 && sorted[i].Key == sorted[i - 1].Key)
                 throw new ArgumentException($"Duplicate chunk key {sorted[i].Key} in snapshot index.", nameof(entries));
@@ -370,7 +377,15 @@ internal static class SnapshotFormat
                 return false;
             }
 
-            if (requireZeroSegmentId)
+            if (entry.IsEmptyGenerated)
+            {
+                if (!entry.IsValidEmptyGenerated)
+                {
+                    failureReason = $"EmptyGenerated chunk index entry {i} ({entry.Key}) has non-zero storage fields.";
+                    return false;
+                }
+            }
+            else if (requireZeroSegmentId)
             {
                 if (entry.SegmentId != 0)
                 {
