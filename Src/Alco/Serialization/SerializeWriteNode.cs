@@ -44,9 +44,6 @@ public abstract class SerializeWriteNode : SerializeNode
         public void Dispose() => _releaser?.Dispose();
     }
 
-    /// <summary>Gets whether this node only probes for non-default state without writing serialized bytes.</summary>
-    public virtual bool IsProbeOnly => false;
-
     /// <summary>
     /// Rents a temporary scratch buffer reused from the active write session when supported.
     /// Callers must dispose returned scopes in strict LIFO order.
