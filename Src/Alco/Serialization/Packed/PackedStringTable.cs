@@ -14,8 +14,14 @@ internal static class PackedStringTable
 
     public sealed class Writer
     {
-        private readonly Dictionary<string, int> _ids = new(StringComparer.Ordinal);
-        private readonly List<(string Text, int ByteLength)> _entries = new();
+        private Dictionary<string, int> _ids;
+        private List<(string Text, int ByteLength)> _entries;
+
+        public Writer(int initialCapacity = 32)
+        {
+            _ids = new Dictionary<string, int>(initialCapacity, StringComparer.Ordinal);
+            _entries = new List<(string Text, int ByteLength)>(initialCapacity);
+        }
 
         public int Count => _entries.Count;
 
@@ -30,6 +36,22 @@ internal static class PackedStringTable
             _ids.Add(text, id);
             _entries.Add((text, byteLength));
             return id;
+        }
+
+        public void Reset(int maxRetainedCapacity = 4096)
+        {
+            if (_entries.Capacity > maxRetainedCapacity)
+            {
+                _ids = new Dictionary<string, int>(32, StringComparer.Ordinal);
+                _entries = new List<(string Text, int ByteLength)>(32);
+                return;
+            }
+
+            if (_entries.Count > 0)
+            {
+                _ids.Clear();
+                _entries.Clear();
+            }
         }
 
         public void WriteTo(IBufferWriter<byte> output)

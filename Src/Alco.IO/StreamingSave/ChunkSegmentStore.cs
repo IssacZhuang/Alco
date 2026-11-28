@@ -3,6 +3,7 @@ using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
+using System.Threading.Tasks;
 
 namespace Alco.IO;
 
@@ -250,51 +251,93 @@ public sealed class ChunkSegmentStore : IChunkReader, IDisposable
         }
 
         int[] order = SortUniqueIndicesByKey(keys);
-        var results = new ChunkIndexEntry[chunks.Length];
+        var orderedInputs = new ChunkWriteInput[order.Length];
+        for (int i = 0; i < order.Length; i++)
+            orderedInputs[i] = chunks[order[i]];
 
-        lock (_writeLock)
+        if (codec == ChunkCodecId.None)
         {
-            ObjectDisposedException.ThrowIf(_disposed, this);
-            try
+            var rawBatch = new PrecompressedChunkWrite[orderedInputs.Length];
+            for (int i = 0; i < orderedInputs.Length; i++)
             {
-                for (int i = 0; i < order.Length; i++)
-                {
-                    ChunkWriteInput input = chunks[order[i]];
-                    ReadOnlySpan<byte> uncompressed = input.UncompressedPayload.Span;
-                    int maxCompressed = _codecs.GetMaxCompressedLength(codec, uncompressed.Length);
-                    byte[]? compBuffer = maxCompressed > 0 ? ArrayPool<byte>.Shared.Rent(maxCompressed) : null;
-                    try
-                    {
-                        Span<byte> compSpan = compBuffer is not null ? compBuffer.AsSpan(0, maxCompressed) : Span<byte>.Empty;
-                        int compLength = _codecs.Compress(codec, uncompressed, compSpan);
-                        results[i] = WriteRecordLocked(
-                            input.Key,
-                            compSpan[..compLength],
-                            (uint)uncompressed.Length,
-                            codec,
-                            input.Flags,
-                            input.SchemaVersion,
-                            SegmentFlags.None,
-                            flushToDisk);
-                    }
-                    finally
-                    {
-                        if (compBuffer is not null)
-                            ArrayPool<byte>.Shared.Return(compBuffer);
-                    }
-                }
-
-                if (flushToDisk)
-                    _activeWriteHandle?.FlushToDisk();
+                ChunkWriteInput input = orderedInputs[i];
+                rawBatch[i] = new PrecompressedChunkWrite(
+                    input.Key,
+                    input.UncompressedPayload,
+                    checked((uint)input.UncompressedPayload.Length),
+                    ChunkCodecId.None,
+                    input.Flags,
+                    input.SchemaVersion);
             }
-            catch
+
+            lock (_writeLock)
             {
-                CloseActiveWriteHandleLocked(flush: false);
-                throw;
+                ObjectDisposedException.ThrowIf(_disposed, this);
+                return WriteSortedPrecompressedBatchLocked(rawBatch, flushToDisk);
             }
         }
 
-        return results;
+        var compBuffers = new byte[]?[orderedInputs.Length];
+        var compLengths = new int[orderedInputs.Length];
+        try
+        {
+            if (orderedInputs.Length >= 4)
+            {
+                Parallel.For(0, orderedInputs.Length, i =>
+                {
+                    ReadOnlySpan<byte> uncompressed = orderedInputs[i].UncompressedPayload.Span;
+                    int maxCompressed = _codecs.GetMaxCompressedLength(codec, uncompressed.Length);
+                    if (maxCompressed == 0)
+                        return;
+
+                    byte[] buf = ArrayPool<byte>.Shared.Rent(maxCompressed);
+                    compBuffers[i] = buf;
+                    compLengths[i] = _codecs.Compress(codec, uncompressed, buf.AsSpan(0, maxCompressed));
+                });
+            }
+            else
+            {
+                for (int i = 0; i < orderedInputs.Length; i++)
+                {
+                    ReadOnlySpan<byte> uncompressed = orderedInputs[i].UncompressedPayload.Span;
+                    int maxCompressed = _codecs.GetMaxCompressedLength(codec, uncompressed.Length);
+                    if (maxCompressed == 0)
+                        continue;
+
+                    byte[] buf = ArrayPool<byte>.Shared.Rent(maxCompressed);
+                    compBuffers[i] = buf;
+                    compLengths[i] = _codecs.Compress(codec, uncompressed, buf.AsSpan(0, maxCompressed));
+                }
+            }
+
+            var precompressed = new PrecompressedChunkWrite[orderedInputs.Length];
+            for (int i = 0; i < orderedInputs.Length; i++)
+            {
+                ChunkWriteInput input = orderedInputs[i];
+                byte[]? buf = compBuffers[i];
+                precompressed[i] = new PrecompressedChunkWrite(
+                    input.Key,
+                    buf is not null ? buf.AsMemory(0, compLengths[i]) : ReadOnlyMemory<byte>.Empty,
+                    checked((uint)input.UncompressedPayload.Length),
+                    codec,
+                    input.Flags,
+                    input.SchemaVersion);
+            }
+
+            lock (_writeLock)
+            {
+                ObjectDisposedException.ThrowIf(_disposed, this);
+                return WriteSortedPrecompressedBatchLocked(precompressed, flushToDisk);
+            }
+        }
+        finally
+        {
+            for (int i = 0; i < compBuffers.Length; i++)
+            {
+                if (compBuffers[i] is { } buf)
+                    ArrayPool<byte>.Shared.Return(buf);
+            }
+        }
     }
 
     /// <summary>
@@ -323,38 +366,117 @@ public sealed class ChunkSegmentStore : IChunkReader, IDisposable
         }
 
         int[] order = SortUniqueIndicesByKey(keys);
-        var results = new ChunkIndexEntry[chunks.Length];
+        var ordered = new PrecompressedChunkWrite[order.Length];
+        for (int i = 0; i < order.Length; i++)
+            ordered[i] = chunks[order[i]];
 
         lock (_writeLock)
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
-            try
+            return WriteSortedPrecompressedBatchLocked(ordered, flushToDisk);
+        }
+    }
+
+    private ChunkIndexEntry[] WriteSortedPrecompressedBatchLocked(
+        ReadOnlySpan<PrecompressedChunkWrite> ordered,
+        bool flushToDisk)
+    {
+        const int maxCoalescedWriteBytes = 4 * 1024 * 1024;
+        var results = new ChunkIndexEntry[ordered.Length];
+        long maxSegBytes = Math.Max(ChunkRecordCodec.SegmentHeaderSize + 1L, MaxSegmentBytes);
+
+        try
+        {
+            int idx = 0;
+            while (idx < ordered.Length)
             {
-                for (int i = 0; i < order.Length; i++)
+                ref readonly PrecompressedChunkWrite first = ref ordered[idx];
+                long firstAligned = ChunkRecordCodec.AlignedChunkRecordLength(checked((uint)first.CompressedPayload.Length));
+                if (firstAligned > int.MaxValue)
+                    throw new IOException($"Chunk {first.Key} record exceeds maximum single record length.");
+
+                bool mustRoll = _activeWriteHandle is null ||
+                                _activeWriteFlags != SegmentFlags.None ||
+                                _activeWriteCursor > uint.MaxValue ||
+                                (_activeWriteCursor > ChunkRecordCodec.SegmentHeaderSize && _activeWriteCursor + firstAligned > maxSegBytes);
+
+                if (mustRoll)
+                    RollWriteSegmentLocked(SegmentFlags.None, flushToDisk);
+
+                long runStartOffset = _activeWriteCursor;
+                int runEnd = idx + 1;
+                long runBytesLong = firstAligned;
+                while (runEnd < ordered.Length)
                 {
-                    PrecompressedChunkWrite input = chunks[order[i]];
-                    results[i] = WriteRecordLocked(
-                        input.Key,
-                        input.CompressedPayload.Span,
-                        input.UncompressedSize,
-                        input.Codec,
-                        input.Flags,
-                        input.SchemaVersion,
-                        SegmentFlags.None,
-                        flushToDisk);
+                    long nextAligned = ChunkRecordCodec.AlignedChunkRecordLength(checked((uint)ordered[runEnd].CompressedPayload.Length));
+                    if (nextAligned > int.MaxValue)
+                        throw new IOException($"Chunk {ordered[runEnd].Key} record exceeds maximum single record length.");
+
+                    if (runBytesLong + nextAligned > maxCoalescedWriteBytes ||
+                        runStartOffset + runBytesLong > uint.MaxValue ||
+                        runStartOffset + runBytesLong + nextAligned > maxSegBytes)
+                    {
+                        break;
+                    }
+
+                    runBytesLong += nextAligned;
+                    runEnd++;
                 }
 
-                if (flushToDisk)
-                    _activeWriteHandle?.FlushToDisk();
-            }
-            catch
-            {
-                CloseActiveWriteHandleLocked(flush: false);
-                throw;
-            }
-        }
+                int runBytes = checked((int)runBytesLong);
+                byte[] runBuffer = ArrayPool<byte>.Shared.Rent(runBytes);
+                try
+                {
+                    int bufferOffset = 0;
+                    long recordFileOffset = runStartOffset;
+                    for (int k = idx; k < runEnd; k++)
+                    {
+                        ref readonly PrecompressedChunkWrite item = ref ordered[k];
+                        ReadOnlySpan<byte> compressed = item.CompressedPayload.Span;
+                        uint offset = checked((uint)recordFileOffset);
+                        var entry = new ChunkIndexEntry(
+                            item.Key.MapId,
+                            item.Key.ChunkX,
+                            item.Key.ChunkY,
+                            _activeWriteSegmentId,
+                            offset,
+                            checked((uint)compressed.Length),
+                            item.UncompressedSize,
+                            item.Codec,
+                            item.Flags,
+                            item.SchemaVersion);
 
-        return results;
+                        int itemAligned = checked((int)ChunkRecordCodec.AlignedChunkRecordLength(entry.CompressedSize));
+                        int written = ChunkRecordCodec.WriteChunkRecord(
+                            runBuffer.AsSpan(bufferOffset, itemAligned),
+                            entry,
+                            compressed);
+                        results[k] = entry;
+                        bufferOffset += written;
+                        recordFileOffset += written;
+                    }
+
+                    _activeWriteHandle!.WriteAt(runStartOffset, runBuffer.AsSpan(0, bufferOffset));
+                    _activeWriteCursor = recordFileOffset;
+                }
+                finally
+                {
+                    ArrayPool<byte>.Shared.Return(runBuffer);
+                }
+
+                idx = runEnd;
+            }
+
+            if (flushToDisk)
+                _activeWriteHandle?.FlushToDisk();
+
+            return results;
+        }
+        catch
+        {
+            CloseActiveWriteHandleLocked(flush: false);
+            throw;
+        }
     }
 
     /// <summary>

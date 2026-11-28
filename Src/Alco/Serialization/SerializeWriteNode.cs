@@ -1,4 +1,5 @@
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 
 namespace Alco;
@@ -8,6 +9,23 @@ namespace Alco;
 /// </summary>
 public abstract class SerializeWriteNode : SerializeNode
 {
+    /// <summary>Gets whether this node only probes for non-default state without writing serialized bytes.</summary>
+    public virtual bool IsProbeOnly => false;
+
+    /// <summary>
+    /// Encodes a nested standalone document into <paramref name="destination"/>, reusing encoder scratch when supported.
+    /// </summary>
+    /// <param name="destination">The buffer writer receiving the encoded document.</param>
+    /// <param name="root">The serializable object to encode.</param>
+    /// <param name="refCtx">Optional reference context shared with the nested document.</param>
+    /// <param name="elideDefaults">Whether default-valued fields may be omitted.</param>
+    public virtual void EncodeSubDocument(
+        IBufferWriter<byte> destination,
+        ISerializable root,
+        ReferenceContext? refCtx = null,
+        bool elideDefaults = false) =>
+        PackedBinarySerializer.EncodeTo(destination, root, refCtx, elideDefaults);
+
     public override void BindEnum<T>(string key, ref T value, T @default = default)
     {
         SetEnum(key, value);

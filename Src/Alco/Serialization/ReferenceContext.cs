@@ -14,15 +14,21 @@ public class ReferenceContext
     public const string SerializeKey = "$id";
 
     protected ulong _nextId = 1;
-    private readonly ConcurrentDictionary<object, ulong> _objectToId = new();
-    private readonly ConcurrentDictionary<ulong, object> _idToObject = new();
+    private ConcurrentDictionary<object, ulong>? _objectToId;
+    private ConcurrentDictionary<ulong, object>? _idToObject;
+
+    private ConcurrentDictionary<object, ulong> ObjectToId =>
+        LazyInitializer.EnsureInitialized(ref _objectToId, static () => new ConcurrentDictionary<object, ulong>());
+
+    private ConcurrentDictionary<ulong, object> IdToObject =>
+        LazyInitializer.EnsureInitialized(ref _idToObject, static () => new ConcurrentDictionary<ulong, object>());
 
     /// <summary>
     /// Gets or assigns the unique identifier of the specified object within this context; override to customize ID assignment.
     /// </summary>
     public virtual ulong GetId(object obj)
     {
-        return _objectToId.GetOrAdd(obj, AddReference);
+        return ObjectToId.GetOrAdd(obj, AddReference);
     }
 
     /// <summary>
@@ -35,8 +41,8 @@ public class ReferenceContext
         if (id == 0)
             return;
 
-        _idToObject[id] = obj;
-        _objectToId[obj] = id;
+        IdToObject[id] = obj;
+        ObjectToId[obj] = id;
     }
 
     /// <summary>
@@ -45,7 +51,14 @@ public class ReferenceContext
     /// </summary>
     public virtual bool TryGetReference(ulong id, [NotNullWhen(true)] out object? obj)
     {
-        return _idToObject.TryGetValue(id, out obj);
+        ConcurrentDictionary<ulong, object>? idToObject = Volatile.Read(ref _idToObject);
+        if (idToObject is null)
+        {
+            obj = null;
+            return false;
+        }
+
+        return idToObject.TryGetValue(id, out obj);
     }
 
     private ulong AddReference(object obj)

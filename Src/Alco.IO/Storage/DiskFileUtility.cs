@@ -46,14 +46,28 @@ internal static class DiskFileUtility
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(fullPath);
         string resolved = Path.GetFullPath(fullPath);
-        EnsureParentDirectoryExists(resolved);
 
-        SafeFileHandle fileHandle = File.OpenHandle(
-            resolved,
-            FileMode.OpenOrCreate,
-            FileAccess.ReadWrite,
-            FileShare.ReadWrite | FileShare.Delete,
-            FileOptions.RandomAccess);
+        SafeFileHandle fileHandle;
+        try
+        {
+            fileHandle = File.OpenHandle(
+                resolved,
+                FileMode.OpenOrCreate,
+                FileAccess.ReadWrite,
+                FileShare.ReadWrite | FileShare.Delete,
+                FileOptions.RandomAccess);
+        }
+        catch (DirectoryNotFoundException)
+        {
+            EnsureParentDirectoryExists(resolved);
+            fileHandle = File.OpenHandle(
+                resolved,
+                FileMode.OpenOrCreate,
+                FileAccess.ReadWrite,
+                FileShare.ReadWrite | FileShare.Delete,
+                FileOptions.RandomAccess);
+        }
+
         return new SafeFileRandomAccessHandle(fileHandle, writable: true);
     }
 
@@ -104,15 +118,29 @@ internal static class DiskFileUtility
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(fullPath);
         string resolved = Path.GetFullPath(fullPath);
-        EnsureParentDirectoryExists(resolved);
-
         string tempPath = $"{resolved}.{Guid.NewGuid():N}.tmp";
-        SafeFileHandle fileHandle = File.OpenHandle(
-            tempPath,
-            FileMode.CreateNew,
-            FileAccess.ReadWrite,
-            FileShare.None,
-            FileOptions.None);
+
+        SafeFileHandle fileHandle;
+        try
+        {
+            fileHandle = File.OpenHandle(
+                tempPath,
+                FileMode.CreateNew,
+                FileAccess.ReadWrite,
+                FileShare.None,
+                FileOptions.None);
+        }
+        catch (DirectoryNotFoundException)
+        {
+            EnsureParentDirectoryExists(resolved);
+            fileHandle = File.OpenHandle(
+                tempPath,
+                FileMode.CreateNew,
+                FileAccess.ReadWrite,
+                FileShare.None,
+                FileOptions.None);
+        }
+
         return (resolved, tempPath, new SafeFileRandomAccessHandle(fileHandle, writable: true));
     }
 

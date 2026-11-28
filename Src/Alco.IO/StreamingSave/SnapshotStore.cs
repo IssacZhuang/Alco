@@ -174,6 +174,66 @@ public sealed class SnapshotStore<TMeta> where TMeta : ISerializable, new()
     }
 
     /// <summary>
+    /// Enumerates snapshot metadata in <paramref name="worldGuid"/> whose slot ID starts with <paramref name="slotPrefix"/>,
+    /// skipping header reads completely when at most <paramref name="minCountToRead"/> matching files exist.
+    /// </summary>
+    /// <param name="worldGuid">The target world identifier.</param>
+    /// <param name="slotPrefix">The ordinal slot ID prefix filter.</param>
+    /// <param name="minCountToRead">Minimum matching filename count required before opening snapshot files.</param>
+    /// <param name="onCorruptSnapshot">Optional callback invoked when a corrupt snapshot file is skipped.</param>
+    /// <returns>Sorted matching snapshot metadata listings, or an empty list if at or below <paramref name="minCountToRead"/>.</returns>
+    public IReadOnlyList<SnapshotMetaInfo<TMeta>> EnumerateSnapshotsByPrefix(
+        Guid worldGuid,
+        string slotPrefix,
+        int minCountToRead = 0,
+        Action<string>? onCorruptSnapshot = null)
+    {
+        ArgumentNullException.ThrowIfNull(slotPrefix);
+
+        IReadOnlyList<string> files = _storage.EnumerateFiles(
+            StreamingSavePaths.SnapshotsDirectory(worldGuid),
+            StreamingSavePaths.SnapshotFilePattern,
+            recursive: false);
+
+        var matching = new List<(string RelPath, string SlotId)>(files.Count);
+        for (int i = 0; i < files.Count; i++)
+        {
+            string relPath = files[i];
+            if (StreamingSavePaths.TryExtractSlotIdFromSnapshotPath(relPath, out string slotId) &&
+                slotId.StartsWith(slotPrefix, StringComparison.Ordinal))
+            {
+                matching.Add((relPath, slotId));
+            }
+        }
+
+        if (matching.Count <= minCountToRead)
+            return [];
+
+        var results = new List<SnapshotMetaInfo<TMeta>>(matching.Count);
+        for (int i = 0; i < matching.Count; i++)
+        {
+            (string relPath, string slotId) = matching[i];
+            if (!_storage.TryOpenRead(relPath, out IRandomAccessHandle? handle))
+                continue;
+
+            using (handle)
+            {
+                if (TryReadHeaderAndMetaFromHandle(handle, worldGuid, out _, out TMeta? meta, out bool hasThumbnail, out string? failureReason))
+                {
+                    results.Add(new SnapshotMetaInfo<TMeta>(new SnapshotId(worldGuid, slotId), meta, hasThumbnail));
+                }
+                else
+                {
+                    onCorruptSnapshot?.Invoke($"Skipped corrupt snapshot '{relPath}': {failureReason}");
+                }
+            }
+        }
+
+        results.Sort(static (a, b) => string.CompareOrdinal(a.Id.SlotId, b.Id.SlotId));
+        return results;
+    }
+
+    /// <summary>
     /// Reads only the header and metadata from a specific snapshot.
     /// </summary>
     /// <param name="id">The snapshot identifier.</param>

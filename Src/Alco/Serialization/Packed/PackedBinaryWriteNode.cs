@@ -13,18 +13,39 @@ internal sealed class PackedBinaryWriteNode : SerializeWriteNode
 {
     private readonly WriteSession _session;
     private readonly Frame _frame;
-    private readonly int _depth;
+    private int _depth;
     private int _fieldCount;
 
-    private PackedBinaryWriteNode(WriteSession session, Frame frame, int depth)
+    private PackedBinaryWriteNode(WriteSession session, Frame frame)
     {
         _session = session;
         _frame = frame;
+    }
+
+    private void ResetForReuse(int depth)
+    {
         _depth = depth;
+        _fieldCount = 0;
     }
 
     /// <inheritdoc/>
     public override ReferenceContext? ReferenceContext => _session.ReferenceContext;
+
+    /// <inheritdoc/>
+    public override void EncodeSubDocument(
+        IBufferWriter<byte> destination,
+        ISerializable root,
+        ReferenceContext? refCtx = null,
+        bool elideDefaults = false)
+    {
+        if (_session.Owner is { } owner)
+        {
+            owner.EncodeTo(destination, root, refCtx, elideDefaults);
+            return;
+        }
+
+        PackedBinarySerializer.EncodeTo(destination, root, refCtx, elideDefaults);
+    }
 
     /// <inheritdoc/>
     public override void BindValue<T>(string key, ref T value, T @default = default)
@@ -368,7 +389,12 @@ internal sealed class PackedBinaryWriteNode : SerializeWriteNode
 
     private void Save<T>(T value) where T : ISerializable
     {
-        ReferenceContext?.TryWriteReferenceId(this, value);
+        if (ReferenceContext is { } refCtx && value is IReferenceable referenceable)
+        {
+            ulong id = refCtx.GetId(referenceable);
+            SetValue(ReferenceContext.SerializeKey, id);
+        }
+
         value.OnSerialize(this, SerializeMode.Save);
     }
 
@@ -377,7 +403,7 @@ internal sealed class PackedBinaryWriteNode : SerializeWriteNode
         if (_depth >= PackedWire.MaxDepth)
             throw new InvalidOperationException($"Packed binary tables cannot exceed depth {PackedWire.MaxDepth}.");
 
-        var child = new PackedBinaryWriteNode(_session, frame, _depth + 1);
+        PackedBinaryWriteNode child = frame.PrepareNode(_depth + 1);
         child.Save(value);
         return child;
     }
@@ -484,28 +510,39 @@ internal sealed class PackedBinaryWriteNode : SerializeWriteNode
     {
         PackedWire.RequireLittleEndian();
         var session = new WriteSession(errors) { ReferenceContext = refCtx, ElideDefaults = elideDefaults };
+        EncodeTo(session, destination, root);
+    }
+
+    /// <summary>
+    /// Appends a packed binary document reusing the caller-supplied <paramref name="session"/>.
+    /// </summary>
+    public static void EncodeTo(WriteSession session, IBufferWriter<byte> destination, ISerializable root)
+    {
+        PackedWire.RequireLittleEndian();
         using Frame frame = session.RentFrame();
-        var node = new PackedBinaryWriteNode(session, frame, depth: 0);
+        PackedBinaryWriteNode node = frame.PrepareNode(depth: 0);
         node.Save(root);
 
         int stringOffset = checked(PackedWire.HeaderSize + node.GetTableByteLength());
-        PackedWire.WriteHeader(destination, elideDefaults, stringOffset, session.Strings.Count);
+        PackedWire.WriteHeader(destination, session.ElideDefaults, stringOffset, session.Strings.Count);
         node.WriteCountedTable(destination);
         session.Strings.WriteTo(destination);
     }
 
-    private sealed class WriteSession(PackedErrors errors)
+    public sealed class WriteSession(PackedErrors errors, int initialStringCapacity = 32, PackedBinaryEncoder? owner = null)
     {
         private readonly List<Frame> _frames = new();
         private int _rentedCount;
 
-        public PackedStringTable.Writer Strings { get; } = new();
+        public PackedBinaryEncoder? Owner { get; } = owner;
 
-        public PackedErrors Errors { get; } = errors;
+        public PackedStringTable.Writer Strings { get; } = new(initialStringCapacity);
 
-        public ReferenceContext? ReferenceContext { get; init; }
+        public PackedErrors Errors { get; private set; } = errors;
 
-        public bool ElideDefaults { get; init; } = true;
+        public ReferenceContext? ReferenceContext { get; set; }
+
+        public bool ElideDefaults { get; set; } = true;
 
         public Frame RentFrame()
         {
@@ -516,21 +553,47 @@ internal sealed class PackedBinaryWriteNode : SerializeWriteNode
         }
 
         public void ReturnFrame() => _rentedCount--;
+
+        public void Reset(ReferenceContext? refCtx, bool elideDefaults, PackedErrors errors, int maxRetainedFrameBytes = 262_144)
+        {
+            ReferenceContext = refCtx;
+            ElideDefaults = elideDefaults;
+            Errors = errors;
+            Strings.Reset();
+            _rentedCount = 0;
+
+            for (int i = 0; i < _frames.Count; i++)
+                _frames[i].TrimIfNeeded(maxRetainedFrameBytes);
+        }
     }
 
-    private sealed class Frame : IDisposable
+    public sealed class Frame : IDisposable
     {
         private readonly WriteSession _session;
         private readonly HashSet<int> _keyIds = new();
+        private readonly PackedBinaryWriteNode _node;
 
-        public ArrayBufferWriter<byte> Bytes { get; } = new();
+        public ArrayBufferWriter<byte> Bytes { get; private set; } = new();
 
         public Frame(WriteSession session)
         {
             _session = session;
+            _node = new PackedBinaryWriteNode(session, this);
+        }
+
+        public PackedBinaryWriteNode PrepareNode(int depth)
+        {
+            _node.ResetForReuse(depth);
+            return _node;
         }
 
         public bool TryAddKey(int id) => _keyIds.Add(id);
+
+        public void TrimIfNeeded(int maxRetainedBytes)
+        {
+            if (Bytes.Capacity > maxRetainedBytes)
+                Bytes = new ArrayBufferWriter<byte>();
+        }
 
         public void Dispose()
         {
