@@ -22,7 +22,6 @@ public sealed partial class World3DScene
     {
         [StandardVoxelSurfaceModule] = 0u,
     };
-    private readonly List<PointLightGpu> _pointLights = [];
     private readonly List<StaticDirtyBounds> _dirtyVoxelStaticBounds = [];
     private readonly List<MipDispatchDesc> _voxelMipDispatches = [];
     private readonly List<uint> _activeSurfaceBuckets = [];
@@ -124,27 +123,6 @@ public sealed partial class World3DScene
 
     /// <summary>Gets the latest recorded VoxelGI status and last readback counters.</summary>
     public World3DVoxelGiStats LastRecordedVoxelGi { get; private set; }
-
-    /// <summary>Replaces the active scene point lights feeding both direct lighting and VoxelGI injection.</summary>
-    /// <param name="lights">The point light list; invalid or nonpositive lights are ignored.</param>
-    public void SetPointLights(ReadOnlySpan<World3DPointLight> lights)
-    {
-        BeginEdit();
-        _pointLights.Clear();
-        int maxLights = Math.Clamp(VoxelGi.MaxPointLights, 0, 256);
-        foreach (ref readonly World3DPointLight light in lights)
-        {
-            if (_pointLights.Count >= maxLights)
-                break;
-            if (!float.IsFinite(light.Radius) || light.Radius <= 0f || !float.IsFinite(light.Intensity) || light.Intensity <= 0f)
-                continue;
-            if (!IsFinite(light.Color))
-                continue;
-            if (!World3DSceneCoordinates.TrySplitPosition(light.Position, out World3DCell cell, out Vector3 local))
-                continue;
-            _pointLights.Add(new PointLightGpu(cell, new Vector4(local, light.Radius), new Vector4(light.Color, light.Intensity)));
-        }
-    }
 
     /// <summary>Requests a full non-blocking clipmap re-voxelization and clears temporal history.</summary>
     public void InvalidateVoxelGi()
@@ -276,12 +254,6 @@ public sealed partial class World3DScene
             return;
         }
 
-        if (_pointLights.Count > 0)
-        {
-            _recordedPointLightCount = _pointLights.Count;
-            _framePointLights = context.UploadTransient<PointLightGpu>(CollectionsMarshal.AsSpan(_pointLights));
-        }
-
         if (!VoxelGi.Enabled || viewport.X == 0 || viewport.Y == 0)
         {
             _giHistoryValid = false;
@@ -319,6 +291,7 @@ public sealed partial class World3DScene
 
         bool forceReset = _voxelGiForceReset || _voxelNeedsInit;
         _voxelClipmap.Plan(camera.Eye, primaryView.OriginAnchorCell, res, VoxelGi.BaseVoxelSize, forceReset, out _recordedVoxelPlan);
+        PrepareVoxelPointLights(context, in primaryView, in _recordedVoxelPlan);
 
         Span<World3DVoxelClipmap.EvictBoxGpu> combinedBoxes = stackalloc World3DVoxelClipmap.EvictBoxGpu[VoxelMaxEvictBoxes];
         int evictCount = 0;

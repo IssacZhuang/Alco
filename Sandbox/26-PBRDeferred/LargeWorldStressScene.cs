@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using Alco;
@@ -17,7 +16,10 @@ internal sealed class LargeWorldStressScene : IDisposable
     private const int WorldGridExtent = 32; // 32 * 256 m = 8192 m across
     private const int HeightfieldResolution = 512;
     private const float HeightfieldCoverageMeters = 8192f;
-    private const int MaxActivePointLights = 24;
+    private const int BeaconCount = 24;
+    private const int MaxMovingLamps = 4;
+    private const int OffscreenLightsPerSector = 128;
+    private const double OffscreenDistance = 160_000.0;
 
     private readonly RenderingSystem _rendering;
     private readonly LocalAssetHost _assetHost = new();
@@ -29,6 +31,8 @@ internal sealed class LargeWorldStressScene : IDisposable
     private readonly World3DPosition _worldOrigin;
     private readonly int _streamingRadius;
     private readonly bool _hasGpu;
+    private readonly int _lightsPerSector;
+    private readonly int _offscreenLightCount;
 
     private readonly ModelAsset _groundModel;
     private readonly ModelAsset _buildingModel;
@@ -43,7 +47,7 @@ internal sealed class LargeWorldStressScene : IDisposable
     private readonly Dictionary<(int X, int Y), ActiveSector> _sectors = [];
     private readonly List<(int X, int Y)> _pruneScratch = [];
     private readonly List<DynamicRover> _rovers = [];
-    private readonly List<World3DPointLight> _pointLightsScratch = new(MaxActivePointLights);
+    private readonly List<WorldSectorHandle> _offscreenSectors = [];
     private readonly List<double> _windowRecordMs = new(64);
     private readonly float[] _heightfieldData;
     private readonly World3DCell _heightfieldAnchorCell;
@@ -52,22 +56,21 @@ internal sealed class LargeWorldStressScene : IDisposable
     private int _currentCenterSectorY = int.MinValue;
     private int _patchCounter;
     private int _windowResetMask;
-    private bool _heightfieldInitialized;
     private bool _disposed;
 
-    /// <summary>Creates the 8 km × 8 km stress scene anchored at <paramref name="worldOrigin"/>.</summary>
-    public LargeWorldStressScene(
-        RenderingSystem rendering,
-        World3DScene scene,
-        World3DPosition worldOrigin,
-        int streamingRadius,
-        bool hasGpu)
+    /// <summary>Creates the stress city and populates its initial streaming ring around <paramref name="camera"/>.</summary>
+    public LargeWorldStressScene(RenderingSystem rendering, World3DScene scene, SandboxOptions options, in World3DCamera camera)
     {
         _rendering = rendering;
         _scene = scene;
-        _worldOrigin = worldOrigin;
-        _streamingRadius = Math.Clamp(streamingRadius, 1, 8);
-        _hasGpu = hasGpu;
+        _worldOrigin = options.LargeWorldOffset;
+        _streamingRadius = options.StreamingRadius;
+        _hasGpu = rendering.ActiveBackend != GraphicsBackend.NoGPU;
+        if (options.LocalLightsMode is LocalLightMode.Direct or LocalLightMode.DirectWithShadows)
+        {
+            _lightsPerSector = options.LightsPerSector;
+            _offscreenLightCount = options.OffscreenLights;
+        }
 
         _sceneAssets = new World3DSceneAssets(scene);
         _assetDir = Path.Combine(Path.GetTempPath(), "alco_w3d_largeworld_" + Guid.NewGuid().ToString("N"));
@@ -78,7 +81,7 @@ internal sealed class LargeWorldStressScene : IDisposable
         {
             GenerateArchetypeAssets(_assetDir);
             _assets = new AssetSystem(_assetHost);
-            if (hasGpu)
+            if (_hasGpu)
                 _assets.RegisterAssetLoader(new AssetLoaderImage(_uploadQueue));
             else
                 _assets.RegisterAssetLoader(new AssetLoaderImageNoGPU(rendering, _assets));
@@ -101,29 +104,21 @@ internal sealed class LargeWorldStressScene : IDisposable
                 _uploadQueue.Pump();
                 Thread.Sleep(1);
             }
+
+            ConfigureSceneFeatures(options);
+            World3DSceneCoordinates.TrySplitPosition(_worldOrigin, out _heightfieldAnchorCell, out _);
+            _heightfieldData = BuildFarHeightfieldGrid(_worldOrigin, _heightfieldAnchorCell,
+                HeightfieldResolution, HeightfieldCoverageMeters);
+            _scene.TrySetFarHeightfield(HeightfieldResolution, HeightfieldResolution,
+                HeightfieldCoverageMeters, _heightfieldData, _heightfieldAnchorCell);
+            UpdateStreamingRing(camera.Eye);
+            MountOffscreenLights();
         }
         catch
         {
-            _sceneAssets.Dispose();
-            _uploadQueue.Dispose();
-            _assetHost.Dispose();
-            try
-            {
-                if (Directory.Exists(_assetDir))
-                    Directory.Delete(_assetDir, recursive: true);
-            }
-            catch (IOException)
-            {
-            }
-            catch (UnauthorizedAccessException)
-            {
-            }
+            Dispose();
             throw;
         }
-
-        World3DSceneCoordinates.TrySplitPosition(worldOrigin, out _heightfieldAnchorCell, out _);
-        _heightfieldData = BuildFarHeightfieldGrid(_worldOrigin, _heightfieldAnchorCell,
-            HeightfieldResolution, HeightfieldCoverageMeters);
     }
 
     /// <summary>Gets whether any initial geometry LOD uploads remain pending on the scene queue.</summary>
@@ -132,27 +127,19 @@ internal sealed class LargeWorldStressScene : IDisposable
     /// <summary>Gets the number of currently mounted streaming sectors.</summary>
     public int ActiveSectorCount => _sectors.Count;
 
-    /// <summary>Configures lighting, shadows, VoxelGI, clouds, SSR, and initial sectors around <paramref name="camera"/>.</summary>
-    public void ConfigureAndPopulateInitial(in World3DCamera camera)
-    {
-        ConfigureSceneFeatures();
-        _scene.TrySetFarHeightfield(HeightfieldResolution, HeightfieldResolution,
-            HeightfieldCoverageMeters, _heightfieldData, _heightfieldAnchorCell);
-        _heightfieldInitialized = true;
-        UpdateStreamingRing(camera.Eye);
-        UpdatePointLights(0);
-    }
+    /// <summary>Gets the expected number of streamed and offscreen point lights.</summary>
+    public int ExpectedResidentLights => _sectors.Count * _lightsPerSector + _offscreenLightCount;
 
-    /// <summary>Advances streaming sectors, dynamic movers, point lights, and periodic heightfield patches before frame recording.</summary>
+    /// <summary>Advances streamed sectors, movers, nearby lamps, and periodic heightfield patches before frame recording.</summary>
     public void PrepareFrame(in World3DCamera camera, int frameIndex)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
         UpdateStreamingRing(camera.Eye);
         UpdateDynamicRovers(frameIndex);
-        UpdatePointLights(frameIndex);
+        UpdateMovingLamps(frameIndex);
 
-        if (_heightfieldInitialized && frameIndex > 0 && frameIndex % 30 == 0)
+        if (frameIndex > 0 && frameIndex % 30 == 0)
             StreamHeightfieldPatch(frameIndex);
 
         _sceneAssets.ReclaimReleased();
@@ -170,7 +157,7 @@ internal sealed class LargeWorldStressScene : IDisposable
     }
 
     /// <summary>Computes a smooth multi-kilometer fly trajectory sweeping sectors and terrain heights inside the 8 km city.</summary>
-    public World3DCamera ComputeFlyStressCamera(int frameIndex)
+    public static World3DCamera ComputeFlyStressCamera(World3DPosition worldOrigin, int frameIndex)
     {
         // Sweep across a ~4.4 km Lissajous figure-8 at ~150 m/s (crossing a 256 m sector roughly every 100 frames).
         const double radiusX = 2200.0;
@@ -179,9 +166,9 @@ internal sealed class LargeWorldStressScene : IDisposable
         const double omegaY = 0.092;
         double t = frameIndex * (1.0 / 60.0);
 
-        double x = _worldOrigin.X + radiusX * Math.Cos(t * omegaX);
-        double y = _worldOrigin.Y + radiusY * Math.Sin(t * omegaY);
-        double z = _worldOrigin.Z + 36.0 + 28.0 * Math.Sin(t * 0.45) + 12.0 * Math.Cos(t * 0.21);
+        double x = worldOrigin.X + radiusX * Math.Cos(t * omegaX);
+        double y = worldOrigin.Y + radiusY * Math.Sin(t * omegaY);
+        double z = worldOrigin.Z + 36.0 + 28.0 * Math.Sin(t * 0.45) + 12.0 * Math.Cos(t * 0.21);
 
         double dx = -radiusX * omegaX * Math.Sin(t * omegaX);
         double dy = radiusY * omegaY * Math.Cos(t * omegaY);
@@ -201,21 +188,23 @@ internal sealed class LargeWorldStressScene : IDisposable
     /// Unmounts all active sectors, reclaims released scene resources across retirement frames,
     /// and verifies zero leaked handles or geometry pages in <see cref="World3DScene"/>.
     /// </summary>
-    public bool TeardownAndVerifyNoSceneLeaks(RenderContext context, MainPresenterProxy submitFrame, in World3DCamera camera)
+    public bool TeardownAndVerifyNoSceneLeaks(MainPresenterProxy submitFrame, in World3DCamera camera)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
         foreach (ActiveSector sector in _sectors.Values)
             DestroySector(sector);
         _sectors.Clear();
-        _rovers.Clear();
-        _scene.SetPointLights([]);
+        foreach (WorldSectorHandle sector in _offscreenSectors)
+            DetachSector(sector);
+        _offscreenSectors.Clear();
         _scene.ClearFarHeightfield();
 
         for (int i = 0; i < 4; ++i)
         {
             _sceneAssets.ReclaimReleased();
-            submitFrame(camera);
+            if (!submitFrame(in camera))
+                return false;
         }
 
         if (_hasGpu)
@@ -225,7 +214,9 @@ internal sealed class LargeWorldStressScene : IDisposable
 
         World3DSceneResourceStats stats = _scene.GetResourceStats();
         RenderingMemoryStats mem = _rendering.GetMemoryStats();
+        int residentLights = _scene.LastRecordedLocalLights.ResidentLights;
         bool clean = stats.LiveSectors == 0
+            && residentLights == 0
             && stats.LiveInstances == 0
             && stats.LiveMaterials == 0
             && stats.LiveGeometries == 0
@@ -235,7 +226,7 @@ internal sealed class LargeWorldStressScene : IDisposable
             && stats.PendingLodUploads == 0
             && stats.PendingRetirementBatches == 0;
 
-        Log.Info($"[LargeWorld Teardown] sectors={stats.LiveSectors}, instances={stats.LiveInstances}, " +
+        Log.Info($"[LargeWorld Teardown] sectors={stats.LiveSectors}, instances={stats.LiveInstances}, localLights={residentLights}, " +
             $"materials={stats.LiveMaterials}, geometries={stats.LiveGeometries}, textures={stats.LiveTextures}, " +
             $"geomPages={stats.LiveGeometryPages} ({stats.LiveGeometryPageBytes} B), tablePages={stats.LiveTablePages}, " +
             $"pendingLods={stats.PendingLodUploads}, pendingRetire={stats.PendingRetirementBatches}");
@@ -246,6 +237,7 @@ internal sealed class LargeWorldStressScene : IDisposable
         return clean;
     }
 
+    /// <summary>Submits a retirement-only frame at the given camera pose.</summary>
     public delegate bool MainPresenterProxy(in World3DCamera camera);
 
     /// <inheritdoc />
@@ -257,6 +249,7 @@ internal sealed class LargeWorldStressScene : IDisposable
 
         _sectors.Clear();
         _rovers.Clear();
+        _offscreenSectors.Clear();
         _sceneAssets.Dispose();
         _uploadQueue.Dispose();
         _assetHost.Dispose();
@@ -274,7 +267,7 @@ internal sealed class LargeWorldStressScene : IDisposable
         }
     }
 
-    private void ConfigureSceneFeatures()
+    private void ConfigureSceneFeatures(SandboxOptions options)
     {
         _scene.MaximumDrawDistance = 4200f;
         _scene.Occlusion.Enabled = true;
@@ -287,14 +280,27 @@ internal sealed class LargeWorldStressScene : IDisposable
         _scene.Shadows.FarField.AutoCaptureFromScene = true;
         _scene.Shadows.FarField.WorldCoverageMeters = HeightfieldCoverageMeters;
         _scene.Shadows.FarField.HorizonMaxDistance = 4096f;
-        _scene.Shadows.Rsm.Enabled = true;
+        _scene.Shadows.Rsm.Enabled = options.RsmEnabled ?? true;
+        bool night = options.LocalLightsMode.HasValue;
         _scene.Lighting = _scene.Lighting with
         {
-            DirectionToSun = ProceduralSkyUtility.GetDirectionToSun(9.2f),
-            SunIntensity = 12f,
-            SkyExposure = 1.05f,
-            AmbientFloor = 0.08f,
+            DirectionToSun = ProceduralSkyUtility.GetDirectionToSun(night ? 18.25f : 9.2f),
+            SunIntensity = night ? 0.25f : 12f,
+            SkyExposure = night ? 0.18f : 1.05f,
+            AmbientFloor = night ? 0.055f : 0.08f,
         };
+
+        _scene.PointShadows.Enabled = options.LocalLightsMode == LocalLightMode.DirectWithShadows;
+        if (options.LightViewLimit is int viewLimit)
+            _scene.LocalLights.MaxViewLights = viewLimit;
+        if (options.WideLightLimit is int wideLimit)
+            _scene.LocalLights.MaxWideViewLights = wideLimit;
+        if (options.LightViewDepth is float viewDepth)
+            _scene.LocalLights.MaximumViewDepth = viewDepth;
+        if (options.PointShadowFaces is int shadowFaces)
+            _scene.PointShadows.MaxUpdatedFaces = shadowFaces;
+        if (options.PointShadowTexels is int shadowTexels)
+            _scene.PointShadows.MaxUpdatedTexels = shadowTexels;
     }
 
     private void UpdateStreamingRing(World3DPosition eye)
@@ -417,11 +423,11 @@ internal sealed class LargeWorldStressScene : IDisposable
         }
 
         // 7. 24 emissive beacons feeding VoxelGI radiance + street accents.
-        for (int b = 0; b < 24; ++b)
+        for (int b = 0; b < BeaconCount; ++b)
         {
             ModelAsset model = (b & 1) == 0 ? _beaconAmberModel : _beaconCyanModel;
-            double px = originX + 10.0 + (b % 6) * 42.0;
-            double py = originY + 18.0 + (b / 6) * 62.0;
+            double px = originX + BeaconX(b);
+            double py = originY + BeaconY(b);
             TryAddModel(model, sectorHandle, new World3DPosition(px, py, originZ),
                 Quaternion.Identity, new Vector3(1.4f, 1.4f, 5.5f), geomLods, instances, castsShadow: false);
         }
@@ -444,7 +450,8 @@ internal sealed class LargeWorldStressScene : IDisposable
             }
         }
 
-        _sectors.Add((sx, sy), new ActiveSector(sectorHandle, instances, sectorRovers));
+        MovingLamp[] lamps = MountCityLights(sectorHandle, seed, originX, originY, originZ);
+        _sectors.Add((sx, sy), new ActiveSector(sectorHandle, instances, sectorRovers, lamps));
     }
 
     private void DestroySector(ActiveSector sector)
@@ -453,7 +460,13 @@ internal sealed class LargeWorldStressScene : IDisposable
             _rovers.Remove(rover);
         foreach (World3DModelInstance inst in sector.Instances)
             _sceneAssets.DestroyModelInstance(inst);
-        _scene.TryDetachSector(sector.Handle);
+        DetachSector(sector.Handle);
+    }
+
+    private void DetachSector(WorldSectorHandle sector)
+    {
+        if (!_scene.TryDetachSector(sector))
+            throw new InvalidOperationException("World3DScene rejected a mounted sector detach.");
     }
 
     private void TryAddModel(
@@ -478,25 +491,10 @@ internal sealed class LargeWorldStressScene : IDisposable
     private void UpdateDynamicRovers(int frameIndex)
     {
         double angleOffset = frameIndex * 0.035;
-        WorldGeometryHandle geom = default;
-        WorldMaterialHandle mat = default;
-        WorldSectorHandle sector = default;
-        bool fetchedProto = false;
-
         foreach (DynamicRover rover in _rovers)
         {
             if (!_scene.TryGetInstance(rover.Instance, out World3DInstanceDesc current))
                 continue;
-            if (!fetchedProto)
-            {
-                geom = current.Geometry;
-                mat = current.Material;
-                sector = current.Sector;
-                fetchedProto = true;
-            }
-            _ = geom;
-            _ = mat;
-            _ = sector;
 
             double theta = rover.Phase + angleOffset;
             double x = rover.CenterX + rover.Radius * Math.Cos(theta);
@@ -510,22 +508,99 @@ internal sealed class LargeWorldStressScene : IDisposable
         }
     }
 
-    private void UpdatePointLights(int frameIndex)
+    private static double BeaconX(int index) => 10.0 + (index % 6) * 42.0;
+
+    private static double BeaconY(int index) => 18.0 + (index / 6) * 62.0;
+
+    private MovingLamp[] MountCityLights(WorldSectorHandle sector, uint seed, double originX, double originY, double originZ)
     {
-        _pointLightsScratch.Clear();
-        double spin = frameIndex * 0.025;
-        for (int i = 0; i < 16; ++i)
+        if (_lightsPerSector == 0)
+            return [];
+
+        MovingLamp[] movers = new MovingLamp[Math.Min(_lightsPerSector, MaxMovingLamps)];
+        for (int i = 0; i < _lightsPerSector; ++i)
         {
-            double angle = spin + i * (Math.PI * 2.0 / 16.0);
-            double r = 24.0 + (i % 3) * 28.0;
-            World3DPosition pos = new(
-                _worldOrigin.X + r * Math.Cos(angle),
-                _worldOrigin.Y + r * Math.Sin(angle),
-                _worldOrigin.Z + 8.0 + (i % 4) * 3.0);
-            Vector3 col = (i & 1) == 0 ? new Vector3(1.0f, 0.72f, 0.32f) : new Vector3(0.32f, 0.82f, 1.0f);
-            _pointLightsScratch.Add(new World3DPointLight(pos, col, 35f, 28f));
+            uint hash = HashValue(seed ^ 0xCAA5C395u, i);
+            bool beacon = i < BeaconCount;
+            int beaconIndex = (i * 7 + 7) % BeaconCount;
+            int grid = ((i - BeaconCount) * 53) % 144;
+            double x = beacon ? BeaconX(beaconIndex) : 18.0 + (grid % 12) * 20.0 + ((hash & 7u) - 3.5);
+            double y = beacon ? BeaconY(beaconIndex) : 18.0 + (grid / 12) * 20.0 + (((hash >> 3) & 7u) - 3.5);
+            bool wide = (i & 15) == 11;
+            double z = wide ? 22.0 : beacon ? 6.2 : 5.0 + ((hash >> 6) & 15u);
+            bool amber = beacon ? (beaconIndex & 1) == 0 : (hash & 3u) != 0;
+            Vector3 color = amber ? new(1f, 0.66f, 0.30f) : new(0.26f, 0.73f, 1f);
+            bool moves = i < movers.Length;
+            float radius = wide ? 88f : 24f + ((hash >> 10) & 15u);
+            World3DPointLight light = new(new World3DPosition(originX + x, originY + y, originZ + z), color,
+                wide ? 360f : 70f + ((hash >> 14) & 63u), radius)
+            {
+                SourceRadius = 0.28f + ((hash >> 20) & 7u) * 0.08f,
+                CastsShadow = !wide && (moves || (i & 3) == 0),
+                ShadowPriority = moves ? 1.5f : 1f,
+                AffectsGlobalIllumination = false,
+            };
+            if (!_scene.TryAddPointLight(sector, in light, out WorldPointLightHandle handle))
+                throw new InvalidOperationException($"World3DScene rejected streamed point light {i} at {light.Position}.");
+            if (moves)
+                movers[i] = new MovingLamp(handle, light);
         }
-        _scene.SetPointLights(CollectionsMarshal.AsSpan(_pointLightsScratch));
+        return movers;
+    }
+
+    private void MountOffscreenLights()
+    {
+        // Keep these light-only sectors outside the city's finite frusta; never touch them during streaming.
+        double signX = _worldOrigin.X > 0.0 ? -1.0 : 1.0;
+        double signY = _worldOrigin.Y > 0.0 ? -1.0 : 1.0;
+        for (int start = 0; start < _offscreenLightCount; start += OffscreenLightsPerSector)
+        {
+            int index = start / OffscreenLightsPerSector;
+            if (!_scene.TryAttachSector(out WorldSectorHandle sector))
+                throw new InvalidOperationException($"World3DScene rejected offscreen light sector {index}.");
+            _offscreenSectors.Add(sector);
+
+            int sx = index % WorldGridExtent;
+            int sy = index / WorldGridExtent;
+            uint seed = HashSector(sx, sy) ^ 0x9B7B115Du;
+            double originX = OffscreenDistance + sx * SectorSizeMeters;
+            double originY = sy * SectorSizeMeters;
+            int count = Math.Min(OffscreenLightsPerSector, _offscreenLightCount - start);
+            for (int i = 0; i < count; ++i)
+            {
+                uint hash = HashValue(seed, i);
+                World3DPosition position = new(
+                    _worldOrigin.X + signX * (originX + 12.0 + (hash & 127u) * 1.8),
+                    _worldOrigin.Y + signY * (originY + 12.0 + ((hash >> 7) & 127u) * 1.8),
+                    _worldOrigin.Z);
+                World3DPointLight light = new(position, new Vector3(1f, 0.7f, 0.4f), 90f, 27f)
+                {
+                    AffectsGlobalIllumination = false,
+                };
+                if (!_scene.TryAddPointLight(sector, in light, out _))
+                    throw new InvalidOperationException($"World3DScene rejected offscreen point light {start + i} at {position}.");
+            }
+        }
+    }
+
+    private void UpdateMovingLamps(int frameIndex)
+    {
+        if (_lightsPerSector == 0 || frameIndex == 0)
+            return;
+
+        MovingLamp[] lamps = _sectors[(_currentCenterSectorX, _currentCenterSectorY)].MovingLamps;
+        for (int i = 0; i < lamps.Length; ++i)
+        {
+            ref readonly MovingLamp lamp = ref lamps[i];
+            double angle = frameIndex * 0.035 * (1.0 + 0.08 * i);
+            World3DPosition origin = lamp.Light.Position;
+            World3DPointLight moved = lamp.Light with
+            {
+                Position = new World3DPosition(origin.X + 4.0 * (Math.Cos(angle) - 1.0), origin.Y + 4.0 * Math.Sin(angle), origin.Z),
+            };
+            if (!_scene.TryUpdatePointLight(lamp.Handle, in moved))
+                throw new InvalidOperationException("World3DScene rejected a live moving lamp update.");
+        }
     }
 
     private void StreamHeightfieldPatch(int frameIndex)
@@ -987,12 +1062,16 @@ internal sealed class LargeWorldStressScene : IDisposable
         }
     }
 
-    private sealed class ActiveSector(WorldSectorHandle handle, List<World3DModelInstance> instances, List<DynamicRover> rovers)
+    private sealed class ActiveSector(WorldSectorHandle handle, List<World3DModelInstance> instances, List<DynamicRover> rovers,
+        MovingLamp[] movingLamps)
     {
         public WorldSectorHandle Handle { get; } = handle;
         public List<World3DModelInstance> Instances { get; } = instances;
         public List<DynamicRover> Rovers { get; } = rovers;
+        public MovingLamp[] MovingLamps { get; } = movingLamps;
     }
+
+    private readonly record struct MovingLamp(WorldPointLightHandle Handle, World3DPointLight Light);
 
     private sealed class DynamicRover(WorldInstanceHandle instance, double centerX, double centerY, double height,
         double radius, double phase)

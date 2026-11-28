@@ -54,6 +54,8 @@ public sealed class TestWorld3DPhase4
             "World3DPbrStandard",
             "World3DOcclusionCommon",
             "World3DShadowSample",
+            "World3DLightClusterCommon",
+            "World3DPointShadowSample",
             "World3DAtmosphere",
             "World3DCloudCommon",
             "World3DCloudNoise",

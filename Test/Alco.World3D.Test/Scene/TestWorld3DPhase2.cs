@@ -529,6 +529,213 @@ public sealed class TestWorld3DPhase2
         Assert.That(maxRsm, Is.GreaterThan(10), "Optional RSM flux target produces non-zero bounce radiance.");
     }
 
+    /// <summary>Checks that an offscreen masked caster shadows direct light, reuses cached faces, and invalidates after movement.</summary>
+    [Test]
+    [NonParallelizable]
+    [Category("AlcoGpu")]
+    [Category("VulkanCompact")]
+    public void VulkanCompactPointShadowsUseOffscreenMaskedCastersAndInvalidateTheirCache()
+    {
+        const int size = 128;
+        const int maskedProbe = 51;
+        const int cutoutProbe = 76;
+        using SceneHarness harness = new(GraphicsBackend.VulkanCompact);
+        using Texture output = harness.CreateOutput(size, size);
+        World3DScene scene = harness.Scene;
+        Assert.That(harness.System.ActiveBackend, Is.EqualTo(GraphicsBackend.VulkanCompact));
+        scene.Lighting = new World3DLighting
+        {
+            SunIntensity = 0f, SkyExposure = 0f, StarIntensity = 0f, SunDiscBrightness = 0f, AmbientFloor = 0f,
+        };
+        scene.Occlusion.Enabled = false;
+        scene.Shadows.Enabled = false;
+        scene.PointShadows.Enabled = false;
+        scene.PointShadows.FadeInSeconds = 0f;
+        scene.PointShadows.MaxUpdatedFaces = 6;
+        scene.PointShadows.MaxUpdatedTexels = 6 * 256 * 256;
+        scene.PointShadows.MaxCasterCandidates = 64;
+
+        World3DCamera camera = new(default, Quaternion.Identity, MathF.PI / 2, 0.125f);
+        harness.System.Shaders.Compiler.RegisterVirtualModule(MaskSurfaceModule, MaskSurfaceModule + ".slang", MaskSurfaceSource);
+        Assert.That(scene.TryAttachSector(out WorldSectorHandle sector), Is.True);
+        Assert.That(scene.TryRegisterGeometry(s_quadMin, s_quadMax, out WorldGeometryHandle panel), Is.True);
+        Assert.That(scene.TryQueueGeometryLod(panel, 0, s_panelVertices, PanelIndices), Is.True);
+        Assert.That(scene.TryRegisterMaterial(new World3DMaterialDesc { Roughness = 0.8f }, out WorldMaterialHandle receiver), Is.True);
+        Assert.That(scene.TryRegisterMaterial(new World3DMaterialDesc
+        {
+            AlphaMode = World3DAlphaMode.Mask, AlphaCutoff = 0.5f, DoubleSided = true, SurfaceModule = MaskSurfaceModule,
+        }, out WorldMaterialHandle mask), Is.True);
+        Assert.That(scene.TryAddInstance(new World3DInstanceDesc(sector, panel, receiver, TransformAt(6, 0, 0, scale: 3),
+            CastsShadow: false), out _), Is.True);
+
+        // The camera's right frustum plane at X=3 is Y=3. The whole caster is beyond it, but is one third
+        // of the way from the light to the receiver. Each receiver probe sees one side of its UV mask.
+        const double casterY = 14.0 / 3.0;
+        World3DInstanceDesc caster = new(sector, panel, mask, TransformAt(3, casterY, 0, scale: 0.75f));
+        Assert.That(scene.TryAddInstance(caster, out WorldInstanceHandle casterHandle), Is.True);
+        World3DPointLight light = new(new World3DPosition(1.5, 7, 0), Vector3.One, 550f, 13f)
+        {
+            CastsShadow = true, AffectsGlobalIllumination = false, SourceRadius = 0.18f,
+        };
+        Assert.That(scene.TryAddPointLight(sector, light, out WorldPointLightHandle lightHandle), Is.True);
+        (float referenceMasked, float referenceCutout) = CaptureProbes();
+        Assert.That(referenceMasked, Is.GreaterThan(55f), "The reference receiver must receive direct point light.");
+        Assert.That(scene.TryReadVisibleDrawCount(out int visible), Is.True);
+        Assert.That(visible, Is.EqualTo(1), "Only the receiver is drawn by the camera, not the caster.");
+
+        scene.PointShadows.Enabled = true;
+        (float shadowed, float cutout) = CaptureProbes();
+        Assert.That(scene.LastRecordedPointShadows.CachedLights, Is.EqualTo(1));
+        Assert.That(scene.LastRecordedPointShadows.UpdatedFaces, Is.EqualTo(6));
+        Assert.That(scene.LastRecordedPointShadows.CasterCandidates, Is.Positive);
+        Assert.That(shadowed, Is.LessThan(referenceMasked - 35f), "The opaque half of the offscreen caster must occlude direct light.");
+        Assert.That(cutout, Is.EqualTo(referenceCutout).Within(8f), "The transparent half of the mask must pass direct light.");
+
+        (float cached, _) = CaptureProbes();
+        Assert.That(scene.LastRecordedPointShadows.CachedLights, Is.EqualTo(1));
+        Assert.That(scene.LastRecordedPointShadows.UpdatedFaces, Is.Zero, "Static caster and light must reuse settled shadow faces.");
+        Assert.That(cached, Is.EqualTo(shadowed).Within(2f));
+
+        Assert.That(scene.TryUpdatePointLight(lightHandle, light with { Intensity = light.Intensity / 2f }), Is.True);
+        (_, float dimmedCutout) = CaptureProbes();
+        Assert.That(dimmedCutout, Is.LessThan(cutout));
+        Assert.That(scene.LastRecordedPointShadows.UpdatedFaces, Is.Zero, "Intensity does not change cached depth.");
+        Assert.That(scene.TryUpdatePointLight(lightHandle, light), Is.True);
+
+        World3DView farView = harness.SubmitFrame(output, camera with { Eye = new World3DPosition(4096, 0, 0) });
+        Assert.That(farView.OriginAnchorCell, Is.Not.EqualTo(default(World3DCell)));
+        (float rebasedShadow, _) = CaptureProbes();
+        Assert.That(rebasedShadow, Is.EqualTo(shadowed).Within(2f));
+        Assert.That(scene.LastRecordedPointShadows.UpdatedFaces, Is.Zero, "Camera rebases must not invalidate lamp-space depth.");
+
+        Assert.That(scene.TryUpdateInstance(casterHandle, caster with { Transform = TransformAt(3, casterY + 2.25, 0, scale: 0.75f) }), Is.True);
+        harness.RecordFrame(output, camera);
+        int discardedFaces = scene.LastRecordedPointShadows.UpdatedFaces;
+        Assert.That(discardedFaces, Is.InRange(1, 5), "Only faces affected by the moving caster should need updating.");
+        harness.Context.DiscardFrame();
+
+        (float moved, _) = CaptureProbes();
+        Assert.That(scene.LastRecordedPointShadows.UpdatedFaces, Is.EqualTo(discardedFaces), "Discarding a shadow recording must retry the dirty faces.");
+        Assert.That(moved, Is.EqualTo(referenceMasked).Within(8f), "Moving the caster away from the probe must not leave a stale shadow.");
+
+        Assert.That(scene.TryUpdateInstance(casterHandle, caster), Is.True);
+        (float restored, _) = CaptureProbes();
+        Assert.That(restored, Is.EqualTo(shadowed).Within(2f));
+        Assert.That(scene.TryRemoveInstance(casterHandle), Is.True);
+        (float removed, _) = CaptureProbes();
+        Assert.That(removed, Is.EqualTo(referenceMasked).Within(8f), "Removing a caster must not leave a stale shadow.");
+
+        (float Masked, float Cutout) CaptureProbes()
+        {
+            harness.SubmitFrame(output, camera);
+            byte[] pixels = new byte[size * size * 4];
+            harness.System.ReadTexture(output, pixels);
+            return (AverageRed(pixels, maskedProbe), AverageRed(pixels, cutoutProbe));
+        }
+
+        static float AverageRed(byte[] pixels, int x)
+        {
+            float sum = 0f;
+            for (int y = size / 2 - 1; y <= size / 2 + 1; ++y)
+                for (int probeX = x - 1; probeX <= x + 1; ++probeX)
+                    sum += pixels[(y * size + probeX) * 4];
+            return sum / 9f;
+        }
+    }
+
+    /// <summary>Checks cube seams, adjacent depth layers, and the high tier's wider penumbra for a larger emitter.</summary>
+    [Test]
+    [NonParallelizable]
+    [Category("AlcoGpu")]
+    [Category("VulkanCompact")]
+    public void VulkanCompactPointShadowLayersAndCubeSeamsPreserveSoftVisibility()
+    {
+        const int size = 192;
+        using SceneHarness harness = new(GraphicsBackend.VulkanCompact);
+        using Texture output = harness.CreateOutput(size, size);
+        World3DScene scene = harness.Scene;
+        Assert.That(harness.System.ActiveBackend, Is.EqualTo(GraphicsBackend.VulkanCompact));
+        scene.Lighting = new World3DLighting
+        {
+            SunIntensity = 0f, SkyExposure = 0f, StarIntensity = 0f, SunDiscBrightness = 0f, AmbientFloor = 0f,
+        };
+        scene.Occlusion.Enabled = false;
+        scene.Shadows.Enabled = false;
+        scene.PointShadows.Enabled = false;
+        scene.PointShadows.FadeInSeconds = 0f;
+        scene.PointShadows.MaxUpdatedFaces = 6;
+        scene.PointShadows.MaxUpdatedTexels = 6 * 256 * 256;
+
+        World3DCamera camera = new(default, Quaternion.Identity, MathF.PI / 2, 0.125f);
+        Assert.That(scene.TryAttachSector(out WorldSectorHandle sector), Is.True);
+        Assert.That(scene.TryRegisterGeometry(s_quadMin, s_quadMax, out WorldGeometryHandle panel), Is.True);
+        Assert.That(scene.TryQueueGeometryLod(panel, 0, s_panelVertices, PanelIndices), Is.True);
+        Assert.That(scene.TryRegisterMaterial(new World3DMaterialDesc { Roughness = 0.8f, DoubleSided = true },
+            out WorldMaterialHandle material), Is.True);
+        Assert.That(scene.TryAddInstance(new World3DInstanceDesc(sector, panel, material, TransformAt(6, 0, 0, scale: 3),
+            CastsShadow: false), out _), Is.True);
+        Assert.That(scene.TryAddInstance(new World3DInstanceDesc(sector, panel, material, TransformAt(2, 4, 0, scale: 0.5f)), out _),
+            Is.True);
+
+        // The ray to the center receiver lies on the +X/-Y seam. The caster crosses that seam outside the camera view.
+        World3DPointLight light = new(new World3DPosition(0, 6, 0), Vector3.One, 400f, 12f) { CastsShadow = true };
+        Assert.That(scene.TryAddPointLight(sector, light, out WorldPointLightHandle handle), Is.True);
+        byte[] unshadowed = Capture();
+        scene.PointShadows.Enabled = true;
+        byte[] hard = Capture();
+        Assert.That(scene.LastRecordedPointShadows.UpdatedTexels, Is.EqualTo(6 * 256 * 256));
+        for (int x = size / 2 - 5; x <= size / 2 + 5; ++x)
+            Assert.That(Red(unshadowed, x) - Red(hard, x), Is.GreaterThan(45), $"Shadow continuity at column {x}.");
+
+        World3DPointLight neighbor = light with { Position = new World3DPosition(1, 0, 0), Radius = 3f, Intensity = 2f };
+        Assert.That(scene.TryAddPointLight(sector, neighbor, out _), Is.True);
+        byte[] neighboringLayers = Capture();
+        Assert.That(scene.LastRecordedPointShadows.CachedLights, Is.EqualTo(2));
+        Assert.That(scene.LastRecordedPointShadows.UpdatedTexels, Is.EqualTo(6 * 256 * 256));
+        Assert.That(scene.LastRecordedPointShadows.CasterCandidates, Is.Zero);
+        AssertMaxPixelDiff(neighboringLayers, hard, 2, "Clearing the neighbor's layers must preserve the original depth.");
+
+        light = light with { SourceRadius = 0.7f };
+        Assert.That(scene.TryUpdatePointLight(handle, in light), Is.True);
+        byte[] soft = Capture();
+        Assert.That(scene.LastRecordedPointShadows.UpdatedFaces, Is.Zero, "Changing emitter size must not invalidate its depth.");
+        Assert.That(PartialWidth(soft), Is.GreaterThan(PartialWidth(hard) + 4), "High-tier PCSS widens the transition.");
+
+        scene.PointShadows.MaxUpdatedFaces = 5;
+        light = light with { Position = new World3DPosition(0, 6.05, 0) };
+        Assert.That(scene.TryUpdatePointLight(handle, in light), Is.True);
+        byte[] deferred = Capture();
+        Assert.That(scene.LastRecordedPointShadows.UpdatedFaces, Is.Zero);
+        Assert.That(scene.LastRecordedPointShadows.DeferredFaces, Is.EqualTo(6));
+        Assert.That(Red(deferred, size / 2), Is.EqualTo(Red(unshadowed, size / 2)).Within(8));
+        scene.PointShadows.MaxUpdatedFaces = 6;
+        _ = Capture();
+        Assert.That(scene.LastRecordedPointShadows.UpdatedFaces, Is.EqualTo(6));
+
+        byte[] Capture()
+        {
+            harness.SubmitFrame(output, camera);
+            byte[] pixels = new byte[size * size * 4];
+            harness.System.ReadTexture(output, pixels);
+            return pixels;
+        }
+
+        int PartialWidth(byte[] pixels)
+        {
+            int partiallyShadowed = 0;
+            for (int x = size / 4; x < 3 * size / 4; ++x)
+            {
+                int reference = Red(unshadowed, x);
+                int value = Red(pixels, x);
+                if (value > reference * 0.15f && value < reference * 0.9f)
+                    ++partiallyShadowed;
+            }
+            return partiallyShadowed;
+        }
+
+        static int Red(byte[] pixels, int x) => pixels[(size / 2 * size + x) * 4];
+    }
+
     private static World3DTransform TransformAt(double x, double y, double z, float scale = 1f) =>
         new(new World3DPosition(x, y, z), Quaternion.Identity, new Vector3(scale));
 

@@ -5,13 +5,13 @@ using NUnit.Framework;
 namespace Alco.World3D.Test;
 
 /// <summary>
-/// Compiles all 52 embedded Alco.World3D shader modules and composed ISurface variants across Spirv, SpirvCompact, Dxil, and MetalSource.
+/// Compiles the embedded Alco.World3D shader inventory and composed ISurface variants across Spirv, SpirvCompact, Dxil, and MetalSource.
 /// </summary>
 [Category("NoGPU")]
 [TestFixture]
 public sealed class ValidateShader
 {
-    private const int ExpectedEmbeddedShaderCount = 52;
+    private const int ExpectedEmbeddedShaderCount = 58;
 
     private static readonly string[] s_libraryModules =
     [
@@ -21,6 +21,8 @@ public sealed class ValidateShader
         "World3DAtmosphere",
         "World3DOcclusionCommon",
         "World3DShadowSample",
+        "World3DLightClusterCommon",
+        "World3DPointShadowSample",
         "World3DVoxelCommon",
         "World3DCloudCommon",
     ];
@@ -31,6 +33,10 @@ public sealed class ValidateShader
         ("World3DCullSelect", 100u),
         ("World3DBuildArgs", 72u),
         ("World3DDeferredLighting", 176u),
+        // Clustered Local Lights
+        ("World3DLightClusterClear", 24u),
+        ("World3DLightClusterBin", 88u),
+        ("World3DLightClusterRefine", 128u),
         // Occlusion & Shadows
         ("World3DHiZBuild", 32u),
         ("World3DOcclusionPrepare", 64u),
@@ -38,6 +44,7 @@ public sealed class ValidateShader
         ("World3DShadowMinMaxReduce", 24u),
         ("World3DShadowMinMaxDilate", 24u),
         ("World3DFarHeightBuild", 48u),
+        ("World3DPointShadowCull", 72u),
         // VoxelGI
         ("World3DVoxelInit", 80u),
         ("World3DVoxelBlueNoise", 16u),
@@ -74,7 +81,7 @@ public sealed class ValidateShader
         ("World3DSsrComposite", 80u),
     ];
 
-    /// <summary>Verifies that all 52 embedded shaders exist without duplicates and are covered by validation.</summary>
+    /// <summary>Verifies that every embedded shader is in the validation inventory without duplicates.</summary>
     [Test]
     public void EmbeddedShaderManifest_MatchesExpectedSet()
     {
@@ -110,7 +117,7 @@ public sealed class ValidateShader
     [TestCase(ShaderTarget.SpirvCompact)]
     [TestCase(ShaderTarget.Dxil)]
     [TestCase(ShaderTarget.MetalSource)]
-    public void ValidateAll51ModulesAndComposedSurfaces(ShaderTarget target)
+    public void ValidateAllModulesAndComposedSurfaces(ShaderTarget target)
     {
         if (!ShaderCompiler.IsTargetSupported(target))
             Assert.Ignore($"The bundled shader compiler cannot emit {target} on this host.");
@@ -193,6 +200,7 @@ public sealed class ValidateShader
         AssertStruct(sceneTypes, "World3DCullViewGpu", 128u, "ViewProj", rowMajor: true);
         AssertStruct(sceneTypes, "World3DOccludedCandidate", 8u);
         AssertStruct(sceneTypes, "World3DPointLightGpu", 48u);
+        AssertStruct(sceneTypes, "World3DLocalLightGpu", 64u);
         AssertStruct(sceneTypes, "World3DInstanceGpu", 128u);
         AssertStruct(sceneTypes, "World3DMaterialGpu", 64u);
         AssertStruct(sceneTypes, "World3DGeometryLodGpu", 64u);
@@ -200,6 +208,22 @@ public sealed class ValidateShader
 
         IReadOnlyList<ShaderTypeLayout> shadowTypes = compiler.LoadModule("World3DShadowSample").GetTypes();
         AssertStruct(shadowTypes, "World3DShadowFrameGpu", 672u);
+
+        IReadOnlyList<ShaderTypeLayout> clusterTypes = compiler.LoadModule("World3DLightClusterCommon").GetTypes();
+        AssertStruct(clusterTypes, "World3DLightClusterGridGpu", 24u);
+        AssertStruct(clusterTypes, "World3DLightClusterFrameGpu", 48u);
+        AssertStruct(clusterTypes, "World3DLocalLightingFrameGpu", 72u);
+        AssertStruct(clusterTypes, "World3DLightClusterCandidateGpu", 8u);
+        AssertStruct(clusterTypes, "World3DClusterLightGpu", 48u);
+        AssertStruct(clusterTypes, "World3DLightClusterCountersGpu", 16u);
+
+        IReadOnlyList<ShaderTypeLayout> pointShadowTypes = compiler.LoadModule("World3DPointShadowSample").GetTypes();
+        AssertStruct(pointShadowTypes, "World3DPointShadowFrameGpu", 24u);
+        AssertStruct(pointShadowTypes, "World3DPointShadowPageGpu", 48u);
+
+        IReadOnlyList<ShaderTypeLayout> pointShadowCullTypes = compiler.LoadModule("World3DPointShadowCull").GetTypes();
+        AssertStruct(pointShadowCullTypes, "PointShadowCandidateGpu", 8u);
+        AssertStruct(pointShadowCullTypes, "PointShadowBatchGpu", 16u);
 
         IReadOnlyList<ShaderTypeLayout> voxelTypes = compiler.LoadModule("World3DVoxelCommon").GetTypes();
         AssertStruct(voxelTypes, "World3DVoxelCascadeGpu", 32u);

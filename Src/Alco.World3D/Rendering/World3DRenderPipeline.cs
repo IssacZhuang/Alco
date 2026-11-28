@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Numerics;
 using Alco.Graphics;
 using GpuBuffer = Alco.Graphics.Buffer;
@@ -56,6 +57,13 @@ public sealed partial class World3DScene
         PrepareOcclusion(context, viewport);
         PrepareVolumetricClouds(context, in camera, viewport, in view, deltaTime);
         PrepareGeometryPasses(context);
+        long localLightsStart = GpuProfilingEnabled ? Stopwatch.GetTimestamp() : 0;
+        SelectLocalLights(in view, camera.Eye);
+        PreparePointShadows(context, deltaTime);
+        StageLocalLightCandidates(context);
+        PrepareLocalLightClusters();
+        LastRecordedLocalLightCpuMilliseconds = localLightsStart != 0 ? Stopwatch.GetElapsedTime(localLightsStart).TotalMilliseconds : 0;
+        PrepareLocalLightTelemetry(context);
         PrepareVoxelGi(context, in camera, viewport, in view, deltaTime);
         PrepareVolumetricLight(viewport, in camera);
         PrepareSsr(context, viewport, in view);
@@ -65,7 +73,7 @@ public sealed partial class World3DScene
         UpdateAutoExposureStats(_recordedWorld && AutoExposure.Enabled && LightingDebugView == World3DLightingDebugView.None);
         _recordingSucceeded = true;
         LastRecordedSync = new World3DSceneSyncStats(geometryBytes, _gpu.GeometryPatches, _gpu.MaterialPatches,
-            _gpu.InstancePatches, _gpu.InitializedTablePages);
+            _gpu.InstancePatches, _gpu.InitializedTablePages) { LocalLightPatches = _gpu.LocalLightPatches };
         return true;
     }
 
@@ -84,6 +92,8 @@ public sealed partial class World3DScene
         ReconcileVolumetricClouds(submitted);
         ReconcileShadows(submitted);
         ReconcileFarShadow(submitted);
+        ReconcilePointShadows(submitted);
+        ReconcileLocalLightTelemetry(submitted);
         ReconcileVoxelGi(submitted);
         ReconcileSsr(submitted);
         ReconcileForwardPasses(submitted);

@@ -24,8 +24,15 @@ internal sealed class Game : GameEngine
     private readonly World3DScene _scene;
     private readonly Texture? _offscreen;
     private readonly RenderingMemoryStats _preSceneMemory;
-    private readonly List<double> _flyRecordMs = [];
+    private readonly bool _collectTimings;
+    private readonly List<double> _recordCpuMs = [];
+    private readonly List<double> _prepareAndRecordCpuMs = [];
+    private readonly List<double> _localLightCpuMs = [];
+    private readonly List<double> _graphGpuMs = [];
+    private readonly SortedDictionary<string, List<double>> _passGpuMs = new(StringComparer.Ordinal);
     private readonly float[] _autoExposurePlot = new float[64];
+    private readonly World3DPointLight[] _pointLights;
+    private readonly string[] _pointLightNames;
     private BistroImporter? _importer;
     private LargeWorldStressScene? _largeWorld;
     private ImGUISystem? _imGui;
@@ -33,9 +40,23 @@ internal sealed class Game : GameEngine
     private float _flySpeed = 3f;
     private float _sunHour = 10f;
     private bool _showImGui = true;
-    private bool _demoLightsEnabled;
+    private int _selectedPointLight;
+    private bool _pointLightsEnabled;
+    private bool _pointLightsCastShadows;
+    private bool _pointLightsAffectVoxelGi;
+    private bool _pointLightsDirty;
     private WorldGeometryHandle _proceduralGeometry;
     private Extent2D _previousViewport;
+    private ulong _firstMeasuredFrameId;
+    private ulong _lastMeasuredFrameId;
+    private ulong _sampledGpuFrameId;
+    private World3DLocalLightClusterStats _sampledClusterStats;
+    private uint _peakCoarseDrops;
+    private uint _peakFineDrops;
+    private int _clusterSampleCount;
+    private int _minTimedPasses = int.MaxValue;
+    private int _maxTimedPasses;
+    private int _peakLightPatches;
     private int _renderedFrames;
     private bool _queuedProcedural;
     private bool _ready;
@@ -49,19 +70,29 @@ internal sealed class Game : GameEngine
         _bistroDirectory = bistroDirectory;
         _initialCamera = _camera = camera;
         _initialExtent = new Extent2D(options.Width, options.Height);
+        _collectTimings = options.Frames.HasValue && (options.FlyStress || options.LocalLightsMode.HasValue || options.ProfileGpu);
         RenderContext? context = null;
         World3DScene? scene = null;
         try
         {
-            context = new RenderContext(RenderingSystem, frameDataByteCount: 8 * 1024 * 1024);
+            _preSceneMemory = RenderingSystem.GetMemoryStats();
+            ulong frameDataBytes = 8 * 1024 * 1024;
+            if (options.LocalLightsMode.HasValue)
+            {
+                // Reserve the same staging capacity in every mode for initial light rows and retirement scatters.
+                ulong side = (ulong)options.StreamingRadius * 2 + 1;
+                frameDataBytes += (side * side * (ulong)options.LightsPerSector + (ulong)options.OffscreenLights) * 96;
+            }
+            context = new RenderContext(RenderingSystem, frameDataByteCount: frameDataBytes);
             _offscreen = setting.Platform is ConsolePlatform ? RenderingSystem.CreateTexture(new TextureDesc
             {
                 Extent = new Extent3D(options.Width, options.Height, 1),
                 Format = Format.Rgba8Srgb,
                 Usage = TextureUsage.ColorAttachment | TextureUsage.TransferSource,
             }) : null;
-            _preSceneMemory = RenderingSystem.GetMemoryStats();
             scene = new World3DScene(RenderingSystem);
+            scene.GpuProfilingEnabled = options.ProfileGpu;
+            scene.LocalLights.EnableOverflowTelemetry = options.LocalLightsMode.HasValue && GraphicsDevice.ActiveBackend != GraphicsBackend.NoGPU;
             scene.VoxelGi.Enabled = options.GiEnabled;
             scene.VolumetricClouds.Enabled = options.CloudsEnabled;
             scene.VolumetricLight.Enabled = options.VolLightEnabled;
@@ -72,7 +103,22 @@ internal sealed class Game : GameEngine
             if (options.RsmEnabled.HasValue)
                 scene.Shadows.Rsm.Enabled = options.RsmEnabled.Value;
             scene.LightingDebugView = options.GiDebugView;
-            _demoLightsEnabled = options.AddDemoLights;
+            (string Name, World3DPointLight Light)[] presets = bistroDirectory != null ? CreateBistroLightRig() : options.Procedural
+                ?
+                [
+                    ("Demo light 1", new(new World3DPosition(-4.0, 2.5, 3.2), new Vector3(1.0f, 0.72f, 0.38f), 22f, 12f)),
+                    ("Demo light 2", new(new World3DPosition(4.5, 5.8, 2.3), new Vector3(1.0f, 0.78f, 0.45f), 16f, 10f)),
+                    ("Demo light 3", new(new World3DPosition(-14.0, 0.0, 3.8), new Vector3(1.0f, 0.68f, 0.32f), 28f, 14f)),
+                ]
+                : [];
+            _pointLights = Array.ConvertAll(presets, static preset => preset.Light);
+            _pointLightNames = Array.ConvertAll(presets, static preset => preset.Name);
+            if (bistroDirectory != null)
+                scene.LocalLights.MaxWideViewLights = presets.Length;
+            _pointLightsEnabled = options.PointLightsEnabled;
+            // Bistro's emissive shades already contribute to VoxelGI.
+            _pointLightsAffectVoxelGi = options.Procedural;
+            _pointLightsDirty = _pointLightsEnabled;
         }
         catch
         {
@@ -84,9 +130,57 @@ internal sealed class Game : GameEngine
         }
         _scene = scene;
         _context = context;
-        if (!options.LargeWorld)
-            ApplyDemoPointLights(_demoLightsEnabled);
     }
+
+    private static (string Name, World3DPointLight Light)[] CreateBistroLightRig()
+    {
+        Vector3 signWhite = new(1f, 0.95f, 0.88f);
+        Vector3 lanternAmber = new(1f, 0.51f, 0.22f);
+        Vector3 pendantWhite = new(1f, 0.79f, 0.58f);
+        Vector3 fanWarm = new(1f, 0.84f, 0.55f);
+        return
+        [
+            ("Front sign lamp A", FixtureLight(new(4.315, -1.229, 4.063), signWhite, 1.8f, 2.6f, 0.055f)),
+            ("Front sign lamp B", FixtureLight(new(6.373, -0.120, 4.063), signWhite, 1.8f, 2.6f, 0.055f)),
+            ("Corner sign lamp A", FixtureLight(new(-1.943, 1.263, 4.062), signWhite, 1.6f, 2.4f, 0.055f)),
+            ("Corner sign lamp B", FixtureLight(new(-2.850, 3.557, 4.062), signWhite, 1.6f, 2.4f, 0.055f)),
+            ("Corner sign lamp C", FixtureLight(new(-3.639, 5.551, 4.062), signWhite, 1.6f, 2.4f, 0.055f)),
+            ("Corner sign lamp D", FixtureLight(new(-4.498, 7.725, 4.062), signWhite, 1.6f, 2.4f, 0.055f)),
+
+            ("Front window lantern A", FixtureLight(new(4.721, -1.157, 2.410), lanternAmber, 5.6f, 3.9f, 0.12f)),
+            ("Front window lantern B", FixtureLight(new(7.222, -0.085, 2.385), lanternAmber, 6.1f, 4.1f, 0.12f)),
+            ("Corner window lantern A", FixtureLight(new(-2.246, 1.829, 2.420), lanternAmber, 5.0f, 3.8f, 0.12f)),
+            ("Corner window lantern B", FixtureLight(new(-3.338, 4.587, 2.415), lanternAmber, 5.4f, 3.9f, 0.12f)),
+            ("Corner window lantern C", FixtureLight(new(-4.222, 7.310, 2.392), lanternAmber, 5.4f, 3.8f, 0.12f)),
+
+            ("Front street lamp", FixtureLight(new(4.190, -4.480, 4.090), lanternAmber, 14f, 7.0f, 0.15f)),
+            ("Corner street lamp", FixtureLight(new(-4.761, -2.208, 4.110), lanternAmber, 12f, 6.5f, 0.15f)),
+            ("Alley street lamp", FixtureLight(new(18.200, -20.978, 4.092), lanternAmber, 12f, 6.5f, 0.15f)),
+            ("No. 11 door lantern L", FixtureLight(new(17.175, -28.469, 3.254), lanternAmber, 3.6f, 3.7f, 0.12f)),
+            ("No. 11 door lantern R", FixtureLight(new(21.041, -26.846, 3.254), lanternAmber, 3.6f, 3.7f, 0.12f)),
+
+            ("Dining pendant A", FixtureLight(new(4.207, 6.624, 2.390), pendantWhite, 6.5f, 4.0f, 0.13f)),
+            ("Dining pendant B", FixtureLight(new(2.786, 7.224, 2.390), pendantWhite, 6.0f, 4.0f, 0.13f)),
+            ("Dining pendant C", FixtureLight(new(1.920, 8.797, 2.390), pendantWhite, 5.0f, 3.7f, 0.13f)),
+            ("Dining pendant D", FixtureLight(new(1.054, 10.372, 2.390), pendantWhite, 5.0f, 3.7f, 0.13f)),
+            ("Dining dome lamp A", FixtureLight(new(8.492, 6.115, 2.890), pendantWhite, 4.6f, 3.8f, 0.12f)),
+            ("Dining dome lamp B", FixtureLight(new(4.934, 4.250, 3.040), pendantWhite, 4.8f, 3.8f, 0.12f)),
+            ("Dining dome lamp C", FixtureLight(new(0.504, 5.002, 3.040), pendantWhite, 4.8f, 3.8f, 0.12f)),
+            ("Dining dome lamp D", FixtureLight(new(-1.001, 7.984, 3.040), pendantWhite, 4.8f, 3.8f, 0.12f)),
+            ("Ceiling fan lamp A", FixtureLight(new(0.984, 3.400, 3.475), fanWarm, 3.4f, 3.5f, 0.10f)),
+            ("Ceiling fan lamp B", FixtureLight(new(-0.881, 6.399, 3.475), fanWarm, 3.4f, 3.5f, 0.10f)),
+
+            ("Dining wall lamp 1", FixtureLight(new(8.110, 1.919, 2.543), signWhite, 2.2f, 2.5f, 0.08f)),
+            ("Dining wall lamp 2", FixtureLight(new(5.511, 0.503, 2.543), signWhite, 2.2f, 2.5f, 0.08f)),
+            ("Dining wall lamp 3", FixtureLight(new(2.840, -0.945, 2.543), signWhite, 2.2f, 2.5f, 0.08f)),
+            ("Dining wall lamp 4", FixtureLight(new(-0.552, 0.412, 2.543), signWhite, 2.2f, 2.5f, 0.08f)),
+            ("Dining wall lamp 5", FixtureLight(new(-1.944, 3.359, 2.543), signWhite, 2.2f, 2.5f, 0.08f)),
+            ("Dining wall lamp 6", FixtureLight(new(-3.050, 6.174, 2.543), signWhite, 2.2f, 2.5f, 0.08f)),
+        ];
+    }
+
+    private static World3DPointLight FixtureLight(World3DPosition position, Vector3 color, float intensity, float range,
+        float sourceRadius) => new(position, color, intensity, range) { SourceRadius = sourceRadius };
 
     /// <summary>Gets the process result, including incomplete requested verification.</summary>
     public int ExitCode => _failed || !_ready || _renderedFrames == 0 || (_options.Frames.HasValue && !_completed) ? 1 : 0;
@@ -112,9 +206,11 @@ internal sealed class Game : GameEngine
         {
             Log.Info($"Large-World Stress Scene: origin=({_options.LargeWorldOffset.X:F0}, {_options.LargeWorldOffset.Y:F0}, {_options.LargeWorldOffset.Z:F0}), " +
                 $"streamingRadius={_options.StreamingRadius}");
-            _largeWorld = new LargeWorldStressScene(RenderingSystem, _scene,
-                _options.LargeWorldOffset, _options.StreamingRadius, GraphicsDevice.ActiveBackend != GraphicsBackend.NoGPU);
-            _largeWorld.ConfigureAndPopulateInitial(in _camera);
+            if (_options.FlyStress)
+                _camera = LargeWorldStressScene.ComputeFlyStressCamera(_options.LargeWorldOffset, 0);
+            _largeWorld = new LargeWorldStressScene(RenderingSystem, _scene, _options, in _camera);
+            if (_options.LocalLightsMode is LocalLightMode mode)
+                LogComparisonSettings(mode);
             return;
         }
         if (_bistroDirectory == null)
@@ -159,25 +255,29 @@ internal sealed class Game : GameEngine
                     _showImGui = !_showImGui;
                 UpdateFlyCamera(delta, ImGui.GetIO().WantCaptureMouse, captureKeyboard);
             }
+            long prepareStart = Stopwatch.GetTimestamp();
             if (_options.FlyStress)
             {
                 if (_largeWorld != null)
-                    _camera = _largeWorld.ComputeFlyStressCamera(_renderedFrames);
+                    _camera = LargeWorldStressScene.ComputeFlyStressCamera(_options.LargeWorldOffset, _renderedFrames);
                 else
                     UpdateFlyStressCamera(_renderedFrames);
             }
             _largeWorld?.PrepareFrame(in _camera, _renderedFrames);
+            // The panel is drawn after recording, when scene edits are no longer allowed.
+            ApplyPointLightChanges();
             _scene.AutoExposure.TelemetryEnabled = hasImGuiFrame && _showImGui && _scene.AutoExposure.Enabled;
-            long startStamp = Stopwatch.GetTimestamp();
-            if (!TryRecordFrame(output, _offscreen != null ? RGUsage.TransferRead : RGUsage.ColorAttachment, delta))
+            double prepareMs = Stopwatch.GetElapsedTime(prepareStart).TotalMilliseconds;
+            float sceneDelta = _options.FlyStress || (_options.LocalLightsMode.HasValue && _offscreen != null) ? 1f / 60f : delta;
+            if (!TryRecordFrame(output, _offscreen != null ? RGUsage.TransferRead : RGUsage.ColorAttachment, sceneDelta, out double recordMs))
             {
                 Fail("World3D rejected the camera or output viewport.");
                 return;
             }
-            double recordMs = Stopwatch.GetElapsedTime(startStamp).TotalMilliseconds;
-            if (_options.FlyStress && _renderedFrames >= 1)
-                _flyRecordMs.Add(recordMs);
+            RecordTimingSample(prepareMs, recordMs);
             _largeWorld?.RecordFrameTelemetry(_renderedFrames, recordMs);
+            if (_options.LocalLightsMode.HasValue && _largeWorld is { } city && !VerifyLightPopulation(city))
+                return;
             World3DDrawStats draws = _scene.LastRecordedDraws;
             if (_options.RequireBistro && (draws.MdiCalls == 0 || draws.IndirectSlots == 0))
             {
@@ -188,7 +288,7 @@ internal sealed class Game : GameEngine
                 DrawImGuiPanel(delta, output.Extent, draws);
             if (_renderedFrames == 0)
                 Log.Info($"World3D first render: viewport={output.Extent.X}x{output.Extent.Y}, " +
-                    $"MDI calls={draws.MdiCalls}, indirect slots={draws.IndirectSlots}");
+                    $"MDI calls={draws.MdiCalls}, indirect slots={draws.IndirectSlots}, point lights={_scene.LastRecordedLocalLights.ResidentLights}");
             else if (!_previousViewport.Equals(output.Extent))
                 Log.Info($"World3D resized: viewport={output.Extent.X}x{output.Extent.Y}");
             _previousViewport = output.Extent;
@@ -225,6 +325,8 @@ internal sealed class Game : GameEngine
             _largeWorld = null;
             _importer?.Dispose();
             _scene.Dispose();
+            _offscreen?.Dispose();
+            _context.Dispose();
             RenderingSystem.WaitIdle();
             RenderingSystem.Tick();
             if (_options.LargeWorld && !RenderingSystem.IsDisposed)
@@ -242,8 +344,6 @@ internal sealed class Game : GameEngine
                 if (!vramClean)
                     _failed = true;
             }
-            _offscreen?.Dispose();
-            _context.Dispose();
         }
         finally
         {
@@ -280,6 +380,8 @@ internal sealed class Game : GameEngine
             ImGui.Text(FormattableString.Invariant($"Eye: {eye.X:F3}, {eye.Y:F3}, {eye.Z:F3}"));
             ImGui.Separator();
 
+            if (!_options.LargeWorld && ImGui.CollapsingHeader("Point Lights"))
+                DrawPointLightControls();
             if (ImGui.CollapsingHeader("Lighting", ImGuiTreeNodeFlags.DefaultOpen))
                 DrawLightingControls();
             if (ImGui.CollapsingHeader("Auto Exposure", ImGuiTreeNodeFlags.DefaultOpen))
@@ -514,9 +616,6 @@ internal sealed class Game : GameEngine
         if (ImGui.SliderFloat("Propagation decay", ref decay, 0f, 1.2f, "%.2f", ImGuiSliderFlags.AlwaysClamp))
             gi.PropagationDecay = decay;
 
-        if (ImGui.Checkbox("Demo point lights", ref _demoLightsEnabled))
-            ApplyDemoPointLights(_demoLightsEnabled);
-        ImGui.SameLine();
         if (ImGui.Button("Reset GI"))
             _scene.InvalidateVoxelGi();
         ImGui.SameLine();
@@ -625,20 +724,107 @@ internal sealed class Game : GameEngine
         ImGui.Text($"Trace: {stats.TraceExtent.X}x{stats.TraceExtent.Y}  HiZ: {stats.HiZActive}  Hist: {stats.TemporalHistoryValid}");
     }
 
-    private void ApplyDemoPointLights(bool enabled)
+    private void ApplyPointLightChanges()
     {
-        if (!enabled)
+        if (!_pointLightsDirty)
+            return;
+        _pointLightsDirty = false;
+        if (!_pointLightsEnabled)
         {
             _scene.SetPointLights([]);
             return;
         }
-        ReadOnlySpan<World3DPointLight> lights =
-        [
-            new(new World3DPosition(-4.0, 2.5, 3.2), new Vector3(1.0f, 0.72f, 0.38f), 22f, 12f),
-            new(new World3DPosition(4.5, 5.8, 2.3), new Vector3(1.0f, 0.78f, 0.45f), 16f, 10f),
-            new(new World3DPosition(-14.0, 0.0, 3.8), new Vector3(1.0f, 0.68f, 0.32f), 28f, 14f),
-        ];
-        _scene.SetPointLights(lights);
+
+        for (int i = 0; i < _pointLights.Length; ++i)
+        {
+            _pointLights[i] = _pointLights[i] with
+            {
+                CastsShadow = _pointLightsCastShadows,
+                AffectsGlobalIllumination = _pointLightsAffectVoxelGi,
+            };
+        }
+        _scene.SetPointLights(_pointLights);
+    }
+
+    private void DrawPointLightControls()
+    {
+        _pointLightsDirty |= ImGui.Checkbox("Enable point lights", ref _pointLightsEnabled);
+        ImGui.SameLine();
+        ImGui.TextDisabled($"{_pointLights.Length} lights");
+        bool flagsChanged = ImGui.Checkbox("Cast shadows (all lights)", ref _pointLightsCastShadows);
+        flagsChanged |= ImGui.Checkbox("Affect Voxel GI (all lights)", ref _pointLightsAffectVoxelGi);
+        _pointLightsDirty |= flagsChanged && _pointLightsEnabled;
+        ImGui.PushItemWidth(-145f);
+        try
+        {
+            DrawPointLightPicker();
+            ImGui.PushID(_selectedPointLight);
+            try
+            {
+                ref World3DPointLight light = ref _pointLights[_selectedPointLight];
+                World3DPointLight edited = DrawPointLightEditor(in light);
+                if (edited != light)
+                {
+                    light = edited;
+                    _pointLightsDirty |= _pointLightsEnabled;
+                }
+            }
+            finally
+            {
+                ImGui.PopID();
+            }
+        }
+        finally
+        {
+            ImGui.PopItemWidth();
+        }
+    }
+
+    private void DrawPointLightPicker()
+    {
+        if (!ImGui.BeginCombo("Emitter", _pointLightNames[_selectedPointLight], ImGuiComboFlags.HeightLarge))
+            return;
+        try
+        {
+            for (int i = 0; i < _pointLightNames.Length; i++)
+            {
+                bool selected = i == _selectedPointLight;
+                if (ImGui.Selectable(_pointLightNames[i], selected))
+                    _selectedPointLight = i;
+                if (selected)
+                    ImGui.SetItemDefaultFocus();
+            }
+        }
+        finally
+        {
+            ImGui.EndCombo();
+        }
+    }
+
+    private static World3DPointLight DrawPointLightEditor(in World3DPointLight light)
+    {
+        const ImGuiSliderFlags clamp = ImGuiSliderFlags.AlwaysClamp;
+        Vector3 position = new((float)light.Position.X, (float)light.Position.Y, (float)light.Position.Z);
+        bool moved = ImGui.DragFloat3("Position (m)", ref position, 0.05f, -10_000f, 10_000f, "%.2f", clamp);
+        Vector3 color = light.Color;
+        ImGui.ColorEdit3("Color (linear RGB)", ref color, ImGuiColorEditFlags.Float);
+        float intensity = light.Intensity;
+        ImGui.DragFloat("Intensity", ref intensity, 0.25f, 0f, 10_000f, "%.2f", clamp);
+        float radius = light.Radius;
+        ImGui.DragFloat("Range (m)", ref radius, 0.05f, 0.01f, 4096f, "%.2f", clamp);
+        float sourceRadius = MathF.Min(light.SourceRadius, radius);
+        ImGui.DragFloat("Emitter radius (m)", ref sourceRadius, 0.01f, 0f, radius, "%.3f", clamp);
+        float shadowPriority = light.ShadowPriority;
+        ImGui.DragFloat("Shadow priority", ref shadowPriority, 0.05f, 0f, 100f, "%.2f", clamp);
+        return light with
+        {
+            Position = moved ? new World3DPosition(position.X, position.Y, position.Z) : light.Position,
+            Color = Vector3.Clamp(color, Vector3.Zero, Vector3.One),
+            Intensity = intensity,
+            Radius = radius,
+            SourceRadius = sourceRadius,
+            ShadowPriority = shadowPriority,
+        };
     }
 
     private void UpdateFlyStressCamera(int frameIndex)
@@ -762,7 +948,7 @@ internal sealed class Game : GameEngine
                 Fail("Bistro did not publish every imported geometry after submission.");
                 return false;
             }
-            Log.Info($"Bistro ready: {importer.Summary}");
+            Log.Info($"Bistro ready: {importer.Summary}, fixture lights={_pointLights.Length}");
             importer.Dispose();
             _importer = null;
         }
@@ -786,14 +972,19 @@ internal sealed class Game : GameEngine
         return true;
     }
 
-    private bool TryRecordFrame(RenderGraphTarget output = default, RGUsage outputFinalUsage = RGUsage.None, float deltaTime = 1f / 60f)
+    private bool TryRecordFrame() => TryRecordFrame(default, RGUsage.None, 1f / 60f, out _);
+
+    private bool TryRecordFrame(RenderGraphTarget output, RGUsage outputFinalUsage, float deltaTime, out double recordMs)
     {
+        recordMs = 0.0;
         _context.BeginFrame();
+        long recordStart = Stopwatch.GetTimestamp();
         try
         {
             Extent2D viewport = output.IsValid ? output.Extent : _initialExtent;
             if (_scene.TryRecordFrame(_context, in _camera, viewport, out _, output, outputFinalUsage, renderWorld: true, deltaTime: deltaTime))
             {
+                recordMs = Stopwatch.GetElapsedTime(recordStart).TotalMilliseconds;
                 MainPresenter.EnqueueFrameContext(_context);
                 return true;
             }
@@ -805,6 +996,150 @@ internal sealed class Game : GameEngine
         }
         _context.DiscardFrame();
         return false;
+    }
+
+    private void LogComparisonSettings(LocalLightMode mode)
+    {
+        string modeName = mode switch
+        {
+            LocalLightMode.Direct => "direct",
+            LocalLightMode.DirectWithShadows => "direct+shadow",
+            _ => "off",
+        };
+        bool lit = mode != LocalLightMode.Off;
+        var localLights = _scene.LocalLights;
+        var pointShadows = _scene.PointShadows;
+        Log.Info(FormattableString.Invariant($"[LocalLights run] mode={modeName}, backend={GraphicsDevice.ActiveBackend}, resolution={_initialExtent.X}x{_initialExtent.Y}, frames={_options.Frames}, warmup={_options.WarmupFrames}, fly={_options.FlyStress}, gpuTimings={_options.ProfileGpu}"));
+        Log.Info(FormattableString.Invariant($"[LocalLights budgets] perSector={(lit ? _options.LightsPerSector : 0)}, offscreen={(lit ? _options.OffscreenLights : 0)}, view={localLights.MaxViewLights}, wide={localLights.MaxWideViewLights}, viewDepth={localLights.MaximumViewDepth}m, shadows={pointShadows.Enabled}, shadowFaces={pointShadows.MaxUpdatedFaces}, shadowTexels={pointShadows.MaxUpdatedTexels}, shadowCasters={pointShadows.MaxCasterCandidates}"));
+    }
+
+    private bool VerifyLightPopulation(LargeWorldStressScene city)
+    {
+        World3DLocalLightStats lights = _scene.LastRecordedLocalLights;
+        if (lights.ResidentLights != city.ExpectedResidentLights)
+        {
+            Fail($"Local light residence mismatch: expected {city.ExpectedResidentLights}, recorded {lights.ResidentLights}.");
+            return false;
+        }
+        if (_renderedFrames >= _options.WarmupFrames)
+            _peakLightPatches = Math.Max(_peakLightPatches, _scene.LastRecordedSync.LocalLightPatches);
+        if (_renderedFrames % 60 == 0 && _renderedFrames + 1 != _options.Frames)
+            LogLocalLightStats(_renderedFrames + 1);
+        return true;
+    }
+
+    private void LogLocalLightStats(int frame)
+    {
+        World3DLocalLightStats lights = _scene.LastRecordedLocalLights;
+        Log.Info($"[LocalLights frame={frame}] sectors={_largeWorld?.ActiveSectorCount}, instances={_scene.InstanceCount}, " +
+            $"resident={lights.ResidentLights}, queried={lights.QueriedLights}, visible={lights.VisibleLights}, " +
+            $"selected={lights.SelectedLights}, dropped={lights.DroppedLights}, wideDropped={lights.WideLightsDropped}, " +
+            $"patches={_scene.LastRecordedSync.LocalLightPatches}, peakPatches={_peakLightPatches}");
+        World3DPointShadowStats shadows = _scene.LastRecordedPointShadows;
+        Log.Info($"[PointShadows frame={frame}] cachedLights={shadows.CachedLights}, updatedFaces={shadows.UpdatedFaces}, " +
+            $"updatedTexels={shadows.UpdatedTexels}, deferredFaces={shadows.DeferredFaces}, casterCandidates={shadows.CasterCandidates}, " +
+            $"cacheHits={shadows.CacheHits}, cacheMisses={shadows.CacheMisses}, pageEvictions={shadows.PageEvictions}");
+    }
+
+    private void RecordTimingSample(double prepareMs, double recordMs)
+    {
+        if (!_collectTimings || _renderedFrames < _options.WarmupFrames)
+            return;
+        _recordCpuMs.Add(recordMs);
+        _prepareAndRecordCpuMs.Add(prepareMs + recordMs);
+        if (_scene.GpuProfilingEnabled)
+            _localLightCpuMs.Add(_scene.LastRecordedLocalLightCpuMilliseconds);
+        _lastMeasuredFrameId = _context.CurrentFrameId;
+        if (_firstMeasuredFrameId == 0)
+            _firstMeasuredFrameId = _lastMeasuredFrameId;
+        CollectCompletedTelemetry();
+    }
+
+    private void CollectCompletedTelemetry()
+    {
+        if (_firstMeasuredFrameId == 0 || GraphicsDevice.ActiveBackend == GraphicsBackend.NoGPU)
+            return;
+        World3DLocalLightClusterStats clusters = _scene.LastCompletedLocalLightClusters;
+        if (clusters.FrameId >= _firstMeasuredFrameId && clusters.FrameId <= _lastMeasuredFrameId &&
+            clusters.FrameId > _sampledClusterStats.FrameId)
+        {
+            _sampledClusterStats = clusters;
+            _peakCoarseDrops = Math.Max(_peakCoarseDrops, clusters.CoarseDroppedLights);
+            _peakFineDrops = Math.Max(_peakFineDrops, clusters.FineDroppedLights);
+            ++_clusterSampleCount;
+        }
+
+        ulong frame = _scene.GpuPassReportFrame;
+        if (frame < _firstMeasuredFrameId || frame > _lastMeasuredFrameId || frame <= _sampledGpuFrameId)
+            return;
+        _sampledGpuFrameId = frame;
+        ReadOnlySpan<RenderGraphPassReport> passes = _scene.GpuPassReports;
+        _minTimedPasses = Math.Min(_minTimedPasses, passes.Length);
+        _maxTimedPasses = Math.Max(_maxTimedPasses, passes.Length);
+        double totalMs = 0.0;
+        foreach (ref readonly RenderGraphPassReport pass in passes)
+        {
+            totalMs += pass.GpuMilliseconds;
+            if (!IsComparisonPass(pass.Name))
+                continue;
+            if (!_passGpuMs.TryGetValue(pass.Name, out List<double>? times))
+                _passGpuMs.Add(pass.Name, times = []);
+            times.Add(pass.GpuMilliseconds);
+        }
+        _graphGpuMs.Add(totalMs);
+    }
+
+    private static bool IsComparisonPass(string name) =>
+        name is "World3D.DeferredLighting" or "World3D.Forward.Draw" ||
+        name.StartsWith("World3D.SceneSync.", StringComparison.Ordinal) ||
+        name.StartsWith("World3D.LocalLights.", StringComparison.Ordinal) ||
+        name.StartsWith("World3D.LocalLightClusters.", StringComparison.Ordinal) ||
+        name.StartsWith("World3D.PointShadow.", StringComparison.Ordinal) ||
+        name.StartsWith("World3D.PointShadows.", StringComparison.Ordinal);
+
+    private void LogTimingSummary()
+    {
+        if (!_collectTimings)
+            return;
+        Log.Info($"[World3D timings] measured={_recordCpuMs.Count}/{_renderedFrames}, warmup={_options.WarmupFrames}, " +
+            $"viewport={_previousViewport.X}x{_previousViewport.Y}; CPU samples exclude the frame-slot wait and submission");
+        LogPercentiles("CPU record", _recordCpuMs);
+        LogPercentiles("CPU prepare+record", _prepareAndRecordCpuMs);
+        LogPercentiles("CPU local-light prepare", _localLightCpuMs);
+        if (_scene.GpuProfilingEnabled)
+        {
+            if (_graphGpuMs.Count == 0)
+                Log.Info("[GPU graph] timestamps unavailable on this run");
+            else
+            {
+                Log.Info($"[GPU graph] completedFrames={_graphGpuMs.Count}/{_recordCpuMs.Count}, timedPassesPerFrame={_minTimedPasses}..{_maxTimedPasses}");
+                LogPercentiles("GPU graph sum of timed passes", _graphGpuMs);
+                foreach ((string name, List<double> times) in _passGpuMs)
+                    LogPercentiles($"GPU {name}", times);
+            }
+        }
+        if (_options.LocalLightsMode.HasValue)
+        {
+            World3DLocalLightClusterStats clusters = _sampledClusterStats;
+            if (_clusterSampleCount == 0)
+                Log.Info("[LocalLightClusters] no completed overflow sample");
+            else
+                Log.Info($"[LocalLightClusters] sampleFrameId={clusters.FrameId}, completedSamples={_clusterSampleCount}, " +
+                    $"coarseOverflow={clusters.CoarseOverflowClusters}, coarseDropped={clusters.CoarseDroppedLights}, " +
+                    $"fineOverflow={clusters.FineOverflowClusters}, fineDropped={clusters.FineDroppedLights}, " +
+                    $"peakCoarseDropped={_peakCoarseDrops}, peakFineDropped={_peakFineDrops}");
+        }
+    }
+
+    private static void LogPercentiles(string label, List<double> samples)
+    {
+        if (samples.Count == 0)
+            return;
+        samples.Sort();
+        double mean = samples.Average();
+        double p95 = samples[(int)Math.Ceiling(samples.Count * 0.95) - 1];
+        double p99 = samples[(int)Math.Ceiling(samples.Count * 0.99) - 1];
+        Log.Info(FormattableString.Invariant($"[{label}] samples={samples.Count}, mean={mean:F3}ms, p95={p95:F3}ms, p99={p99:F3}ms, max={samples[^1]:F3}ms"));
     }
 
     private void CompleteVerification()
@@ -845,18 +1180,8 @@ internal sealed class Game : GameEngine
         {
             Log.Info($"World3D AutoExposure: enabled={_scene.LastRecordedAutoExposure.Enabled}");
         }
-        if (_options.FlyStress && _flyRecordMs.Count > 0)
-        {
-            _flyRecordMs.Sort();
-            double sum = 0;
-            foreach (double v in _flyRecordMs)
-                sum += v;
-            double mean = sum / _flyRecordMs.Count;
-            double p95 = _flyRecordMs[Math.Clamp((int)(_flyRecordMs.Count * 0.95), 0, _flyRecordMs.Count - 1)];
-            double p99 = _flyRecordMs[Math.Clamp((int)(_flyRecordMs.Count * 0.99), 0, _flyRecordMs.Count - 1)];
-            double max = _flyRecordMs[^1];
-            Log.Info($"World3D FlyStress timings (samples={_flyRecordMs.Count}): mean={mean:F3}ms, p95={p95:F3}ms, p99={p99:F3}ms, max={max:F3}ms");
-        }
+        if (_options.LocalLightsMode.HasValue)
+            LogLocalLightStats(_renderedFrames);
 
         if (_options.CapturePath is string path)
         {
@@ -867,15 +1192,20 @@ internal sealed class Game : GameEngine
             TextureUtility.EncodeTextureToPNG(RenderingSystem, _offscreen!, png);
             Log.Info($"Captured submitted World3D frame to '{fullPath}'.");
         }
-        if (_largeWorld != null && !_largeWorld.TeardownAndVerifyNoSceneLeaks(
-            _context,
-            (in World3DCamera cam) => SubmitEmptyRetirementFrame(in cam),
-            in _camera))
+        if (_largeWorld != null)
         {
-            _failed = true;
-            return;
+            if (!_largeWorld.TeardownAndVerifyNoSceneLeaks(SubmitEmptyRetirementFrame, in _camera))
+                _failed = true;
         }
-        _completed = true;
+        else if (_options.ProfileGpu && GraphicsDevice.ActiveBackend != GraphicsBackend.NoGPU)
+        {
+            // Resolve the two pending context slots without counting the drain frames.
+            for (int i = 0; i < 2; ++i)
+                if (!SubmitEmptyRetirementFrame(in _camera))
+                    break;
+        }
+        LogTimingSummary();
+        _completed = !_failed;
     }
 
     private bool SubmitEmptyRetirementFrame(in World3DCamera camera)
@@ -887,6 +1217,7 @@ internal sealed class Game : GameEngine
             RGUsage usage = _offscreen != null ? RGUsage.TransferRead : RGUsage.None;
             if (_scene.TryRecordFrame(_context, in camera, _initialExtent, out _, target, usage, renderWorld: false))
             {
+                CollectCompletedTelemetry();
                 _context.SubmitWithCompletion().Wait();
                 RenderingSystem.Tick();
                 return true;

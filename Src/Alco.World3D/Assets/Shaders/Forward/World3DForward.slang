@@ -7,6 +7,8 @@ import World3DSceneData;
 import World3DSurface;
 import World3DShadowSample;
 import World3DAtmosphere;
+import World3DLightClusterCommon;
+import World3DPointShadowSample;
 
 [GPURoot]
 public struct World3DForwardRoot
@@ -19,12 +21,12 @@ public struct World3DForwardRoot
     public GPUBufferView Views;
     public GPUBufferView DrawRefs;
     public GPUBufferView ShadowFrame;
-    public GPUBufferView PointLights;
+    public GPUBufferView LocalLighting;
     public GPUTextureId DepthTex;
     public GPUTextureId ColorSnapshotTex;
     public GPUTextureId GiDiffuseTex;
     public uint FirstDraw;
-    public uint PointLightCount;
+    public uint Reserved0;
     public uint Flags;                      // bit 0 = EnableRefraction, bit 1 = GiActive
 };
 
@@ -266,34 +268,44 @@ public float4 psMain<T : ISurface>(ForwardVaryings vertex, bool front : SV_IsFro
     float3 directDiffuse = kD * baseColor.rgb * (1.0 / WORLD3D_PI) * sunLight;
     float3 directSpec = specBrdf * sunLight;
 
-    for (uint li = 0u; li < root.PointLightCount; ++li)
+    if (root.LocalLighting.Index != 0u)
     {
-        World3DPointLightGpu light = gpu_load<World3DPointLightGpu>(root.PointLights, li);
-        float3 lightRelEye = float3(light.Cell.xyz - view.EyeCell.xyz) * WORLD3D_CELL_SIZE
-            + (light.LocalPositionAndRadius.xyz - view.EyeLocalNear.xyz);
-        float3 delta = lightRelEye - vertex.EyeRelativePosition;
-        float distSq = dot(delta, delta);
-        float radius = max(light.LocalPositionAndRadius.w, 0.01);
-        float radiusSq = radius * radius;
-        if (distSq >= radiusSq)
-            continue;
+        World3DLocalLightingFrameGpu localLighting = gpu_load<World3DLocalLightingFrameGpu>(root.LocalLighting);
+        // The transparent fragment may occupy a different depth slice than anything in the GBuffer.
+        float viewDepth = world3d_local_light_view_depth(view, vertex.EyeRelativePosition);
+        World3DLightClusterIterator iterator = world3d_begin_local_lights(localLighting.Clusters, uint2(vertex.Position.xy), viewDepth);
+        World3DClusterLightGpu light;
+        while (world3d_try_next_local_light(localLighting.Clusters, iterator, light))
+        {
+            float3 delta = light.EyeRelativePositionAndRadius.xyz - vertex.EyeRelativePosition;
+            float distSq = dot(delta, delta);
+            float radius = light.EyeRelativePositionAndRadius.w;
+            float radiusSq = radius * radius;
+            if (distSq >= radiusSq)
+                continue;
 
-        float win = saturate(1.0 - distSq / radiusSq);
-        win *= win;
-        float atten = win / (distSq + 0.25);
-        float3 lDir = delta * rsqrt(max(distSq, 1e-6));
-        float pNdotL = saturate(dot(n, lDir));
-        float3 pH = normalizeOr(lDir + v, n);
-        float pNdotH = saturate(dot(n, pH));
-        float pHdotV = saturate(dot(pH, v));
-        float3 pF = fresnelSchlick(pHdotV, f0);
-        float pD = distributionGgx(pNdotH, roughness);
-        float pG = geometrySmith(ndotV, pNdotL, roughness);
-        float3 pSpec = (pD * pG * pF) / max(4.0 * ndotV * pNdotL, 1e-4);
-        float3 pKd = (1.0 - pF) * (1.0 - metallic);
-        float3 pRadi = light.ColorAndIntensity.rgb * (light.ColorAndIntensity.w * atten * pNdotL);
-        directDiffuse += pKd * baseColor.rgb * (1.0 / WORLD3D_PI) * pRadi;
-        directSpec += pSpec * pRadi;
+            float3 lDir = delta * rsqrt(max(distSq, 1e-6));
+            float pNdotL = saturate(dot(n, lDir));
+            if (pNdotL <= 0.0)
+                continue;
+
+            float visibility = world3d_point_shadow_visibility(localLighting.PointShadows, light.ShadowIndexPlusOne, -delta,
+                input.NormalWS, light.SourceRadius);
+            float win = saturate(1.0 - distSq / radiusSq);
+            win *= win;
+            float atten = win / (distSq + 0.25);
+            float3 pH = normalizeOr(lDir + v, n);
+            float pNdotH = saturate(dot(n, pH));
+            float pHdotV = saturate(dot(pH, v));
+            float3 pF = fresnelSchlick(pHdotV, f0);
+            float pD = distributionGgx(pNdotH, roughness);
+            float pG = geometrySmith(ndotV, pNdotL, roughness);
+            float3 pSpec = (pD * pG * pF) / max(4.0 * ndotV * pNdotL, 1e-4);
+            float3 pKd = (1.0 - pF) * (1.0 - metallic);
+            float3 pRadi = light.ColorAndIntensity.rgb * (light.ColorAndIntensity.w * atten * pNdotL * visibility);
+            directDiffuse += pKd * baseColor.rgb * (1.0 / WORLD3D_PI) * pRadi;
+            directSpec += pSpec * pRadi;
+        }
     }
 
     float2 screenUv = vertex.Position.xy * view.ViewportSizeInvSize.zw;

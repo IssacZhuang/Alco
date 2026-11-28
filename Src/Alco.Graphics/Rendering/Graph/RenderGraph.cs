@@ -1,4 +1,4 @@
-﻿// Explicit-synchronization render graph with dead-pass culling, lifetime-aliased resource pooling, and barrier planning.
+// Explicit-synchronization render graph with dead-pass culling, lifetime-aliased resource pooling, and barrier planning.
 
 using System.Diagnostics;
 using System.Runtime.InteropServices;
@@ -92,6 +92,7 @@ public sealed unsafe class RenderGraph : IDisposable
         internal string[]? PassNames;
         internal RenderContext? Context;
         internal ulong ContextFrameId;
+        internal ulong GraphFrame;
         internal bool Pending;
     }
 
@@ -135,6 +136,9 @@ public sealed unsafe class RenderGraph : IDisposable
     private int _timestampNextSlot;
     private CachedPassTiming[] _cachedTimings = new CachedPassTiming[16];
     private int _cachedTimingCount;
+    private RenderGraphPassReport[] _completedGpuPasses = [];
+    private int _completedGpuPassCount;
+    private ulong _completedGpuGraphFrame;
 
     private Extent2D _viewport;
     private RenderGraphTarget _currentOutput;
@@ -206,6 +210,12 @@ public sealed unsafe class RenderGraph : IDisposable
 
     /// <summary>Per-pass compilation, barrier, and timing reports from the most recent frame.</summary>
     public ReadOnlySpan<RenderGraphPassReport> PassReports => _passReports.AsSpan(0, _passReportCount);
+
+    /// <summary>The render-context frame ID of the last resolved GPU timestamp set, or zero if none.</summary>
+    public ulong CompletedGpuFrameId { get; private set; }
+
+    /// <summary>The identities and durations of the timestamped passes in <see cref="CompletedGpuFrameId"/>.</summary>
+    public ReadOnlySpan<RenderGraphPassReport> CompletedGpuPasses => _completedGpuPasses.AsSpan(0, _completedGpuPassCount);
 
     /// <summary>The trailing barrier emitted at the end of the most recent frame for external handoff usages.</summary>
     public RGBarrier ExitBarrier => _exitBarrier;
@@ -1662,6 +1672,7 @@ public sealed unsafe class RenderGraph : IDisposable
                 slot.Pending = timedPassCount > 0;
                 slot.Context = timedPassCount > 0 ? context : null;
                 slot.ContextFrameId = timedPassCount > 0 ? context.CurrentFrameId : 0;
+                slot.GraphFrame = _frameNumber;
             }
         }
 
@@ -1740,12 +1751,29 @@ public sealed unsafe class RenderGraph : IDisposable
             bool hasResolved = slot.Count > 0 && (slot.Values[0] != 0 || slot.Values[1] != 0);
             if (hasResolved)
             {
+                bool publish = slot.GraphFrame > _completedGpuGraphFrame;
+                if (publish)
+                {
+                    _completedGpuGraphFrame = slot.GraphFrame;
+                    CompletedGpuFrameId = slot.ContextFrameId;
+                    _completedGpuPassCount = slot.Count;
+                    if (_completedGpuPasses.Length < slot.Count)
+                        Array.Resize(ref _completedGpuPasses, slot.Count);
+                }
                 for (int index = 0; index < slot.Count; ++index)
                 {
                     ulong begin = slot.Values[index * 2];
                     ulong end = slot.Values[index * 2 + 1];
                     double gpuMs = end >= begin ? (end - begin) * periodMs : 0.0;
-                    StoreCachedGpuMs(slot.NodeIndices![index], slot.PassIds![index], slot.PassNames![index], gpuMs);
+                    int node = slot.NodeIndices![index];
+                    int pass = slot.PassIds![index];
+                    string name = slot.PassNames![index];
+                    StoreCachedGpuMs(node, pass, name, gpuMs);
+                    if (publish)
+                        _completedGpuPasses[index] = new RenderGraphPassReport
+                        {
+                            Name = name, NodeIndex = node, PassId = pass, Alive = true, GpuMilliseconds = gpuMs,
+                        };
                 }
             }
             slot.Pending = false;

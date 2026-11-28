@@ -20,7 +20,13 @@ public readonly record struct WorldMaterialHandle(Guid SceneId, int Slot, uint G
 /// <param name="Generation">The slot generation; zero is invalid.</param>
 public readonly record struct WorldInstanceHandle(Guid SceneId, int Slot, uint Generation);
 
-/// <summary>Identifies a group of instances that can be unloaded together.</summary>
+/// <summary>Identifies a point light in its originating scene.</summary>
+/// <param name="SceneId">The owning scene.</param>
+/// <param name="Slot">The scene-local slot.</param>
+/// <param name="Generation">The slot generation; zero is invalid.</param>
+public readonly record struct WorldPointLightHandle(Guid SceneId, int Slot, uint Generation);
+
+/// <summary>Identifies instances and lights that can be unloaded together.</summary>
 /// <param name="SceneId">The owning scene.</param>
 /// <param name="Slot">The scene-local slot.</param>
 /// <param name="Generation">The slot generation; zero is invalid.</param>
@@ -104,7 +110,7 @@ public readonly record struct World3DMaterialDesc
 /// <param name="Material">The instance's material.</param>
 /// <param name="Transform">The authoritative double-position transform.</param>
 /// <param name="Fade">The authored opacity multiplier in [0, 1].</param>
-/// <param name="CastsShadow">Whether the instance renders into sun shadow maps and far-field capture.</param>
+/// <param name="CastsShadow">Whether the instance renders into sun and point shadow maps and far-field capture.</param>
 /// <param name="Dynamic">Whether the instance moves frequently and feeds dynamic GI clipmap levels instead of static bricks.</param>
 /// <param name="AffectsGlobalIllumination">Whether the instance contributes albedo, emissive, and opacity to VoxelGI.</param>
 public readonly record struct World3DInstanceDesc(WorldSectorHandle Sector, WorldGeometryHandle Geometry,
@@ -116,7 +122,43 @@ public readonly record struct World3DInstanceDesc(WorldSectorHandle Sector, Worl
 /// <param name="Color">The linear RGB tint.</param>
 /// <param name="Intensity">The luminous intensity multiplier.</param>
 /// <param name="Radius">The attenuation radius in meters.</param>
-public readonly record struct World3DPointLight(World3DPosition Position, Vector3 Color, float Intensity, float Radius);
+public readonly record struct World3DPointLight(World3DPosition Position, Vector3 Color, float Intensity, float Radius)
+{
+    /// <summary>The physical emitter radius in meters; zero selects the minimum shadow filter width.</summary>
+    public float SourceRadius { get; init; }
+    /// <summary>Whether this light can receive a budgeted local shadow map.</summary>
+    public bool CastsShadow { get; init; }
+    /// <summary>The nonnegative relative priority for shadow updates.</summary>
+    public float ShadowPriority { get; init; } = 1f;
+    /// <summary>Whether this light can feed the independent VoxelGI light list.</summary>
+    public bool AffectsGlobalIllumination { get; init; } = true;
+}
+
+/// <summary>Controls the camera's direct point-light selection independently of VoxelGI.</summary>
+public sealed class World3DLocalLightSettings
+{
+    /// <summary>The candidate budget per view, clamped to [0, 4096].</summary>
+    public int MaxViewLights { get; set; } = 4096;
+    /// <summary>The candidate budget within that limit for lights covering most of the view.</summary>
+    public int MaxWideViewLights { get; set; } = 8;
+    /// <summary>The camera-space depth, in meters, beyond which direct point lights are omitted.</summary>
+    public float MaximumViewDepth { get; set; } = 2048f;
+    /// <summary>Copies cluster overflow counters into a nonblocking diagnostic readback ring.</summary>
+    public bool EnableOverflowTelemetry { get; set; }
+}
+
+/// <summary>Counts resident, queried, visible, and retained direct point lights.</summary>
+/// <param name="ResidentLights">Live sector-owned and compatibility lights.</param>
+/// <param name="QueriedLights">Lights whose bounds overlap the finite view's broadphase.</param>
+/// <param name="VisibleLights">Active lights whose influence intersects the view frustum.</param>
+/// <param name="SelectedLights">Lights retained for GPU binning.</param>
+/// <param name="WideLightsDropped">Very wide lights excluded by their separate budget.</param>
+public readonly record struct World3DLocalLightStats(int ResidentLights, int QueriedLights, int VisibleLights,
+    int SelectedLights, int WideLightsDropped)
+{
+    /// <summary>Lights excluded by the view and wide-light budgets.</summary>
+    public int DroppedLights => VisibleLights - SelectedLights;
+}
 
 /// <summary>Counts persistent scene uploads recorded in a frame, excluding per-view data.</summary>
 /// <param name="GeometryBytes">Bytes of vertex and index payload copied.</param>
@@ -125,7 +167,11 @@ public readonly record struct World3DPointLight(World3DPosition Position, Vector
 /// <param name="InstancePatches">Dirty instance table entries.</param>
 /// <param name="InitializedTablePages">New GPU table pages initialized.</param>
 public readonly record struct World3DSceneSyncStats(ulong GeometryBytes, int GeometryPatches,
-    int MaterialPatches, int InstancePatches, int InitializedTablePages);
+    int MaterialPatches, int InstancePatches, int InitializedTablePages)
+{
+    /// <summary>Dirty direct point-light rows staged this frame.</summary>
+    public int LocalLightPatches { get; init; }
+}
 
 /// <summary>Counts GBuffer submissions before GPU culling determines which draws execute.</summary>
 /// <param name="MdiCalls">The number of indexed indirect API calls.</param>

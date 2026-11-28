@@ -37,6 +37,8 @@ public sealed partial class World3DScene : IDisposable
         ShaderCompiler compiler = system.Shaders.Compiler;
         compiler.RegisterVirtualModule("World3DOcclusionCommon", "World3DOcclusionCommon.slang", ReadWorldShader("World3DOcclusionCommon"));
         compiler.RegisterVirtualModule("World3DShadowSample", "World3DShadowSample.slang", ReadWorldShader("World3DShadowSample"));
+        compiler.RegisterVirtualModule("World3DLightClusterCommon", "World3DLightClusterCommon.slang", ReadWorldShader("World3DLightClusterCommon"));
+        compiler.RegisterVirtualModule("World3DPointShadowSample", "World3DPointShadowSample.slang", ReadWorldShader("World3DPointShadowSample"));
         _gbufferPrograms = new GBufferPrograms(system);
         _graph = new RenderGraph(system, new Extent2D(1, 1), "World3D")
             .Use(new SyncNode(_gpu))
@@ -44,6 +46,9 @@ public sealed partial class World3DScene : IDisposable
             .Use(new GeometryPasses(this))
             .Use(new ShadowPasses(this))
             .Use(new FarShadowPasses(this))
+            .Use(new PointShadowPasses(this))
+            .Use(new LocalLightClusterPasses(this))
+            .Use(new LocalLightTelemetryPass(this))
             .Use(new VolumetricCloudsPreNode(this))
             .Use(new VoxelGiPasses(this));
         AddLightingPipeline();
@@ -92,7 +97,7 @@ public sealed partial class World3DScene : IDisposable
         return true;
     }
 
-    /// <summary>Unloads this sector's instances without removing shared geometry or materials.</summary>
+    /// <summary>Unloads this sector's instances and lights without removing shared geometry or materials.</summary>
     /// <param name="handle">The sector to detach.</param>
     /// <returns>Whether the sector was live in this scene.</returns>
     public bool TryDetachSector(WorldSectorHandle handle)
@@ -100,13 +105,12 @@ public sealed partial class World3DScene : IDisposable
         BeginEdit();
         if (!TryGetSector(handle, out SectorEntry? sector))
             return false;
-        bool detachedAny = sector.Instances.Count != 0;
         foreach (int slot in sector.Instances)
             RemoveInstance(slot, _instances.GetLive(slot), unlinkSector: false);
+        foreach (int slot in sector.PointLights)
+            RemovePointLight(slot, _localLights.GetLive(slot), unlinkSector: false);
         _sectors.Remove(handle.Slot);
         _sectors.Reclaim(handle.Slot);
-        if (detachedAny)
-            MarkShadowSceneDirty();
         return true;
     }
 
@@ -149,7 +153,7 @@ public sealed partial class World3DScene : IDisposable
         BeginEdit();
         handle = default;
         if (!TryResolveMaterial(in description, out MaterialGpu gpu, out MaterialTextures bindings) ||
-            !_materials.TryAdd(new MaterialEntry(bindings, new MaterialRoute(in description)), out int slot, out uint generation))
+            !_materials.TryAdd(new MaterialEntry(bindings, new MaterialRoute(in description), gpu), out int slot, out uint generation))
             return false;
         bindings.Retain();
         _gpu.SetMaterial(slot, in gpu);
@@ -174,27 +178,41 @@ public sealed partial class World3DScene : IDisposable
             material.Textures = bindings;
         }
         MaterialRoute route = new(in description);
-        bool hadNonBlendGi = material.Route.AlphaMode != World3DAlphaMode.Blend;
-        if (material.Route != route)
+        MaterialRoute previousRoute = material.Route;
+        bool affectsVoxelGi = previousRoute.AlphaMode != World3DAlphaMode.Blend || route.AlphaMode != World3DAlphaMode.Blend;
+        bool changesPointDepth = affectsVoxelGi && ChangesPointShadowMaterial(previousRoute, route, material.Gpu, in gpu);
+        if (previousRoute != route)
         {
             material.Route = route;
             _dirtyDrawInstances.UnionWith(material.Instances);
         }
+        material.Gpu = gpu;
         _gpu.SetMaterial(handle.Slot, in gpu);
         if (material.Instances.Count != 0)
-        {
             MarkShadowSceneDirty();
-            if (hadNonBlendGi || route.AlphaMode != World3DAlphaMode.Blend)
+        if (affectsVoxelGi)
+        {
+            foreach (int slot in material.Instances)
             {
-                foreach (int slot in material.Instances)
-                {
-                    InstanceEntry inst = _instances.GetLive(slot);
-                    if (!inst.Description.Dynamic && inst.Description.AffectsGlobalIllumination)
-                        MarkVoxelGiSpatialDirty(inst.Spatial);
-                }
+                InstanceEntry inst = _instances.GetLive(slot);
+                if (changesPointDepth)
+                    RefreshPointShadowCaster(slot, inst);
+                if (affectsVoxelGi && !inst.Description.Dynamic && inst.Description.AffectsGlobalIllumination)
+                    MarkVoxelGiSpatialDirty(inst.Spatial);
             }
         }
         return true;
+    }
+
+    private static bool ChangesPointShadowMaterial(MaterialRoute previousRoute, MaterialRoute route, in MaterialGpu previous, in MaterialGpu gpu)
+    {
+        if (previousRoute != route)
+            return true;
+        if (route.SurfaceModule != null)
+            return previous != gpu;
+        return route.AlphaMode == World3DAlphaMode.Mask && (previous.BaseColor.W != gpu.BaseColor.W ||
+            previous.EmissiveAlphaCutoff.W != gpu.EmissiveAlphaCutoff.W || previous.Sampler != gpu.Sampler ||
+            previous.BaseColorTexture != gpu.BaseColorTexture);
     }
 
     /// <summary>Removes a material not referenced by any live instance.</summary>
@@ -370,6 +388,7 @@ public sealed partial class World3DScene : IDisposable
             !_instances.TryAdd(instance, out int slot, out uint generation))
             return false;
         LinkInstance(slot, instance);
+        AddPointShadowCaster(slot, instance);
         _dirtyDrawInstances.Add(slot);
         _gpu.SetInstance(slot, in gpu);
         MarkShadowSceneDirty();
@@ -398,6 +417,7 @@ public sealed partial class World3DScene : IDisposable
         UnlinkInstance(handle.Slot, previous, unlinkSector: true);
         _instances.SetLive(handle.Slot, instance);
         LinkInstance(handle.Slot, instance);
+        UpdatePointShadowCaster(handle.Slot, previous, instance);
         _gpu.SetInstance(handle.Slot, in gpu);
         MarkShadowSceneDirty();
         if (!description.Dynamic && description.AffectsGlobalIllumination
@@ -447,6 +467,9 @@ public sealed partial class World3DScene : IDisposable
         DisposeOcclusionResources();
         DisposeShadowResources();
         DisposeFarShadowResources();
+        DisposePointShadowResources();
+        DisposeLocalLightClusters();
+        DisposeLocalLightTelemetry();
         DisposeVolumetricClouds();
         DisposeVoxelGi();
         DisposeSsr();
@@ -470,6 +493,9 @@ public sealed partial class World3DScene : IDisposable
         _materials.Clear();
         _instances.Clear();
         _sectors.Clear();
+        _localLights.Clear();
+        _localLightIndex.Clear();
+        _legacyPointLights.Clear();
         _pendingLods.Clear();
         _recordedLods.Clear();
         _retireOnSubmit.Clear();
@@ -548,6 +574,7 @@ public sealed partial class World3DScene : IDisposable
         if (!instance.Description.Dynamic && instance.Description.AffectsGlobalIllumination
             && instance.Material.Route.AlphaMode != World3DAlphaMode.Blend)
             MarkVoxelGiSpatialDirty(instance.Spatial);
+        RemovePointShadowCaster(slot, instance);
         UnlinkInstance(slot, instance, unlinkSector);
         _instances.Remove(slot);
         _dirtyDrawInstances.Add(slot);
@@ -625,12 +652,14 @@ public sealed partial class World3DScene : IDisposable
     private sealed class SectorEntry
     {
         public readonly HashSet<int> Instances = [];
+        public readonly HashSet<int> PointLights = [];
     }
 
-    private sealed class MaterialEntry(MaterialTextures textures, MaterialRoute route)
+    private sealed class MaterialEntry(MaterialTextures textures, MaterialRoute route, MaterialGpu gpu)
     {
         public MaterialTextures Textures = textures;
         public MaterialRoute Route = route;
+        public MaterialGpu Gpu = gpu;
         public readonly HashSet<int> Instances = [];
     }
 

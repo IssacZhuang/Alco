@@ -7,7 +7,7 @@ using NUnit.Framework;
 
 namespace Alco.World3D.Test;
 
-/// <summary>Exercises the World3D Phase 1 graph and its indirect geometry path.</summary>
+/// <summary>Exercises the World3D Phase 1 graph, indirect geometry, and clustered direct lighting.</summary>
 [TestFixture]
 public sealed class TestWorld3DPhase1
 {
@@ -57,8 +57,8 @@ public sealed class TestWorld3DPhase1
 
         using ShaderCompiler compiler = new(target, new ShaderCompilerOptions { SearchPaths = [] });
         ReadOnlySpan<string> modules = ["World3DSceneData", "World3DOcclusionCommon", "World3DShadowSample",
-            "World3DCullSelect", "World3DBuildArgs", "World3DAtmosphere", "World3DDeferredLighting",
-            "World3DSurface", "World3DPbrStandard", "World3DGBuffer"];
+            "World3DLightClusterCommon", "World3DPointShadowSample", "World3DCullSelect", "World3DBuildArgs",
+            "World3DAtmosphere", "World3DDeferredLighting", "World3DSurface", "World3DPbrStandard", "World3DGBuffer"];
         foreach (string module in modules)
         {
             string file = module + ".slang";
@@ -280,6 +280,211 @@ public sealed class TestWorld3DPhase1
         AssertPrimary(PixelAt(pixels, 24, 24), 0, "The committed prefix preserves the nearby standard draw");
         Assert.That(PixelAt(pixels, 72, 24).ToArray(), Is.EqualTo(sky), "The mask rejects zero alpha.");
         Assert.That(PixelAt(pixels, 69, 75).ToArray(), Is.EqualTo(sky), "The distant LOD stays culled.");
+    }
+
+    /// <summary>Verifies that distant lights within one absolute float ULP do not enter the local view query.</summary>
+    [Test]
+    [Category("NoGPU")]
+    public void NoGpuPointLightQueryStaysLocalAtLargeWorldCoordinates()
+    {
+        using SceneHarness harness = new(GraphicsBackend.NoGPU);
+        using Texture output = harness.CreateOutput();
+        World3DScene scene = harness.Scene;
+        scene.LocalLights.MaximumViewDepth = 40f;
+        scene.LocalLights.MaxViewLights = 2;
+        scene.LocalLights.MaxWideViewLights = 1;
+        Assert.That(scene.TryAttachSector(out WorldSectorHandle sector), Is.True);
+
+        const double coordinate = 274_877_906_944.0;
+        World3DPosition eye = new(coordinate, -coordinate, coordinate);
+        World3DCamera camera = s_camera with { Eye = eye };
+        AddAt(4, 0, 0.5f);
+        AddAt(6, -1, 1f);
+        AddAt(0, 0, 2f);
+        AddAt(0.25, 0, 2f);
+        AddAt(4, 12, 1f); // Inside the broadphase AABB, but outside the view frustum.
+
+        const int distantLights = 48;
+        // These leaves share a region with visible lights and round to the eye's Y in absolute floats.
+        Assert.That((float)(eye.Y + 1000 + (distantLights - 1) * 100), Is.EqualTo((float)eye.Y));
+        for (int i = 0; i < distantLights; ++i)
+            AddAt(12, 1000 + i * 100, 1f);
+
+        harness.SubmitFrame(output, camera);
+        World3DLocalLightStats stats = scene.LastRecordedLocalLights;
+        Assert.That(stats.ResidentLights, Is.EqualTo(distantLights + 5));
+        Assert.That(stats.QueriedLights, Is.EqualTo(5), "Only regional leaf overlaps should reach the frustum test.");
+        Assert.That(stats.VisibleLights, Is.EqualTo(4));
+        Assert.That(stats.SelectedLights, Is.EqualTo(2));
+        Assert.That(stats.DroppedLights, Is.EqualTo(2));
+        Assert.That(stats.WideLightsDropped, Is.EqualTo(1));
+
+        void AddAt(double x, double y, float radius) =>
+            AddPointLight(scene, sector, new(new World3DPosition(eye.X + x, eye.Y + y, eye.Z), Vector3.One, 1f, radius));
+    }
+
+    /// <summary>Checks deferred direct lighting from a negative-depth center and from outside the side of the frustum.</summary>
+    [Test]
+    [NonParallelizable]
+    [Category("AlcoGpu")]
+    [Category("VulkanCompact")]
+    public void VulkanCompactClusteredPointLightsReachAcrossTheNearPlaneAndFrustumEdge()
+    {
+        using SceneHarness harness = new(GraphicsBackend.VulkanCompact);
+        using Texture output = harness.CreateOutput();
+        World3DScene scene = harness.Scene;
+        Assert.That(harness.System.ActiveBackend, Is.EqualTo(GraphicsBackend.VulkanCompact));
+        scene.Lighting = UnlitEnvironment();
+        World3DInstanceDesc receiver = CreatePanelDescription(scene, new World3DMaterialDesc { Roughness = 0.8f }) with
+        {
+            Transform = TransformAt(2, 0, 0, scale: 3),
+            CastsShadow = false,
+        };
+        AddInstance(scene, receiver);
+        byte[] unlit = CaptureFrame(harness, output);
+
+        // The red center is behind the eye and in an adjacent world cell. The blue center is beyond the
+        // right frustum plane; nevertheless both influence spheres reach visible fragments in different clusters.
+        AddPointLight(scene, receiver.Sector, new(new World3DPosition(-0.25, -1.4, 0), Vector3.UnitX, 65f, 3.2f)
+        {
+            AffectsGlobalIllumination = false,
+        });
+        AddPointLight(scene, receiver.Sector, new(new World3DPosition(1.1, 2, 0), Vector3.UnitZ, 10f, 1.5f)
+        {
+            AffectsGlobalIllumination = false,
+        });
+        byte[] lit = CaptureFrame(harness, output);
+        Assert.That(scene.LastRecordedLocalLights.SelectedLights, Is.EqualTo(2));
+
+        const int row = FrameSize / 2;
+        const int left = 14;
+        const int right = FrameSize - 4;
+        Vector3 nearPlane = AveragePatchRgb(lit, left, row);
+        Vector3 frustumEdge = AveragePatchRgb(lit, right, row);
+        Assert.That(nearPlane.X, Is.GreaterThan(AveragePatchRgb(unlit, left, row).X + 50f), "The behind-eye center must still illuminate the receiver.");
+        Assert.That(nearPlane.X, Is.GreaterThan(nearPlane.Z + 50f));
+        Assert.That(frustumEdge.Z, Is.GreaterThan(AveragePatchRgb(unlit, right, row).Z + 50f), "The edge tile must retain lights with offscreen centers.");
+        Assert.That(frustumEdge.Z, Is.GreaterThan(frustumEdge.X + 50f));
+    }
+
+    /// <summary>Checks that the forward pass chooses a cluster using the transparent fragment's depth, even over sky.</summary>
+    [Test]
+    [NonParallelizable]
+    [Category("AlcoGpu")]
+    [Category("VulkanCompact")]
+    public void VulkanCompactClusteredPointLightsShadeBlendWithoutOpaqueDepth()
+    {
+        using SceneHarness harness = new(GraphicsBackend.VulkanCompact);
+        using Texture output = harness.CreateOutput();
+        World3DScene scene = harness.Scene;
+        Assert.That(harness.System.ActiveBackend, Is.EqualTo(GraphicsBackend.VulkanCompact));
+        scene.Lighting = UnlitEnvironment();
+        scene.Forward.Enabled = true;
+        World3DInstanceDesc pane = CreatePanelDescription(scene, new World3DMaterialDesc
+        {
+            AlphaMode = World3DAlphaMode.Blend,
+            BaseColor = new Vector4(1f, 1f, 1f, 0.6f),
+            Roughness = 0.8f,
+        }) with { CastsShadow = false };
+        AddInstance(scene, pane);
+        const int center = FrameSize / 2;
+        Vector3 unlit = AveragePatchRgb(CaptureFrame(harness, output), center, center);
+
+        AddPointLight(scene, pane.Sector, new(new World3DPosition(2, 0, 0), Vector3.UnitY, 20f, 3.75f)
+        {
+            AffectsGlobalIllumination = false,
+        });
+        Vector3 lit = AveragePatchRgb(CaptureFrame(harness, output), center, center);
+        Assert.That(scene.LastRecordedDraws.IndirectSlots, Is.Zero, "This frame has no opaque depth producers.");
+        Assert.That(scene.LastRecordedForward.CandidateCount, Is.EqualTo(1u));
+        Assert.That(lit.Y, Is.GreaterThan(unlit.Y + 50f));
+        Assert.That(lit.Y, Is.GreaterThan(MathF.Max(lit.X, lit.Z) + 50f));
+    }
+
+    /// <summary>Verifies that view and cluster caps retain higher-scoring lights with stable ordering across redraws.</summary>
+    [Test]
+    [NonParallelizable]
+    [Category("AlcoGpu")]
+    [Category("VulkanCompact")]
+    public void VulkanCompactClusteredPointLightOverflowRetainsRankedLights()
+    {
+        using SceneHarness harness = new(GraphicsBackend.VulkanCompact);
+        using Texture output = harness.CreateOutput();
+        World3DScene scene = harness.Scene;
+        Assert.That(harness.System.ActiveBackend, Is.EqualTo(GraphicsBackend.VulkanCompact));
+        scene.Lighting = UnlitEnvironment();
+        scene.LocalLights.EnableOverflowTelemetry = true;
+        const int weakLights = 140;
+        const int maxSelected = 136; // Still enough to overflow coarse (128) and fine (32) bins after view selection.
+        scene.LocalLights.MaxViewLights = maxSelected;
+        World3DInstanceDesc receiver = CreatePanelDescription(scene, new World3DMaterialDesc { Roughness = 0.8f }) with
+        {
+            Transform = TransformAt(5, 0, 0, scale: 2),
+            CastsShadow = false,
+        };
+        AddInstance(scene, receiver);
+
+        World3DPointLight weak = new(new World3DPosition(4, 0, 0), Vector3.UnitX, 0.01f, 1.5f)
+        {
+            AffectsGlobalIllumination = false,
+        };
+        for (int i = 0; i < weakLights; ++i)
+            AddPointLight(scene, receiver.Sector, weak);
+        // Equal high scores, but both lights were added after enough weak ones to fill the bins.
+        AddPointLight(scene, receiver.Sector, weak with { Color = Vector3.UnitY, Intensity = 5f });
+        AddPointLight(scene, receiver.Sector, weak with { Color = Vector3.UnitZ, Intensity = 5f });
+
+        const int center = FrameSize / 2;
+        Vector3 first = AveragePatchRgb(CaptureFrame(harness, output), center, center);
+        Assert.That(scene.LastRecordedLocalLights.SelectedLights, Is.EqualTo(maxSelected));
+        Assert.That(scene.LastRecordedLocalLights.DroppedLights, Is.EqualTo(weakLights + 2 - maxSelected));
+        Assert.That(first.Y, Is.GreaterThan(first.X + 50f), "The late green light must beat the weak red lights.");
+        Assert.That(first.Z, Is.GreaterThan(first.X + 50f), "The late blue light must also survive the cluster caps.");
+
+        // The next recording consumes the asynchronous readback from the already-completed frame.
+        Vector3 repeat = AveragePatchRgb(CaptureFrame(harness, output), center, center);
+        Assert.That(Vector3.Distance(repeat, first), Is.LessThanOrEqualTo(2f));
+        World3DLocalLightClusterStats overflow = scene.LastCompletedLocalLightClusters;
+        Assert.That(overflow.FrameId, Is.Positive);
+        Assert.That(overflow.CoarseOverflowClusters, Is.Positive);
+        Assert.That(overflow.CoarseDroppedLights, Is.Positive);
+        Assert.That(overflow.FineOverflowClusters, Is.Positive);
+        Assert.That(overflow.FineDroppedLights, Is.Positive);
+
+        scene.LocalLights.MaxViewLights = 1;
+        Vector3 tie = AveragePatchRgb(CaptureFrame(harness, output), center, center);
+        Assert.That(scene.LastRecordedLocalLights.SelectedLights, Is.EqualTo(1));
+        Assert.That(tie.Y, Is.GreaterThan(MathF.Max(tie.X, tie.Z) + 50f), "Equal scores favor the earlier (lower-slot) green light.");
+    }
+
+    private static World3DLighting UnlitEnvironment() => new()
+    {
+        SunIntensity = 0f, SkyExposure = 0f, StarIntensity = 0f, SunDiscBrightness = 0f, AmbientFloor = 0f,
+    };
+
+    private static void AddPointLight(World3DScene scene, WorldSectorHandle sector, in World3DPointLight light) =>
+        Assert.That(scene.TryAddPointLight(sector, in light, out _), Is.True);
+
+    private static byte[] CaptureFrame(SceneHarness harness, Texture output)
+    {
+        harness.SubmitFrame(output);
+        byte[] pixels = new byte[FrameSize * FrameSize * 4];
+        harness.System.ReadTexture(output, pixels);
+        return pixels;
+    }
+
+    private static Vector3 AveragePatchRgb(byte[] pixels, int x, int y)
+    {
+        Vector3 sum = Vector3.Zero;
+        for (int dy = -1; dy <= 1; ++dy)
+        {
+            for (int dx = -1; dx <= 1; ++dx)
+            {
+                ReadOnlySpan<byte> pixel = PixelAt(pixels, x + dx, y + dy);
+                sum += new Vector3(pixel[0], pixel[1], pixel[2]);
+            }
+        }
+        return sum / 9f;
     }
 
     private static World3DInstanceDesc CreatePanelDescription(World3DScene scene, World3DMaterialDesc? material = null)

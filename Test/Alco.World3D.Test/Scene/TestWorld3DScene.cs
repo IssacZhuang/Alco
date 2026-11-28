@@ -76,6 +76,115 @@ public sealed class TestWorld3DScene
         Assert.That(scene.InstanceCount, Is.Zero);
     }
 
+    /// <summary>Verifies point-light handle and description validation, sector ownership, and compatibility-list replacement.</summary>
+    [Test]
+    [Category("NoGPU")]
+    public void NoGpuPointLightsValidateHandlesAndDetachOnlyTheirSector()
+    {
+        using SceneHarness harness = CreateNoGpuScene();
+        World3DScene scene = harness.Scene;
+        using World3DScene foreignScene = new(harness.System);
+        WorldSectorHandle firstSector = AttachSector(scene);
+        WorldSectorHandle secondSector = AttachSector(scene);
+        WorldSectorHandle foreignSector = AttachSector(foreignScene);
+        World3DPointLight original = new(new World3DPosition(4, 0, 0), Vector3.One, 2f, 5f)
+        {
+            SourceRadius = 0.25f,
+            CastsShadow = true,
+        };
+        World3DPointLight survivor = original with { Intensity = 3f, ShadowPriority = 2f, AffectsGlobalIllumination = false };
+        Assert.That(original.ShadowPriority, Is.EqualTo(1f));
+        Assert.That(original.AffectsGlobalIllumination, Is.True);
+        WorldPointLightHandle first = AddPointLight(scene, firstSector, original);
+        WorldPointLightHandle second = AddPointLight(scene, secondSector, survivor);
+        WorldPointLightHandle foreign = AddPointLight(foreignScene, foreignSector, original);
+        Assert.That(foreign.Slot, Is.EqualTo(first.Slot));
+        Assert.That(foreign.Generation, Is.EqualTo(first.Generation));
+
+        Assert.That(scene.TryAddPointLight(foreignSector, original, out _), Is.False);
+        Assert.That(scene.TryAddPointLight(firstSector with { Generation = firstSector.Generation + 1 }, original, out _), Is.False);
+        foreach (WorldPointLightHandle invalid in new[] { foreign, first with { Generation = first.Generation + 1 } })
+        {
+            Assert.That(scene.TryGetPointLight(invalid, out _), Is.False);
+            Assert.That(scene.TryUpdatePointLight(invalid, survivor), Is.False);
+            Assert.That(scene.TryRemovePointLight(invalid), Is.False);
+        }
+        Assert.That(scene.TryAddPointLight(firstSector, original with { SourceRadius = original.Radius + 1f }, out _), Is.False);
+        Assert.That(scene.TryUpdatePointLight(first, original with { ShadowPriority = float.NaN }), Is.False);
+        Assert.That(scene.TryGetPointLight(first, out World3DPointLight unchanged), Is.True);
+        Assert.That(unchanged, Is.EqualTo(original));
+
+        scene.SetPointLights([original]);
+        harness.SubmitFrame();
+        Assert.That(scene.LastRecordedSync.LocalLightPatches, Is.EqualTo(3));
+        Assert.That(scene.LastRecordedLocalLights.ResidentLights, Is.EqualTo(3));
+
+        scene.SetPointLights([original with { Color = Vector3.UnitY }]);
+        harness.SubmitFrame();
+        Assert.That(scene.LastRecordedSync.LocalLightPatches, Is.EqualTo(1), "Replacing one compatibility light patches only its row.");
+        Assert.That(scene.LastRecordedLocalLights.ResidentLights, Is.EqualTo(3));
+
+        Assert.That(scene.TryDetachSector(firstSector), Is.True);
+        Assert.That(scene.TryGetPointLight(first, out _), Is.False);
+        Assert.That(scene.TryAddPointLight(firstSector, original, out _), Is.False);
+        harness.SubmitFrame();
+        Assert.That(scene.LastRecordedSync.LocalLightPatches, Is.EqualTo(1));
+        Assert.That(scene.LastRecordedLocalLights.ResidentLights, Is.EqualTo(2), "The other sector and compatibility light both survive.");
+
+        scene.SetPointLights([]);
+        harness.SubmitFrame();
+        Assert.That(scene.LastRecordedSync.LocalLightPatches, Is.EqualTo(1));
+        Assert.That(scene.LastRecordedLocalLights.ResidentLights, Is.EqualTo(1));
+        Assert.That(scene.TryGetPointLight(second, out World3DPointLight current), Is.True);
+        Assert.That(current, Is.EqualTo(survivor));
+    }
+
+    /// <summary>Verifies dirty light-row deduplication, discard retries, and generation-safe slot reclamation.</summary>
+    [Test]
+    [Category("NoGPU")]
+    public void NoGpuPointLightRowsRetryDiscardAndReuseOnlyAfterTombstoneSubmission()
+    {
+        using SceneHarness harness = CreateNoGpuScene();
+        World3DScene scene = harness.Scene;
+        WorldSectorHandle sector = AttachSector(scene);
+        World3DPointLight original = new(new World3DPosition(3, 0, 0), Vector3.One, 2f, 5f);
+        WorldPointLightHandle edited = AddPointLight(scene, sector, original);
+        WorldPointLightHandle untouched = AddPointLight(scene, sector, original);
+        harness.SubmitFrame();
+        Assert.That(scene.LastRecordedSync.LocalLightPatches, Is.EqualTo(2));
+
+        World3DPointLight updated = original with { Position = new World3DPosition(6, -2, 1), Intensity = 4f };
+        Assert.That(scene.TryUpdatePointLight(edited, original with { SourceRadius = 1f }), Is.True);
+        Assert.That(scene.TryUpdatePointLight(edited, updated), Is.True);
+        Assert.That(scene.TryUpdatePointLight(untouched, original), Is.True);
+        harness.RecordFrame();
+        Assert.That(scene.LastRecordedSync.LocalLightPatches, Is.EqualTo(1));
+        harness.Context.DiscardFrame();
+
+        harness.SubmitFrame();
+        Assert.That(scene.LastRecordedSync.LocalLightPatches, Is.EqualTo(1), "Discarding the scatter does not commit the pending patch.");
+        Assert.That(scene.TryGetPointLight(edited, out World3DPointLight current), Is.True);
+        Assert.That(current, Is.EqualTo(updated));
+        harness.SubmitFrame();
+        Assert.That(scene.LastRecordedSync.LocalLightPatches, Is.Zero);
+
+        Assert.That(scene.TryRemovePointLight(edited), Is.True);
+        Assert.That(scene.TryGetPointLight(edited, out _), Is.False);
+        Assert.That(AddPointLight(scene, sector, original).Slot, Is.Not.EqualTo(edited.Slot));
+        harness.RecordFrame();
+        Assert.That(scene.LastRecordedSync.LocalLightPatches, Is.EqualTo(2), "The tombstone and newly added row are both dirty.");
+        harness.Context.DiscardFrame();
+        Assert.That(AddPointLight(scene, sector, original).Slot, Is.Not.EqualTo(edited.Slot));
+
+        harness.SubmitFrame();
+        Assert.That(scene.LastRecordedSync.LocalLightPatches, Is.EqualTo(3));
+        WorldPointLightHandle reused = AddPointLight(scene, sector, updated);
+        Assert.That(reused, Is.EqualTo(edited with { Generation = edited.Generation + 1 }));
+        Assert.That(scene.TryRemovePointLight(edited), Is.False);
+        Assert.That(scene.TryGetPointLight(reused, out current), Is.True);
+        Assert.That(current, Is.EqualTo(updated));
+    }
+
     /// <summary>Checks that detaching a sector only removes its own instances, not shared resources.</summary>
     [Test]
     public void SectorDetachPreservesSharedResourcesInTheOtherSector()
@@ -465,6 +574,12 @@ public sealed class TestWorld3DScene
     {
         Assert.That(scene.TryAttachSector(out var sector), Is.True);
         return sector;
+    }
+
+    private static WorldPointLightHandle AddPointLight(World3DScene scene, WorldSectorHandle sector, in World3DPointLight light)
+    {
+        Assert.That(scene.TryAddPointLight(sector, in light, out var handle), Is.True);
+        return handle;
     }
 
     private static WorldGeometryHandle RegisterGeometry(World3DScene scene)

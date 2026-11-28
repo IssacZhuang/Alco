@@ -21,7 +21,8 @@ public sealed partial class World3DScene
     private const int MaterialWindow = TablePageCount;
     private const int GeometryWindow = 2 * TablePageCount;
     private const int GeometryPayloadWindow = 3 * TablePageCount;
-    private const int DirectoryEntryCount = 4 * TablePageCount;
+    private const int LocalLightWindow = 4 * TablePageCount;
+    private const int DirectoryEntryCount = 5 * TablePageCount;
 
     [StructLayout(LayoutKind.Explicit, Size = 128)]
     private readonly record struct InstanceGpu(
@@ -81,6 +82,13 @@ public sealed partial class World3DScene
         [field: FieldOffset(16)] Vector4 LocalPositionAndRadius,
         [field: FieldOffset(32)] Vector4 ColorAndIntensity);
 
+    [StructLayout(LayoutKind.Explicit, Size = 64)]
+    private readonly record struct World3DLocalLightGpu(
+        [field: FieldOffset(0)] World3DCell Cell,
+        [field: FieldOffset(16)] Vector4 LocalPositionAndRadius,
+        [field: FieldOffset(32)] Vector4 ColorAndIntensity,
+        [field: FieldOffset(48)] Vector4 Shape);
+
     [StructLayout(LayoutKind.Explicit, Size = 32)]
     private readonly record struct ScatterRoot(
         [field: FieldOffset(0)] GPUBufferView Patches,
@@ -129,6 +137,8 @@ public sealed partial class World3DScene
         private readonly Table<InstanceGpu> _instances = new(InstanceWindow);
         private readonly Table<MaterialGpu> _materials = new(MaterialWindow);
         private readonly Table<GeometryLodGpu> _geometry = new(GeometryWindow, MaxGeometryLods);
+        private readonly Table<World3DLocalLightGpu> _localLights = new(LocalLightWindow);
+        private readonly HashSet<int> _localLightReadPages = [];
         private readonly Dictionary<int, GPUBufferView> _directoryPatches = [];
         private readonly List<int> _directoryOrder = [];
         private readonly GeometryPage?[] _geometryPages = new GeometryPage?[TablePageCount];
@@ -162,6 +172,8 @@ public sealed partial class World3DScene
         public int MaterialPatches { get; private set; }
         /// <summary>The number of distinct dirty geometry LOD entries staged this frame.</summary>
         public int GeometryPatches { get; private set; }
+        /// <summary>The number of dirty direct point-light rows staged this frame.</summary>
+        public int LocalLightPatches { get; private set; }
         /// <summary>The number of table pages requiring a full initial copy this frame.</summary>
         public int InitializedTablePages { get; private set; }
 
@@ -174,6 +186,42 @@ public sealed partial class World3DScene
             if (materials)
                 _materials.ReadPages(builder, pass, usage, "World3D.Materials");
         }
+
+        /// <summary>Declares only the instance, geometry, and optional material pages referenced by local casters.</summary>
+        public void ReadPointCasterTables(RenderGraphBuilder builder, RenderGraphPassBuilder pass, RGUsage usage,
+            HashSet<int> instancePages, HashSet<int> geometryPages, HashSet<int>? materialPages = null)
+        {
+            pass.Read(builder.ImportBuffer(Directory!, "World3D.Directory"), usage);
+            foreach (int page in instancePages)
+                _instances.ReadPage(builder, pass, usage, "World3D.Instances", page);
+            foreach (int page in geometryPages)
+                _geometry.ReadPage(builder, pass, usage, "World3D.GeometryLods", page);
+            if (materialPages != null)
+            {
+                foreach (int page in materialPages)
+                    _materials.ReadPage(builder, pass, usage, "World3D.Materials", page);
+            }
+        }
+
+        /// <summary>Tracks only the light pages referenced by this frame's candidates.</summary>
+        public void SetLocalLightReadPages(ReadOnlySpan<SelectedPointLight> candidates)
+        {
+            foreach (ref readonly SelectedPointLight candidate in candidates)
+                _localLightReadPages.Add(candidate.Slot / TablePageSize);
+        }
+
+        /// <summary>Declares reads of the current view's paged point-light records.</summary>
+        public void ReadLocalLights(RenderGraphBuilder builder, RenderGraphPassBuilder pass, RGUsage usage)
+        {
+            if (_localLightReadPages.Count == 0)
+                return;
+            pass.Read(builder.ImportBuffer(Directory!, "World3D.Directory"), usage);
+            foreach (int page in _localLightReadPages)
+                _localLights.ReadPage(builder, pass, usage, "World3D.LocalLights", page);
+        }
+
+        /// <summary>Queues a point-light table write.</summary>
+        public void SetLocalLight(int slot, in World3DLocalLightGpu data) => _localLights.Set(slot, 0, in data);
 
         /// <summary>Queues an instance table write.</summary>
         public void SetInstance(int slot, in InstanceGpu data) => _instances.Set(slot, 0, in data);
@@ -284,6 +332,7 @@ public sealed partial class World3DScene
             InstancePatches = _instances.Prepare(this, context);
             MaterialPatches = _materials.Prepare(this, context);
             GeometryPatches = _geometry.Prepare(this, context);
+            LocalLightPatches = _localLights.Prepare(this, context);
             PrepareDirectory(context);
         }
 
@@ -293,6 +342,7 @@ public sealed partial class World3DScene
             _instances.Commit();
             _materials.Commit();
             _geometry.Commit();
+            _localLights.Commit();
             _directoryInitialized |= Directory != null;
             _directoryPatches.Clear();
         }
@@ -302,7 +352,8 @@ public sealed partial class World3DScene
         {
             Copies.Clear();
             Scatters.Clear();
-            InstancePatches = MaterialPatches = GeometryPatches = InitializedTablePages = 0;
+            _localLightReadPages.Clear();
+            InstancePatches = MaterialPatches = GeometryPatches = LocalLightPatches = InitializedTablePages = 0;
         }
 
         /// <summary>Summarizes live geometry payload pages and descriptor table pages.</summary>
@@ -317,7 +368,7 @@ public sealed partial class World3DScene
                 ++liveGeometryPages;
                 liveGeometryPageBytes += page.Buffer.SizeBytes;
             }
-            liveTablePages = _instances.LivePageCount + _materials.LivePageCount + _geometry.LivePageCount;
+            liveTablePages = _instances.LivePageCount + _materials.LivePageCount + _geometry.LivePageCount + _localLights.LivePageCount;
         }
 
         /// <summary>Appends a transfer between two existing buffer slices.</summary>
@@ -330,6 +381,7 @@ public sealed partial class World3DScene
             _instances.Dispose();
             _materials.Dispose();
             _geometry.Dispose();
+            _localLights.Dispose();
             for (int i = 0; i < _nextGeometryPage; ++i)
             {
                 _geometryPages[i]?.Buffer.Dispose();
@@ -425,6 +477,10 @@ public sealed partial class World3DScene
                 foreach (GpuBuffer buffer in _buffers)
                     pass.Read(builder.ImportBuffer(buffer, name), usage);
             }
+
+            /// <summary>Declares a read of an allocated page.</summary>
+            public void ReadPage(RenderGraphBuilder builder, RenderGraphPassBuilder pass, RGUsage usage, string name, int pageId) =>
+                pass.Read(builder.ImportBuffer(_pages[pageId]!.Buffer!, name), usage);
 
             /// <summary>Coalesces writes to the same page-local entry until submission.</summary>
             public void Set(int slot, int entry, in T data)
@@ -556,6 +612,7 @@ public sealed partial class World3DScene
             ValidateLayout<World3DCullViewGpu>(Find(nameof(World3DCullViewGpu)));
             ValidateLayout<World3DOccludedCandidate>(Find(nameof(World3DOccludedCandidate)));
             ValidateLayout<PointLightGpu>(Find("World3DPointLightGpu"));
+            ValidateLayout<World3DLocalLightGpu>(Find(nameof(World3DLocalLightGpu)));
             ValidateLayout<InstanceGpu>(Find("World3DInstanceGpu"));
             ValidateLayout<MaterialGpu>(Find("World3DMaterialGpu"));
             ValidateLayout<GeometryLodGpu>(Find("World3DGeometryLodGpu"));
@@ -570,6 +627,9 @@ public sealed partial class World3DScene
             ValidateArray(directory, "Materials", MaterialWindow * viewBytes, TablePageCount, viewBytes);
             ValidateArray(directory, "Geometry", GeometryWindow * viewBytes, TablePageCount, viewBytes);
             ValidateArray(directory, "GeometryPayload", GeometryPayloadWindow * viewBytes, TablePageCount, viewBytes);
+
+            ValidateArray(directory, "LocalLights", LocalLightWindow * viewBytes, TablePageCount, viewBytes);
+            ValidateArray(Find("World3DLocalLightPage"), "Rows", 0, TablePageSize, (uint)Unsafe.SizeOf<World3DLocalLightGpu>());
 
             ValidateArray(Find("World3DInstancePage"), "Rows", 0, TablePageSize, (uint)Unsafe.SizeOf<InstanceGpu>());
             ValidateArray(Find("World3DMaterialPage"), "Rows", 0, TablePageSize, (uint)Unsafe.SizeOf<MaterialGpu>());

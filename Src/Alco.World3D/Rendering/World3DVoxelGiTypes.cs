@@ -47,7 +47,7 @@ public sealed class World3DVoxelGiSettings
     /// <summary>Gets or sets whether GI cone tracing runs at checkerboard half resolution instead of full resolution.</summary>
     public bool HalfResolutionTrace { get; set; }
 
-    /// <summary>Gets or sets the maximum number of dynamic point lights uploaded to VoxelGI and deferred lighting.</summary>
+    /// <summary>Gets or sets the maximum number of point lights injected into VoxelGI, clamped to [0, 256].</summary>
     public int MaxPointLights { get; set; } = 64;
 }
 

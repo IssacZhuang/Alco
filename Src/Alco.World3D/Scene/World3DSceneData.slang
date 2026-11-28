@@ -12,6 +12,7 @@ public static const uint WORLD3D_INSTANCE_WINDOW = 0u;
 public static const uint WORLD3D_MATERIAL_WINDOW = WORLD3D_DIRECTORY_PAGE_COUNT;
 public static const uint WORLD3D_GEOMETRY_WINDOW = 2u * WORLD3D_DIRECTORY_PAGE_COUNT;
 public static const uint WORLD3D_GEOMETRY_PAYLOAD_WINDOW = 3u * WORLD3D_DIRECTORY_PAGE_COUNT;
+public static const uint WORLD3D_LOCAL_LIGHT_WINDOW = 4u * WORLD3D_DIRECTORY_PAGE_COUNT;
 public static const float WORLD3D_CELL_SIZE = 512.0;
 
 public static const uint WORLD3D_INSTANCE_LIVE = 1u;
@@ -80,6 +81,14 @@ public struct World3DPointLightGpu
     public float4 ColorAndIntensity;
 };
 
+public struct World3DLocalLightGpu
+{
+    public int4 Cell;
+    public float4 LocalPositionAndRadius;
+    public float4 ColorAndIntensity;
+    public float4 Shape;
+};
+
 public struct World3DInstanceGpu
 {
     public World3DInstanceSpatialGpu Spatial;
@@ -133,6 +142,12 @@ public struct World3DPageDirectory
     public GPUBufferView Materials[WORLD3D_DIRECTORY_PAGE_COUNT];
     public GPUBufferView Geometry[WORLD3D_DIRECTORY_PAGE_COUNT];
     public GPUBufferView GeometryPayload[WORLD3D_DIRECTORY_PAGE_COUNT];
+    public GPUBufferView LocalLights[WORLD3D_DIRECTORY_PAGE_COUNT];
+};
+
+public struct World3DLocalLightPage
+{
+    public World3DLocalLightGpu Rows[WORLD3D_TABLE_PAGE_SIZE];
 };
 
 public struct World3DInstancePage
@@ -170,6 +185,15 @@ public World3DInstanceGpu world3d_load_instance(GPUBufferView directory, uint sl
     if (page.Index == 0u)
         return (World3DInstanceGpu)0;
     return gpu_load<World3DInstanceGpu>(page, slot % WORLD3D_TABLE_PAGE_SIZE);
+}
+
+[ForceInline]
+public World3DLocalLightGpu world3d_load_local_light(GPUBufferView directory, uint slot)
+{
+    GPUBufferView page = world3d_lookup_page(directory, WORLD3D_LOCAL_LIGHT_WINDOW, slot / WORLD3D_TABLE_PAGE_SIZE);
+    if (page.Index == 0u)
+        return (World3DLocalLightGpu)0;
+    return gpu_load<World3DLocalLightGpu>(page, slot % WORLD3D_TABLE_PAGE_SIZE);
 }
 
 // Only read material slots referenced by live instances; a zero material is not a liveness flag.

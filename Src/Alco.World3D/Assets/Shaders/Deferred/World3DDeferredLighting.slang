@@ -6,6 +6,8 @@ import SharedSampler;
 import World3DSceneData;
 import World3DAtmosphere;
 import World3DShadowSample;
+import World3DLightClusterCommon;
+import World3DPointShadowSample;
 
 [GPURoot]
 public struct DeferredLightingRoot
@@ -26,13 +28,13 @@ public struct DeferredLightingRoot
     public float4 Sky;
     public float4 SkyHorizonAndDiscBrightness;
     public float4 SkyZenith;
-    public GPUBufferView PointLights;
+    public GPUBufferView LocalLighting;
     public GPUTextureId GiRawDiffuse;
-    public uint PointLightCount;
+    public uint Reserved0;
     public uint GiFlags; // bit 0 = VoxelGI active
     public float GiDiffuseScale;
     public float GiSpecularScale;
-    public uint Reserved0;
+    public uint Reserved1;
 };
 
 // The RGBA8 UNORM albedo attachment is manually sRGB-encoded by the GBuffer pass.
@@ -96,36 +98,41 @@ float3 envSpecularBrdfApprox(float3 f0, float roughness, float ndotV)
     return f0 * ab.x + ab.y;
 }
 
-float3 evaluatePointLights(
-    GPUBufferView lightsView,
-    uint lightCount,
-    World3DView view,
+float3 evaluateLocalLights(
+    World3DLocalLightingFrameGpu localLighting,
+    uint2 pixel,
+    float viewDepth,
     float3 eyeRelPos,
     float3 n,
+    float3 geometryNormal,
     float3 v,
     float3 albedo,
     float metallic,
     float roughness)
 {
     float3 sum = float3(0.0);
-    for (uint i = 0u; i < lightCount; ++i)
+    World3DLightClusterIterator iterator = world3d_begin_local_lights(localLighting.Clusters, pixel, viewDepth);
+    World3DClusterLightGpu light;
+    while (world3d_try_next_local_light(localLighting.Clusters, iterator, light))
     {
-        World3DPointLightGpu light = gpu_load<World3DPointLightGpu>(lightsView, i);
-        float3 lightEyeRel = float3(light.Cell.xyz - view.EyeCell.xyz) * WORLD3D_CELL_SIZE
-            + (light.LocalPositionAndRadius.xyz - view.EyeLocalNear.xyz);
-        float3 delta = lightEyeRel - eyeRelPos;
+        float3 delta = light.EyeRelativePositionAndRadius.xyz - eyeRelPos;
         float distSq = dot(delta, delta);
-        float radius = max(light.LocalPositionAndRadius.w, 0.01);
+        float radius = light.EyeRelativePositionAndRadius.w;
         float radiusSq = radius * radius;
         if (distSq >= radiusSq)
             continue;
 
+        float3 l = delta * rsqrt(max(distSq, 1e-6));
+        if (dot(n, l) <= 0.0)
+            continue;
+
+        float visibility = world3d_point_shadow_visibility(localLighting.PointShadows, light.ShadowIndexPlusOne, -delta,
+            geometryNormal, light.SourceRadius);
         float win = saturate(1.0 - distSq / radiusSq);
         win *= win;
         float atten = win / (distSq + 0.1);
-        float3 l = delta * rsqrt(max(distSq, 1e-6));
         sum += evaluateDirectSun(n, v, l, albedo, metallic, roughness)
-            * (light.ColorAndIntensity.rgb * light.ColorAndIntensity.w * atten);
+            * (light.ColorAndIntensity.rgb * light.ColorAndIntensity.w * atten * visibility);
     }
     return sum;
 }
@@ -272,8 +279,12 @@ void MainCS(uint3 id : SV_DispatchThreadID)
     float3 v = -ray;
     float3 direct = evaluateDirectSun(n, v, root.SunDirectionAndIntensity.xyz, albedo, material.x, material.y)
         * root.SunColorAndDiscCosRadius.xyz * root.SunDirectionAndIntensity.w * shadowEval.Visibility;
-    if (root.PointLightCount > 0u)
-        direct += evaluatePointLights(root.PointLights, root.PointLightCount, view, eyeRelPos, n, v, albedo, material.x, material.y);
+    if (root.LocalLighting.Index != 0u)
+    {
+        World3DLocalLightingFrameGpu localLighting = gpu_load<World3DLocalLightingFrameGpu>(root.LocalLighting);
+        direct += evaluateLocalLights(localLighting, id.xy, view.EyeLocalNear.w / depth,
+            eyeRelPos, n, geometryNormal, v, albedo, material.x, material.y);
+    }
 
     float3 indirect;
     if (giActive)

@@ -258,6 +258,7 @@ public sealed partial class World3DScene
             drawPass.Read(_hdrInRG, RGUsage.PixelRead);
             drawPass.Read(_argsRG, RGUsage.IndirectRead);
             drawPass.Read(_drawRefsRG, RGUsage.VertexRead);
+            _scene.ReadClusteredLocalLighting(builder, drawPass, RGUsage.PixelRead);
             _scene._gpu.ReadTables(builder, drawPass, RGUsage.VertexRead | RGUsage.PixelRead, materials: true);
             foreach (GpuBuffer page in _scene._forwardLayout.PayloadPages)
                 drawPass.Read(builder.ImportBuffer(page, "World3D.ForwardPayload"), RGUsage.VertexRead);
@@ -381,6 +382,7 @@ public sealed partial class World3DScene
             GPUTextureId depthId = GPUTextureId.FromSampled(context.GetTexture(_scene._gbufferTargets.Depth));
             GPUTextureId snapshotId = GPUTextureId.FromSampled(context.GetTexture(_hdrInRG));
             GPUTextureId giDiffId = giValid ? GPUTextureId.FromSampled(context.GetTexture(_scene._frameGiOutputDiffuseRG)) : GPUTextureId.Invalid;
+            GPUBufferView localLighting = _scene.GetLocalLightingFrameView(in context);
 
             foreach (ForwardBucket bucket in _scene._forwardLayout.Buckets)
             {
@@ -399,12 +401,12 @@ public sealed partial class World3DScene
                         _scene._frameViews.View,
                         _scene._forwardDrawRefs!.View,
                         _scene._frameShadowData.View,
-                        _scene._framePointLights.IsEmpty ? default : _scene._framePointLights.View,
+                        localLighting,
                         depthId,
                         snapshotId,
                         giDiffId,
                         start,
-                        (uint)_scene._recordedPointLightCount,
+                        0u,
                         drawFlags);
                     pass.DrawIndirect(material, in root, DepthStencilState.ReadReverseZ, argsSlice, (uint)count, stride: ForwardArgsStride);
                     first += count;
@@ -463,11 +465,11 @@ public sealed partial class World3DScene
         [field: FieldOffset(72)] GPUBufferView Views,
         [field: FieldOffset(80)] GPUBufferView DrawRefs,
         [field: FieldOffset(88)] GPUBufferView ShadowFrame,
-        [field: FieldOffset(96)] GPUBufferView PointLights,
+        [field: FieldOffset(96)] GPUBufferView LocalLighting,
         [field: FieldOffset(104)] GPUTextureId DepthTex,
         [field: FieldOffset(108)] GPUTextureId ColorSnapshotTex,
         [field: FieldOffset(112)] GPUTextureId GiDiffuseTex,
         [field: FieldOffset(116)] uint FirstDraw,
-        [field: FieldOffset(120)] uint PointLightCount,
+        [field: FieldOffset(120)] uint Reserved0,
         [field: FieldOffset(124)] uint Flags);
 }

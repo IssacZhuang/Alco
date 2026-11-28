@@ -177,13 +177,13 @@ public sealed partial class World3DScene
         public Vector4 Sky;
         public Vector4 SkyHorizonAndDiscBrightness;
         public Vector4 SkyZenith;
-        public GPUBufferView PointLights;
+        public GPUBufferView LocalLighting;
         public GPUTextureId GiRawDiffuse;
-        public uint PointLightCount;
+        public uint Reserved0;
         public uint GiFlags;
         public float GiDiffuseScale;
         public float GiSpecularScale;
-        public uint Reserved0;
+        public uint Reserved1;
     }
 
     private sealed class DeferredLightingNode(World3DScene scene, RenderChain chain, Shader shader,
@@ -291,6 +291,7 @@ public sealed partial class World3DScene
             pass.Read(gbuffer.Material, RGUsage.ComputeRead);
             pass.Read(gbuffer.Emissive, RGUsage.ComputeRead);
             pass.Read(gbuffer.Depth, RGUsage.ComputeRead);
+            _scene.ReadClusteredLocalLighting(builder, pass, RGUsage.ComputeRead);
             pass.Write(_hdr, RGUsage.ComputeWrite);
         }
 
@@ -313,8 +314,7 @@ public sealed partial class World3DScene
             root.Emissive = GPUTextureId.FromSampled(context.GetTexture(gbuffer.Emissive));
             root.Depth = GPUTextureId.FromSampled(context.GetTexture(gbuffer.Depth));
             root.Hdr = GPUTextureId.FromStorage(context.GetTexture(_hdr));
-            root.PointLights = _scene._framePointLights.IsEmpty ? default : _scene._framePointLights.View;
-            root.PointLightCount = (uint)_scene._recordedPointLightCount;
+            root.LocalLighting = _scene.GetLocalLightingFrameView(in context);
 
             if (_scene._recordedVoxelGiEnabled && _scene._frameGiOutputDiffuseRG.IsValid && _scene._frameGiOutputSpecularRG.IsValid)
             {

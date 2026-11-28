@@ -67,6 +67,14 @@ catch (Exception ex)
     return 1;
 }
 
+/// <summary>Point-light modes for the large-world night comparison.</summary>
+internal enum LocalLightMode
+{
+    Off,
+    Direct,
+    DirectWithShadows,
+}
+
 /// <summary>Deterministic startup and capture options for the World3D sandbox.</summary>
 internal sealed record SandboxOptions
 {
@@ -78,9 +86,16 @@ internal sealed record SandboxOptions
         "[--large-world-offset=X,Y,Z] [--streaming-radius=N] " +
         "[--asset-root=<parent of Bistro>] [--require-bistro] [--bistro-legacy-metallic] [--software-bc] " +
         "[--no-gi] [--no-clouds] [--no-vollight] [--no-ssr] [--no-forward] [--no-auto-exposure] [--rsm=on|off] " +
-        "[--gi-debug=<view|0..13>] [--bootstrap-gi] [--fly-stress] [--point-lights] " +
+        "[--gi-debug=<view|0..13>] [--bootstrap-gi] [--fly-stress] [--point-lights | --no-point-lights] [--gpu-timings | --no-gpu-timings] " +
         "[--pos=x,y,z] [--look=x,y,z] [--size=1280x720] [--headless] [--frames=N] [--capture=<path.png>]\n" +
-        "Bistro loads the exterior and interior together. --interior starts the camera indoors. --large-world launches the 8 km streaming stress city.";
+        "Bistro loads the exterior and interior together. --interior starts the camera indoors. --large-world launches the 8 km streaming stress city.\n" +
+        "Bistro enables its hand-placed fixture lights by default. --point-lights enables demo lights in the procedural scene.\n" +
+        "Night comparison (requires --large-world): --local-lights=off|direct|direct+shadow\n" +
+        "  Use the same --fly-stress --frames=N, --warmup-frames=N (default 1), and settings in all three runs.\n" +
+        "  Night modes request GPU timings by default. Population options apply to the lit modes.\n" +
+        "  --lights-per-sector=N (default 96, 0..256)  --offscreen-lights=N (default 65536, 0..131072)\n" +
+        "  --light-view-limit=N (0..4096)  --wide-light-limit=N (0..4096)  --light-view-depth=M (1..4096 meters)\n" +
+        "  --point-shadow-faces=N (0..432)  --point-shadow-texels=N (0..524288)";
 
     /// <summary>Gets the requested graphics backend, VulkanCompact by default.</summary>
     public GraphicsBackend Backend { get; private init; } = GraphicsBackend.VulkanCompact;
@@ -120,8 +135,28 @@ internal sealed record SandboxOptions
     public bool BootstrapGi { get; private init; }
     /// <summary>Gets whether to execute the automated high-speed camera fly stress test.</summary>
     public bool FlyStress { get; private init; }
-    /// <summary>Gets whether to populate demo Bistro point lights.</summary>
-    public bool AddDemoLights { get; private init; }
+    /// <summary>Gets whether to enable Bistro fixture lights or the procedural demo lights.</summary>
+    public bool PointLightsEnabled => !LargeWorld && (PointLightsOverride ?? !Procedural);
+    /// <summary>Gets the requested night comparison mode, or null for the standard scene.</summary>
+    public LocalLightMode? LocalLightsMode { get; private init; }
+    /// <summary>Gets the number of point lights created per streamed sector when enabled.</summary>
+    public int LightsPerSector { get; private init; } = 96;
+    /// <summary>Gets the number of point lights kept resident outside the city when enabled.</summary>
+    public int OffscreenLights { get; private init; } = 65_536;
+    /// <summary>Gets an optional override for the per-view local light budget.</summary>
+    public int? LightViewLimit { get; private init; }
+    /// <summary>Gets an optional override for the wide local light budget.</summary>
+    public int? WideLightLimit { get; private init; }
+    /// <summary>Gets an optional maximum view-space depth for local lights, in meters.</summary>
+    public float? LightViewDepth { get; private init; }
+    /// <summary>Gets an optional override for the point-shadow face update budget.</summary>
+    public int? PointShadowFaces { get; private init; }
+    /// <summary>Gets an optional override for the point-shadow texel update budget.</summary>
+    public int? PointShadowTexels { get; private init; }
+    /// <summary>Gets whether to request render-graph profiling.</summary>
+    public bool ProfileGpu => GpuTimings ?? LocalLightsMode.HasValue;
+    /// <summary>Gets the number of ready frames excluded from timing summaries.</summary>
+    public int WarmupFrames { get; private init; } = 1;
     /// <summary>Gets whether to render into an offscreen GPU target.</summary>
     public bool Headless { get; private init; }
     /// <summary>Gets whether to print usage and exit without initializing the engine.</summary>
@@ -136,6 +171,8 @@ internal sealed record SandboxOptions
     public string? CapturePath { get; private init; }
 
     private string? AssetRoot { get; init; }
+    private bool? PointLightsOverride { get; init; }
+    private bool? GpuTimings { get; init; }
     private Vector3? Position { get; init; }
     private Vector3? Look { get; init; }
 
@@ -144,6 +181,7 @@ internal sealed record SandboxOptions
     {
         options = new SandboxOptions();
         error = null;
+        bool hasLocalLightOverride = false;
         for (int i = 0; i < args.Length; i++)
         {
             string arg = args[i];
@@ -177,7 +215,45 @@ internal sealed record SandboxOptions
                 case "--no-auto-exposure" when equals < 0: options = options with { AutoExposureEnabled = false }; break;
                 case "--bootstrap-gi" when equals < 0: options = options with { BootstrapGi = true }; break;
                 case "--fly-stress" when equals < 0: options = options with { FlyStress = true, Headless = true }; break;
-                case "--point-lights" when equals < 0: options = options with { AddDemoLights = true }; break;
+                case "--point-lights" when equals < 0: options = options with { PointLightsOverride = true }; break;
+                case "--no-point-lights" when equals < 0: options = options with { PointLightsOverride = false }; break;
+                case "--gpu-timings" when equals < 0: options = options with { GpuTimings = true }; break;
+                case "--no-gpu-timings" when equals < 0: options = options with { GpuTimings = false }; break;
+                case "--local-lights" when TryParseLocalLightMode(value, out LocalLightMode mode):
+                    options = options with { LocalLightsMode = mode };
+                    break;
+                case "--lights-per-sector" when TryParseInt(value, 256, out int lightsPerSector):
+                    options = options with { LightsPerSector = lightsPerSector };
+                    hasLocalLightOverride = true;
+                    break;
+                case "--offscreen-lights" when TryParseInt(value, 131_072, out int offscreenLights):
+                    options = options with { OffscreenLights = offscreenLights };
+                    hasLocalLightOverride = true;
+                    break;
+                case "--light-view-limit" when TryParseInt(value, 4096, out int viewLimit):
+                    options = options with { LightViewLimit = viewLimit };
+                    hasLocalLightOverride = true;
+                    break;
+                case "--wide-light-limit" when TryParseInt(value, 4096, out int wideLimit):
+                    options = options with { WideLightLimit = wideLimit };
+                    hasLocalLightOverride = true;
+                    break;
+                case "--light-view-depth" when float.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out float viewDepth) &&
+                    viewDepth is >= 1f and <= 4096f:
+                    options = options with { LightViewDepth = viewDepth };
+                    hasLocalLightOverride = true;
+                    break;
+                case "--point-shadow-faces" when TryParseInt(value, 432, out int shadowFaces):
+                    options = options with { PointShadowFaces = shadowFaces };
+                    hasLocalLightOverride = true;
+                    break;
+                case "--point-shadow-texels" when TryParseInt(value, 524_288, out int shadowTexels):
+                    options = options with { PointShadowTexels = shadowTexels };
+                    hasLocalLightOverride = true;
+                    break;
+                case "--warmup-frames" when TryParseInt(value, int.MaxValue, out int warmupFrames):
+                    options = options with { WarmupFrames = warmupFrames };
+                    break;
                 case "--rsm" when value.Equals("on", StringComparison.OrdinalIgnoreCase) || value.Equals("true", StringComparison.OrdinalIgnoreCase):
                     options = options with { RsmEnabled = true };
                     break;
@@ -221,6 +297,16 @@ internal sealed record SandboxOptions
             error = "--large-world cannot be combined with Bistro scene or validation options.";
             return false;
         }
+        if (options.LocalLightsMode.HasValue && (!options.LargeWorld || options.PointLightsOverride.HasValue))
+        {
+            error = "--local-lights requires --large-world and cannot be combined with --point-lights or --no-point-lights.";
+            return false;
+        }
+        if (hasLocalLightOverride && !options.LocalLightsMode.HasValue)
+        {
+            error = "Local-light budgets and population options require --local-lights=off|direct|direct+shadow.";
+            return false;
+        }
         if (options.Backend == GraphicsBackend.NoGPU && (options.RequireBistro || options.CapturePath != null))
         {
             error = "--require-bistro and --capture require a real graphics backend.";
@@ -230,8 +316,24 @@ internal sealed record SandboxOptions
             options = options with { Frames = 180 };
         if ((options.Headless || options.Backend == GraphicsBackend.NoGPU) && options.Frames == null)
             options = options with { Frames = DefaultFrames };
+        if (options.Frames is int frameCount && options.WarmupFrames >= frameCount)
+            options = options with { WarmupFrames = frameCount - 1 };
         return true;
     }
+
+    private static bool TryParseLocalLightMode(string value, out LocalLightMode mode)
+    {
+        switch (value.ToLowerInvariant())
+        {
+            case "off": mode = LocalLightMode.Off; return true;
+            case "direct": mode = LocalLightMode.Direct; return true;
+            case "direct+shadow": mode = LocalLightMode.DirectWithShadows; return true;
+            default: mode = default; return false;
+        }
+    }
+
+    private static bool TryParseInt(string value, int max, out int result) =>
+        int.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out result) && result >= 0 && result <= max;
 
     private static bool TryParseDebugView(string value, out World3DLightingDebugView view)
     {
