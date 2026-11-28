@@ -26,6 +26,8 @@ public unsafe class TestBloomNode
         public uint DestSizeX;
         public uint DestSizeY;
         public float Threshold;
+        public uint UseAutoExposure;
+        public GPUBufferView ExposureState;
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -100,6 +102,10 @@ public unsafe class TestBloomNode
         }
 
         using ShaderCompiler compiler = new(target);
+        compiler.LoadModuleFromSource(
+            "AlcoRendering_AutoExposure",
+            "AlcoRendering_AutoExposure.slang",
+            LoadEmbeddedShader("AlcoRendering_AutoExposure.slang"));
         compiler.LoadModuleFromSource(
             "AlcoRendering_Bloom",
             "AlcoRendering_Bloom.slang",

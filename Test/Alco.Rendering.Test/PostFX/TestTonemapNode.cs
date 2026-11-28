@@ -32,6 +32,7 @@ public unsafe class TestTonemapNode
         public float NeutralStartCompression;
         public float NeutralDesaturation;
         public uint Pad0;
+        public GPUBufferView ExposureState;
     }
 
     [TestCase(ShaderTarget.SpirvCompact)]
@@ -47,6 +48,10 @@ public unsafe class TestTonemapNode
         }
 
         using ShaderCompiler compiler = new(target);
+        compiler.LoadModuleFromSource(
+            "AlcoRendering_AutoExposure",
+            "AlcoRendering_AutoExposure.slang",
+            LoadEmbeddedShader("AlcoRendering_AutoExposure.slang"));
         compiler.LoadModuleFromSource(
             "AlcoRendering_Tonemap",
             "AlcoRendering_Tonemap.slang",
@@ -65,8 +70,11 @@ public unsafe class TestTonemapNode
         {
             for (int dither = 0; dither <= 1; ++dither)
             {
-                VerifyModuleLayout(computeModule, ShaderPipelineKind.Compute, op, dither, target);
-                VerifyModuleLayout(graphicsModule, ShaderPipelineKind.Graphics, op, dither, target);
+                for (int autoExp = 0; autoExp <= 1; ++autoExp)
+                {
+                    VerifyModuleLayout(computeModule, ShaderPipelineKind.Compute, op, dither, autoExp, target);
+                    VerifyModuleLayout(graphicsModule, ShaderPipelineKind.Graphics, op, dither, autoExp, target);
+                }
             }
         }
     }
@@ -388,6 +396,7 @@ public unsafe class TestTonemapNode
         ShaderPipelineKind kind,
         int op,
         int dither,
+        int autoExp,
         ShaderTarget target)
     {
         CompiledShader compiled = module.Compile(kind, new ShaderCompileOptions
@@ -396,15 +405,16 @@ public unsafe class TestTonemapNode
             [
                 op.ToString(),
                 dither.ToString(),
+                autoExp.ToString(),
             ],
         });
 
         Assert.That(compiled.Reflection.Root, Is.Not.Null,
-            $"{module.Name}<{op},{dither}> must reflect TonemapRoot on {target}.");
+            $"{module.Name}<{op},{dither},{autoExp}> must reflect TonemapRoot on {target}.");
         Assert.That(compiled.Reflection.Root!.SizeBytes, Is.EqualTo((uint)sizeof(ExpectedTonemapRoot)),
-            $"{module.Name}<{op},{dither}> root size mismatch on {target}.");
+            $"{module.Name}<{op},{dither},{autoExp}> root size mismatch on {target}.");
         Assert.That(compiled.Reflection.MatchesStructLayout<ExpectedTonemapRoot>("TonemapRoot"), Is.True,
-            $"{module.Name}<{op},{dither}> root field layout mismatch on {target}.");
+            $"{module.Name}<{op},{dither},{autoExp}> root field layout mismatch on {target}.");
     }
 
     private static void ExecuteNoGpuFrame(RenderGraph graph, RenderContext context)

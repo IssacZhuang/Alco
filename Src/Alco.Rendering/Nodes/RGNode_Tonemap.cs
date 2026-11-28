@@ -58,6 +58,7 @@ public sealed unsafe class RGNode_Tonemap : IRenderGraphNode
         public float NeutralStartCompression;
         public float NeutralDesaturation;
         public uint Pad0;
+        public GPUBufferView ExposureState;
     }
 
     private readonly RenderChain? _chain;
@@ -77,14 +78,18 @@ public sealed unsafe class RGNode_Tonemap : IRenderGraphNode
 
     private TonemapType _computeOperator;
     private bool _computeDither;
+    private bool _computeUseAutoExposure;
     private TonemapType _graphicsOperator;
     private bool _graphicsDither;
+    private bool _graphicsUseAutoExposure;
 
     private RGTexture _frameInput;
     private RGTexture _frameTarget;
+    private RGBuffer _frameExposureBuffer;
     private Extent3D _frameTargetExtent;
     private TonemapType _frameEffectiveOperator;
     private bool _frameEffectiveDither;
+    private bool _frameUseAutoExposure;
     private bool _frameUseCompute;
 
     /// <summary>Creates a tonemap node operating on a linear <see cref="RenderChain"/>.</summary>
@@ -137,6 +142,10 @@ public sealed unsafe class RGNode_Tonemap : IRenderGraphNode
 
         ShaderSystem shaderSystem = shaders ?? rendering.Shaders;
         shaderSystem.Compiler.RegisterVirtualModule(
+            "AlcoRendering_AutoExposure",
+            "AlcoRendering_AutoExposure.slang",
+            LoadEmbeddedShaderSource("AlcoRendering_AutoExposure.slang"));
+        shaderSystem.Compiler.RegisterVirtualModule(
             "AlcoRendering_Tonemap",
             "AlcoRendering_Tonemap.slang",
             LoadEmbeddedShaderSource("AlcoRendering_Tonemap.slang"));
@@ -145,15 +154,17 @@ public sealed unsafe class RGNode_Tonemap : IRenderGraphNode
         Shader graphicsShader = LoadTonemapShader(shaderSystem, "TonemapGraphics", ShaderKind.Graphics);
 
         int ditherFlag = _ditherEnabled ? 1 : 0;
-        _computeMaterial = computeShader.CreateMaterial($"{name}_Compute", (int)_operator, ditherFlag);
-        _graphicsMaterial = graphicsShader.CreateMaterial($"{name}_Graphics", (int)_operator, ditherFlag);
+        _computeMaterial = computeShader.CreateMaterial($"{name}_Compute", (int)_operator, ditherFlag, 0);
+        _graphicsMaterial = graphicsShader.CreateMaterial($"{name}_Graphics", (int)_operator, ditherFlag, 0);
         _graphicsMaterial.Rasterization = RasterizationState.CullNone;
         _graphicsMaterial.Blend = BlendState.Opaque;
 
         _computeOperator = _operator;
         _computeDither = _ditherEnabled;
+        _computeUseAutoExposure = false;
         _graphicsOperator = _operator;
         _graphicsDither = _ditherEnabled;
+        _graphicsUseAutoExposure = false;
 
         VerifyRootLayout<TonemapRoot>(_computeMaterial, "TonemapRoot");
         VerifyRootLayout<TonemapRoot>(_graphicsMaterial, "TonemapRoot");
@@ -216,11 +227,16 @@ public sealed unsafe class RGNode_Tonemap : IRenderGraphNode
     /// <summary>When true, marks the pass with <see cref="RenderGraphPassBuilder.ProducesOutput"/> so headless graphs retain it.</summary>
     public bool AlwaysProducesOutput { get; set; }
 
+    /// <summary>Optional callback supplying an <see cref="AutoExposureState"/> GPU buffer read during tone mapping.</summary>
+    public Func<RenderGraphBuilder, RGBuffer>? ExposureProvider { get; set; }
+
     /// <inheritdoc />
     public void Setup(RenderGraphBuilder builder)
     {
         _frameInput = default;
         _frameTarget = default;
+        _frameExposureBuffer = default;
+        _frameUseAutoExposure = false;
 
         RGTexture input = _chain != null ? _chain.Current : _inputProvider!(builder);
         if (!input.IsValid)
@@ -236,6 +252,10 @@ public sealed unsafe class RGNode_Tonemap : IRenderGraphNode
 
         TonemapType effectiveOperator = Bypass ? TonemapType.Linear : _operator;
         bool effectiveDither = effectiveOperator != TonemapType.Linear && _ditherEnabled;
+        RGBuffer exposureBuffer = effectiveOperator != TonemapType.Linear && ExposureProvider != null
+            ? ExposureProvider(builder)
+            : default;
+        bool effectiveAutoExposure = exposureBuffer.IsValid;
 
         RGTexture target;
         if (isChain)
@@ -271,15 +291,21 @@ public sealed unsafe class RGNode_Tonemap : IRenderGraphNode
 
         _frameInput = input;
         _frameTarget = target;
+        _frameExposureBuffer = exposureBuffer;
         _frameTargetExtent = builder.GetExtent(target);
         _frameEffectiveOperator = effectiveOperator;
         _frameEffectiveDither = effectiveDither;
+        _frameUseAutoExposure = effectiveAutoExposure;
         _frameUseCompute = useCompute;
 
         RenderGraphPassBuilder pass = builder.AddPass(_passName);
         RGUsage readUsage = useCompute ? RGUsage.ComputeRead : RGUsage.PixelRead;
         RGUsage writeUsage = useCompute ? RGUsage.ComputeWrite : RGUsage.ColorAttachmentWrite;
         pass.Read(input, readUsage);
+        if (effectiveAutoExposure)
+        {
+            pass.Read(exposureBuffer, readUsage);
+        }
         pass.Write(target, writeUsage);
 
         if (AlwaysProducesOutput)
@@ -317,12 +343,14 @@ public sealed unsafe class RGNode_Tonemap : IRenderGraphNode
             _computeMaterial,
             ref _computeOperator,
             ref _computeDither,
+            ref _computeUseAutoExposure,
             _frameEffectiveOperator,
-            _frameEffectiveDither);
+            _frameEffectiveDither,
+            _frameUseAutoExposure);
 
         Texture src = context.GetTexture(_frameInput);
         Texture dst = context.GetTexture(_frameTarget);
-        TonemapRoot rootData = BuildRoot(src.SampledIndex, dst.StorageIndex);
+        TonemapRoot rootData = BuildRoot(in context, src.SampledIndex, dst.StorageIndex);
 
         RenderContext rc = context.RenderContext;
         Extent3D groupCount = new(
@@ -345,11 +373,13 @@ public sealed unsafe class RGNode_Tonemap : IRenderGraphNode
             _graphicsMaterial,
             ref _graphicsOperator,
             ref _graphicsDither,
+            ref _graphicsUseAutoExposure,
             _frameEffectiveOperator,
-            _frameEffectiveDither);
+            _frameEffectiveDither,
+            _frameUseAutoExposure);
 
         Texture src = context.GetTexture(_frameInput);
-        TonemapRoot rootData = BuildRoot(src.SampledIndex, 0u);
+        TonemapRoot rootData = BuildRoot(in context, src.SampledIndex, 0u);
 
         RenderContext rc = context.RenderContext;
 
@@ -370,9 +400,12 @@ public sealed unsafe class RGNode_Tonemap : IRenderGraphNode
         render.Draw(_graphicsMaterial, in rootData, DepthStencilState.None, 3u);
     }
 
-    private TonemapRoot BuildRoot(uint sourceIndex, uint destIndex)
+    private TonemapRoot BuildRoot(in RenderGraphContext context, uint sourceIndex, uint destIndex)
     {
         bool isAces = _frameEffectiveOperator == TonemapType.ACES;
+        GPUBufferView exposureState = _frameUseAutoExposure && _frameExposureBuffer.IsValid
+            ? context.GetBuffer(_frameExposureBuffer).View
+            : default;
         return new TonemapRoot
         {
             Source = sourceIndex,
@@ -389,6 +422,7 @@ public sealed unsafe class RGNode_Tonemap : IRenderGraphNode
             AcesE = _acesData.E,
             NeutralStartCompression = _neutralData.StartCompression,
             NeutralDesaturation = _neutralData.Desaturation,
+            ExposureState = exposureState,
         };
     }
 
@@ -422,17 +456,22 @@ public sealed unsafe class RGNode_Tonemap : IRenderGraphNode
         Material material,
         ref TonemapType currentOperator,
         ref bool currentDither,
+        ref bool currentUseAutoExposure,
         TonemapType targetOperator,
-        bool targetDither)
+        bool targetDither,
+        bool targetUseAutoExposure)
     {
-        if (currentOperator == targetOperator && currentDither == targetDither)
+        if (currentOperator == targetOperator &&
+            currentDither == targetDither &&
+            currentUseAutoExposure == targetUseAutoExposure)
         {
             return;
         }
 
-        material.SetSpecializations((int)targetOperator, targetDither ? 1 : 0);
+        material.SetSpecializations((int)targetOperator, targetDither ? 1 : 0, targetUseAutoExposure ? 1 : 0);
         currentOperator = targetOperator;
         currentDither = targetDither;
+        currentUseAutoExposure = targetUseAutoExposure;
     }
 
     private static Shader LoadTonemapShader(ShaderSystem shaderSystem, string moduleName, ShaderKind kind)

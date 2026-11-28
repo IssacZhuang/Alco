@@ -181,6 +181,7 @@ public sealed class TestWorld3DPhase4
         scene.VolumetricLight.Enabled = false;
         scene.Ssr.Enabled = false;
         scene.Occlusion.Enabled = false;
+        scene.AutoExposure.Enabled = false;
 
         Assert.That(scene.TryAttachSector(out WorldSectorHandle sector), Is.True);
         WorldGeometryHandle geom = UploadBoxGeometry(h.System, scene);
@@ -325,6 +326,7 @@ public sealed class TestWorld3DPhase4
         scene.VolumetricLight.Enabled = false;
         scene.Ssr.Enabled = false;
         scene.Forward.Enabled = false;
+        scene.AutoExposure.Enabled = false;
         scene.Lighting = scene.Lighting with
         {
             DirectionToSun = Vector3.Normalize(new Vector3(0.3f, 0.2f, 0.85f)),
@@ -395,6 +397,7 @@ public sealed class TestWorld3DPhase4
         scene.VolumetricClouds.Enabled = false;
         scene.Ssr.Enabled = false;
         scene.Forward.Enabled = false;
+        scene.AutoExposure.Enabled = false;
         scene.Lighting = scene.Lighting with
         {
             DirectionToSun = Vector3.Normalize(new Vector3(0.9f, 0.0f, 0.25f)),
@@ -453,6 +456,7 @@ public sealed class TestWorld3DPhase4
         scene.VolumetricClouds.Enabled = false;
         scene.VolumetricLight.Enabled = false;
         scene.Forward.Enabled = false;
+        scene.AutoExposure.Enabled = false;
 
         Assert.That(scene.TryAttachSector(out WorldSectorHandle sector), Is.True);
         WorldGeometryHandle geom = UploadBoxGeometry(h.System, scene);

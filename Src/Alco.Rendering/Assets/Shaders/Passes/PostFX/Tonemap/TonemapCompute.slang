@@ -8,6 +8,7 @@ module TonemapCompute;
 
 import Core;
 import SharedSampler;
+import AlcoRendering_AutoExposure;
 import AlcoRendering_Tonemap;
 
 [GPURoot]
@@ -27,11 +28,12 @@ public struct TonemapRoot
     public float NeutralStartCompression;
     public float NeutralDesaturation;
     public uint Pad0;
+    public GPUBufferView ExposureState;
 };
 
 [shader("compute")]
 [numthreads(TONEMAP_THREAD_GROUP_DIM, TONEMAP_THREAD_GROUP_DIM, 1)]
-void mainCS<let Operator : int, let EnableDither : int>(uint3 id : SV_DispatchThreadID)
+void mainCS<let Operator : int, let EnableDither : int, let UseAutoExposure : int>(uint3 id : SV_DispatchThreadID)
 {
     TonemapRoot root = gpu_load_root<TonemapRoot>();
     if (id.x >= root.DestSize.x || id.y >= root.DestSize.y)
@@ -44,8 +46,18 @@ void mainCS<let Operator : int, let EnableDither : int>(uint3 id : SV_DispatchTh
     Texture2D<float4> source = gpu_texture<Texture2D<float4>>(root.Source.index);
     float4 sampled = source.SampleLevel(shared_sampler_linear_clamp(), uv, 0.0f);
 
+    float exposure = root.Exposure;
+    if (UseAutoExposure != 0 && root.ExposureState.Index != 0u)
+    {
+        float autoExp = gpu_load<AutoExposureState>(root.ExposureState, 0u).Exposure;
+        if (isfinite(autoExp) && autoExp > 0.0f)
+        {
+            exposure *= autoExp;
+        }
+    }
+
     TonemapParams params;
-    params.Exposure = root.Exposure;
+    params.Exposure = exposure;
     params.Gamma = root.Gamma;
     params.AcesA = root.AcesA;
     params.AcesB = root.AcesB;

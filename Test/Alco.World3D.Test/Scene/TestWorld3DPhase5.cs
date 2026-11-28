@@ -613,6 +613,7 @@ public sealed class TestWorld3DPhase5
                 scene.VolumetricClouds.Enabled = false;
                 scene.VolumetricLight.Enabled = false;
                 scene.Ssr.Enabled = false;
+                scene.AutoExposure.Enabled = false;
                 SceneAssets = new World3DSceneAssets(scene);
             }
             catch

@@ -60,6 +60,8 @@ public sealed unsafe class RGNode_Bloom : IRenderGraphNode
         public uint DestSizeX;
         public uint DestSizeY;
         public float Threshold;
+        public uint UseAutoExposure;
+        public GPUBufferView ExposureState;
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -166,6 +168,7 @@ public sealed unsafe class RGNode_Bloom : IRenderGraphNode
     private RGTexture _frameInput;
     private RGTexture _frameCompositeTarget;
     private RGTexture _frameAccumLast;
+    private RGBuffer _frameExposureBuffer;
     private bool _frameCompositeIsCompute;
     private bool _frameCompositeIsInPlace;
     private bool _frameCompositeHasBloom;
@@ -217,6 +220,10 @@ public sealed unsafe class RGNode_Bloom : IRenderGraphNode
         Name = name;
 
         ShaderSystem shaderSystem = shaders ?? rendering.Shaders;
+        shaderSystem.Compiler.RegisterVirtualModule(
+            "AlcoRendering_AutoExposure",
+            "AlcoRendering_AutoExposure.slang",
+            LoadEmbeddedShaderSource("AlcoRendering_AutoExposure.slang"));
         shaderSystem.Compiler.RegisterVirtualModule(
             "AlcoRendering_Bloom",
             "AlcoRendering_Bloom.slang",
@@ -296,9 +303,14 @@ public sealed unsafe class RGNode_Bloom : IRenderGraphNode
     /// <summary>When true, marks the composite pass with <see cref="RenderGraphPassBuilder.ProducesOutput"/> so headless graphs keep it alive without exit barriers.</summary>
     public bool AlwaysProducesOutput { get; set; }
 
+    /// <summary>Optional callback supplying an <see cref="AutoExposureState"/> GPU buffer used for exposure-aware bloom thresholding.</summary>
+    public Func<RenderGraphBuilder, RGBuffer>? ExposureProvider { get; set; }
+
     /// <inheritdoc />
     public void Setup(RenderGraphBuilder builder)
     {
+        _frameExposureBuffer = default;
+
         RGTexture input = _chain != null ? _chain.Current : _inputProvider!(builder);
         if (!input.IsValid)
         {
@@ -360,8 +372,15 @@ public sealed unsafe class RGNode_Bloom : IRenderGraphNode
             height = Math.Max(height >> 1, 1u);
         }
 
+        RGBuffer exposureBuffer = ExposureProvider != null ? ExposureProvider(builder) : default;
+        _frameExposureBuffer = exposureBuffer;
+
         RenderGraphPassBuilder setupPass = builder.AddPass(_setupPassName, PassIdSetup);
         setupPass.Read(input, RGUsage.ComputeRead);
+        if (exposureBuffer.IsValid)
+        {
+            setupPass.Read(exposureBuffer, RGUsage.ComputeRead);
+        }
         setupPass.Write(_framePyramid[0], RGUsage.ComputeWrite);
 
         for (int level = 1; level < StageCount; ++level)
@@ -502,6 +521,8 @@ public sealed unsafe class RGNode_Bloom : IRenderGraphNode
         Texture src = context.GetTexture(_frameInput);
         Texture dst = context.GetTexture(_framePyramid[0]);
         Extent3D dstExtent = _frameExtents[0];
+        bool hasExposure = _frameExposureBuffer.IsValid;
+        GPUBufferView exposureView = hasExposure ? context.GetBuffer(_frameExposureBuffer).View : default;
         BloomSetupRoot root = new()
         {
             Source = src.SampledIndex,
@@ -510,6 +531,8 @@ public sealed unsafe class RGNode_Bloom : IRenderGraphNode
             DestSizeX = dstExtent.X,
             DestSizeY = dstExtent.Y,
             Threshold = Threshold,
+            UseAutoExposure = hasExposure ? 1u : 0u,
+            ExposureState = exposureView,
         };
 
         DispatchCompute(

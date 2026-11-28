@@ -1,5 +1,6 @@
 using System.Numerics;
 using Alco.Graphics;
+using Alco.Rendering;
 
 namespace Alco.World3D;
 
@@ -215,3 +216,73 @@ public readonly record struct World3DSsrStats(
     int MaxSteps,
     bool TemporalHistoryValid,
     bool HiZActive);
+
+/// <summary>Controls histogram-based automatic exposure and exposure-aware bloom thresholding for a <see cref="World3DScene"/>.</summary>
+public sealed class World3DAutoExposureSettings
+{
+    /// <summary>Gets or sets whether automatic exposure is enabled.</summary>
+    public bool Enabled { get; set; } = true;
+
+    /// <summary>Gets or sets whether bloom setup scales its threshold using the adapted scene exposure.</summary>
+    public bool ExposureAwareBloom { get; set; } = true;
+
+    /// <summary>Gets or sets the minimum adapted EV stop.</summary>
+    public float MinEV { get; set; } = -3.0f;
+
+    /// <summary>Gets or sets the maximum adapted EV stop.</summary>
+    public float MaxEV { get; set; } = 6.0f;
+
+    /// <summary>Gets or sets manual exposure compensation in EV stops.</summary>
+    public float ExposureCompensation { get; set; }
+
+    /// <summary>Gets or sets the middle-gray key value converting average scene luminance to EV.</summary>
+    public float KeyValue { get; set; } = 0.18f;
+
+    /// <summary>Gets or sets the lower histogram percentile excluded from metering (0..1).</summary>
+    public float LowPercent { get; set; } = 0.40f;
+
+    /// <summary>Gets or sets the upper histogram percentile excluded from metering (0..1).</summary>
+    public float HighPercent { get; set; } = 0.95f;
+
+    /// <summary>Gets or sets the minimum log2 luminance spanned by the histogram.</summary>
+    public float MinLogLuminance { get; set; } = -10.0f;
+
+    /// <summary>Gets or sets the maximum log2 luminance spanned by the histogram.</summary>
+    public float MaxLogLuminance { get; set; } = 14.0f;
+
+    /// <summary>Gets or sets adaptation speed (1/s) when adapting to brighter scenes.</summary>
+    public float SpeedUp { get; set; } = 3.0f;
+
+    /// <summary>Gets or sets adaptation speed (1/s) when adapting to darker scenes.</summary>
+    public float SpeedDown { get; set; } = 1.0f;
+
+    /// <summary>Gets or sets the spatial metering weight mode.</summary>
+    public AutoExposureMeteringMode MeteringMode { get; set; } = AutoExposureMeteringMode.CenterWeighted;
+
+    /// <summary>Gets or sets the normalized center falloff radius for weighted/spot metering.</summary>
+    public float CenterWeightRadius { get; set; } = 0.75f;
+
+    /// <summary>Gets or sets whether underflow dark-floor pixels (bin 0) are excluded from metering.</summary>
+    public bool IgnoreDarkFloor { get; set; } = true;
+
+    /// <summary>Gets or sets whether luminance histogram sampling runs at half viewport resolution.</summary>
+    public bool HalfResolution { get; set; } = true;
+
+    /// <summary>Gets or sets whether non-blocking async telemetry readback is scheduled for diagnostics.</summary>
+    public bool TelemetryEnabled { get; set; }
+}
+
+/// <summary>Reports automatic exposure status and latest telemetry for a <see cref="World3DScene"/> frame.</summary>
+/// <param name="Enabled">True when automatic exposure ran in the recorded frame.</param>
+/// <param name="HasTelemetry">True when at least one completed GPU telemetry snapshot is populated.</param>
+/// <param name="Exposure">Latest adapted linear exposure multiplier.</param>
+/// <param name="AdaptedEV">Latest adapted EV stop.</param>
+/// <param name="TargetEV">Latest target EV stop computed from the luminance histogram.</param>
+/// <param name="AverageLuminance">Latest clipped average scene luminance.</param>
+public readonly record struct World3DAutoExposureStats(
+    bool Enabled,
+    bool HasTelemetry,
+    float Exposure,
+    float AdaptedEV,
+    float TargetEV,
+    float AverageLuminance);

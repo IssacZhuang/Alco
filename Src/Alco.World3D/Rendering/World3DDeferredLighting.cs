@@ -56,8 +56,64 @@ public readonly record struct World3DLighting
 
 public sealed partial class World3DScene
 {
+    private RGNode_AutoExposure? _autoExposureNode;
+
     /// <summary>Gets or sets the sun and sky settings used on the next full render frame.</summary>
     public World3DLighting Lighting { get; set; } = new();
+
+    /// <summary>Gets the histogram-based automatic exposure configuration for this scene.</summary>
+    public World3DAutoExposureSettings AutoExposure { get; } = new();
+
+    /// <summary>Gets the recorded automatic exposure status and latest async telemetry for the latest frame.</summary>
+    public World3DAutoExposureStats LastRecordedAutoExposure { get; private set; }
+
+    /// <summary>Gets the latest async 256-bin log2 luminance histogram weights when telemetry is enabled.</summary>
+    public ReadOnlySpan<uint> LastAutoExposureHistogram =>
+        _autoExposureNode != null ? _autoExposureNode.LastHistogram : ReadOnlySpan<uint>.Empty;
+
+    /// <summary>Forces the next rendered frame to snap immediately to the metered exposure without temporal lag.</summary>
+    public void ResetAutoExposure() => _autoExposureNode?.Reset();
+
+    /// <summary>Synchronously reads the latest GPU automatic exposure state from the last submitted world frame.</summary>
+    /// <param name="state">Receives the GPU exposure state on success.</param>
+    /// <returns>True when a submitted GPU world frame with initialized exposure state was available.</returns>
+    public bool TryReadAutoExposureState(out AutoExposureState state)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        state = default;
+        if (_context == null || _context.IsDisposed || _context.CurrentFrameId != 0 || _system.ActiveBackend == GraphicsBackend.NoGPU)
+            return false;
+        ReconcileFrame();
+        if (!_submittedWorld || _autoExposureNode == null || !_autoExposureNode.TryReadState(out state))
+            return false;
+        LastRecordedAutoExposure = new World3DAutoExposureStats(
+            AutoExposure.Enabled && LightingDebugView == World3DLightingDebugView.None,
+            true,
+            state.Exposure,
+            state.AdaptedEV,
+            state.TargetEV,
+            state.AverageLuminance);
+        return true;
+    }
+
+    private void UpdateAutoExposureStats(bool active)
+    {
+        if (_autoExposureNode != null && _autoExposureNode.HasTelemetry)
+        {
+            AutoExposureState s = _autoExposureNode.LastState;
+            LastRecordedAutoExposure = new World3DAutoExposureStats(
+                active,
+                true,
+                s.Exposure,
+                s.AdaptedEV,
+                s.TargetEV,
+                s.AverageLuminance);
+        }
+        else
+        {
+            LastRecordedAutoExposure = new World3DAutoExposureStats(active, false, 1f, 0f, 0f, 0f);
+        }
+    }
 
     private void AddLightingPipeline()
     {
@@ -75,15 +131,25 @@ public sealed partial class World3DScene
             ?? throw new InvalidOperationException($"{lightingModule} did not reflect a root layout."));
 
         RenderChain chain = new();
-        RGNode_Bloom bloom = new(_system, chain, name: "World3D.Bloom") { Threshold = 1.0f };
-        RGNode_Tonemap tonemap = new(_system, chain, name: "World3D.Tonemap") { Operator = TonemapType.ACES };
+        RGNode_AutoExposure autoExposure = new(_system, chain, name: "World3D.AutoExposure");
+        _autoExposureNode = autoExposure;
+        RGNode_Bloom bloom = new(_system, chain, name: "World3D.Bloom")
+        {
+            Threshold = 1.0f,
+            ExposureProvider = _ => AutoExposure.ExposureAwareBloom ? autoExposure.OutputBuffer : default,
+        };
+        RGNode_Tonemap tonemap = new(_system, chain, name: "World3D.Tonemap")
+        {
+            Operator = TonemapType.ACES,
+            ExposureProvider = _ => autoExposure.OutputBuffer,
+        };
         RGNode_FXAA fxaa = new(_system, _ => chain.Current, name: "World3D.FXAA");
-        _graph.Use(new DeferredLightingNode(this, chain, lightingShader, bloom, tonemap, fxaa))
+        _graph.Use(new DeferredLightingNode(this, chain, lightingShader, autoExposure, bloom, tonemap, fxaa))
             .Use(new VolumetricCloudsPostNode(this, chain))
             .Use(new VolumetricLightNode(this, chain))
             .Use(new SsrPasses(this, chain))
             .Use(new ForwardPasses(this, chain))
-            .Use(bloom).Use(tonemap).Use(fxaa);
+            .Use(autoExposure).Use(bloom).Use(tonemap).Use(fxaa);
     }
 
     [StructLayout(LayoutKind.Sequential, Size = 176)]
@@ -115,19 +181,21 @@ public sealed partial class World3DScene
     }
 
     private sealed class DeferredLightingNode(World3DScene scene, RenderChain chain, Shader shader,
-        RGNode_Bloom bloom, RGNode_Tonemap tonemap, RGNode_FXAA fxaa) : IRenderGraphNode
+        RGNode_AutoExposure autoExposure, RGNode_Bloom bloom, RGNode_Tonemap tonemap, RGNode_FXAA fxaa) : IRenderGraphNode
     {
         private const uint GroupSize = 8;
 
         private readonly World3DScene _scene = scene;
         private readonly RenderChain _chain = chain;
         private readonly Shader _shader = shader;
+        private readonly RGNode_AutoExposure _autoExposure = autoExposure;
         private readonly RGNode_Bloom _bloom = bloom;
         private readonly RGNode_Tonemap _tonemap = tonemap;
         private readonly RGNode_FXAA _fxaa = fxaa;
         private RGTexture _hdr;
         private World3DLighting? _cachedLighting;
         private DeferredLightingRoot _cachedEnvironment;
+        private bool _wasAutoExposureActive;
 
         void IRenderGraphNode.Setup(RenderGraphBuilder builder)
         {
@@ -136,6 +204,39 @@ public sealed partial class World3DScene
             bool active = builder.HasOutput && gbuffer.Depth.IsValid && !views.IsEmpty;
             // Setup runs in registration order, before the post nodes inspect IsEnabled.
             // A skipped frame must not let them read the previous frame's chain handles.
+            bool autoExposureActive = active && _scene.AutoExposure.Enabled && _scene.LightingDebugView == World3DLightingDebugView.None;
+            if (autoExposureActive && !_wasAutoExposureActive)
+                _autoExposure.Reset();
+            _wasAutoExposureActive = autoExposureActive;
+
+            _autoExposure.IsEnabled = autoExposureActive;
+            if (autoExposureActive)
+            {
+                World3DAutoExposureSettings ae = _scene.AutoExposure;
+                _autoExposure.Settings = new AutoExposureSettings
+                {
+                    MinEV = ae.MinEV,
+                    MaxEV = ae.MaxEV,
+                    ExposureCompensation = ae.ExposureCompensation,
+                    KeyValue = ae.KeyValue,
+                    LowPercent = ae.LowPercent,
+                    HighPercent = ae.HighPercent,
+                    MinLogLuminance = ae.MinLogLuminance,
+                    MaxLogLuminance = ae.MaxLogLuminance,
+                    SpeedUp = ae.SpeedUp,
+                    SpeedDown = ae.SpeedDown,
+                    MeteringMode = ae.MeteringMode,
+                    CenterWeightRadius = ae.CenterWeightRadius,
+                    IgnoreDarkFloor = ae.IgnoreDarkFloor,
+                    HalfResolution = ae.HalfResolution,
+                };
+                _autoExposure.TelemetryEnabled = ae.TelemetryEnabled;
+            }
+            else
+            {
+                _autoExposure.TelemetryEnabled = false;
+            }
+
             _bloom.IsEnabled = active;
             _tonemap.IsEnabled = active;
             _fxaa.IsEnabled = active;

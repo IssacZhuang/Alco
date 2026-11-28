@@ -61,7 +61,8 @@ public sealed partial class World3DScene
         PrepareSsr(context, viewport, in view);
         PrepareForwardPasses(context);
         _gpu.PrepareTables(context);
-        _graph.Execute(context, output, outputFinalUsage: outputFinalUsage);
+        _graph.Execute(context, output, deltaTime, outputFinalUsage: outputFinalUsage);
+        UpdateAutoExposureStats(_recordedWorld && AutoExposure.Enabled && LightingDebugView == World3DLightingDebugView.None);
         _recordingSucceeded = true;
         LastRecordedSync = new World3DSceneSyncStats(geometryBytes, _gpu.GeometryPatches, _gpu.MaterialPatches,
             _gpu.InstancePatches, _gpu.InitializedTablePages);

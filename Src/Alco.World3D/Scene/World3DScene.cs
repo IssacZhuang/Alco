@@ -440,6 +440,8 @@ public sealed partial class World3DScene : IDisposable
         ReconcileFrame();
         _disposed = true;
         _graph.Dispose();
+        _autoExposureNode?.Dispose();
+        _autoExposureNode = null;
         _gbufferPrograms.Dispose();
         _drawLayout.Dispose();
         DisposeOcclusionResources();

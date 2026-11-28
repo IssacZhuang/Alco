@@ -75,6 +75,24 @@ public sealed unsafe class Buffer : RenderingResource
             NativeMemory.Copy(data, _allocation.Range.Cpu + byteOffset, (nuint)byteCount);
     }
 
+    /// <summary>Copies mapped buffer data into CPU memory without submitting commands or waiting for GPU work.</summary>
+    /// <typeparam name="T">The unmanaged destination element type.</typeparam>
+    /// <param name="destination">The span receiving the copied bytes.</param>
+    /// <param name="byteOffset">The source byte offset; the complete destination must fit in the allocation.</param>
+    public void GetData<T>(Span<T> destination, ulong byteOffset = 0) where T : unmanaged
+    {
+        Debug.Assert(!IsDisposed);
+        if (_allocation.Range.Cpu == null)
+            throw new InvalidOperationException("Cannot read CPU data directly from a GPU-only buffer.");
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(byteOffset, SizeBytes);
+        ulong byteCount = (ulong)destination.Length * (ulong)sizeof(T);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(byteCount, SizeBytes - byteOffset);
+        if (destination.IsEmpty)
+            return;
+        fixed (T* data = destination)
+            NativeMemory.Copy(_allocation.Range.Cpu + byteOffset, data, (nuint)byteCount);
+    }
+
     internal RenderingSystem System => _system;
 
     /// <summary>The borrowed shader-visible buffer view; using it directly does not retain this buffer.</summary>

@@ -37,6 +37,7 @@ public sealed class RenderingSystem : IDisposable
     private readonly HeapPoolDesc _bufferPoolDesc;
     private readonly GPUHeapPool _bufferPool;
     private GPUHeapPool? _gpuBufferPool;
+    private GPUHeapPool? _readbackBufferPool;
     private readonly TextureHeapPool _texturePool;
     private readonly GPUTextureDescriptorHeap _textureDescriptors;
     private readonly GPUSamplerDescriptorHeap _samplerDescriptors;
@@ -650,7 +651,7 @@ public sealed class RenderingSystem : IDisposable
 
     /// <summary>Allocates nonmoving buffer storage of the requested memory visibility; its contents are initially undefined.</summary>
     /// <param name="byteCount">The positive capacity in bytes.</param>
-    /// <param name="memory">The memory type (<see cref="MemoryType.CpuVisible"/> or <see cref="MemoryType.GpuOnly"/>).</param>
+    /// <param name="memory">The memory type (<see cref="MemoryType.CpuVisible"/>, <see cref="MemoryType.GpuOnly"/>, or <see cref="MemoryType.Readback"/>).</param>
     /// <returns>The buffer; destroy it after its final GPU use, or let collection reclaim it through <see cref="Tick"/>.</returns>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="memory"/> is not supported for pooled buffers.</exception>
     /// <exception cref="InvalidOperationException">The buffer pool budget is exhausted.</exception>
@@ -658,17 +659,20 @@ public sealed class RenderingSystem : IDisposable
     public Buffer CreateBuffer(ulong byteCount, MemoryType memory)
     {
         Debug.Assert(!_destroyed && byteCount != 0);
-        if (memory is not (MemoryType.CpuVisible or MemoryType.GpuOnly))
-            throw new ArgumentOutOfRangeException(nameof(memory), memory, "Only CpuVisible and GpuOnly buffers are supported.");
+        if (memory is not (MemoryType.CpuVisible or MemoryType.GpuOnly or MemoryType.Readback))
+            throw new ArgumentOutOfRangeException(nameof(memory), memory, "Only CpuVisible, GpuOnly, and Readback buffers are supported.");
 
         bool retried = false;
         while (true)
         {
             lock (_bufferLock)
             {
-                GPUHeapPool pool = memory == MemoryType.GpuOnly
-                    ? (_gpuBufferPool ??= new GPUHeapPool(_device, _bufferPoolDesc, MemoryType.GpuOnly))
-                    : _bufferPool;
+                GPUHeapPool pool = memory switch
+                {
+                    MemoryType.GpuOnly => _gpuBufferPool ??= new GPUHeapPool(_device, _bufferPoolDesc, MemoryType.GpuOnly),
+                    MemoryType.Readback => _readbackBufferPool ??= new GPUHeapPool(_device, _bufferPoolDesc, MemoryType.Readback),
+                    _ => _bufferPool,
+                };
                 HeapAllocation<byte> allocation = pool.Allocate(byteCount);
                 if (allocation.Range.SizeBytes != 0)
                 {
@@ -995,6 +999,7 @@ public sealed class RenderingSystem : IDisposable
         _samplerDescriptors.Destroy();
         _textureDescriptors.Destroy();
         _texturePool.Destroy();
+        _readbackBufferPool?.Destroy();
         _gpuBufferPool?.Destroy();
         _bufferPool.Destroy();
         _destroyed = true;
@@ -1344,7 +1349,12 @@ public sealed class RenderingSystem : IDisposable
         lock (_bufferLock)
         {
             Debug.Assert(!_destroyed && _liveBuffers != 0);
-            GPUHeapPool pool = memory == MemoryType.GpuOnly ? _gpuBufferPool! : _bufferPool;
+            GPUHeapPool pool = memory switch
+            {
+                MemoryType.GpuOnly => _gpuBufferPool!,
+                MemoryType.Readback => _readbackBufferPool!,
+                _ => _bufferPool,
+            };
             pool.Free(allocation);
             --_liveBuffers;
         }

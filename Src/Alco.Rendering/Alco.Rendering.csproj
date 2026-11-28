@@ -15,6 +15,7 @@
 
   </ItemGroup>
    <ItemGroup>
+    <EmbeddedResource Include="Assets\Shaders\Libs\AlcoRendering_AutoExposure.slang" LogicalName="AlcoRendering_AutoExposure.slang" />
     <EmbeddedResource Include="Assets\Shaders\Libs\AlcoRendering_Bloom.slang" LogicalName="AlcoRendering_Bloom.slang" />
     <EmbeddedResource Include="Assets\Shaders\Libs\AlcoRendering_FXAA.slang" LogicalName="AlcoRendering_FXAA.slang" />
     <EmbeddedResource Include="Assets\Shaders\Libs\AlcoRendering_MeshScene3D.slang" LogicalName="AlcoRendering_MeshScene3D.slang" />
@@ -31,6 +32,7 @@
     <EmbeddedResource Include="Assets\Shaders\Passes\Compute\MeshScene3D*.slang" LogicalName="%(Filename)%(Extension)" />
     <EmbeddedResource Include="Assets\Shaders\Passes\Compute\SpriteScene*.slang" LogicalName="%(Filename)%(Extension)" />
     <EmbeddedResource Include="Assets\Shaders\Passes\Compute\SvgRasterize.slang" LogicalName="SvgRasterize.slang" />
+    <EmbeddedResource Include="Assets\Shaders\Passes\PostFX\AutoExposure\*.slang" LogicalName="%(Filename)%(Extension)" />
     <EmbeddedResource Include="Assets\Shaders\Passes\PostFX\Bloom\*.slang" LogicalName="%(Filename)%(Extension)" />
     <EmbeddedResource Include="Assets\Shaders\Passes\PostFX\FXAA\*.slang" LogicalName="%(Filename)%(Extension)" />
     <EmbeddedResource Include="Assets\Shaders\Passes\PostFX\Tonemap\*.slang" LogicalName="%(Filename)%(Extension)" />

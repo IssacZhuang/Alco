@@ -9,6 +9,7 @@ module BloomSetup;
 
 import Core;
 import SharedSampler;
+import AlcoRendering_AutoExposure;
 import AlcoRendering_Bloom;
 
 [GPURoot]
@@ -19,6 +20,8 @@ public struct BloomSetupRoot
     public float2 InvDestSize;
     public uint2 DestSize;
     public float Threshold;
+    public uint UseAutoExposure;
+    public GPUBufferView ExposureState;
 };
 
 [shader("compute")]
@@ -46,7 +49,17 @@ void mainCS(uint3 id : SV_DispatchThreadID)
     float amount = 1.0f;
     if (root.Threshold >= 0.0f)
     {
-        float luma = dot(linearColor, float3(0.3f, 0.59f, 0.11f));
+        float exposureScale = 1.0f;
+        if (root.UseAutoExposure != 0u && root.ExposureState.Index != 0u)
+        {
+            float autoExp = gpu_load<AutoExposureState>(root.ExposureState, 0u).Exposure;
+            if (isfinite(autoExp) && autoExp > 0.0f)
+            {
+                exposureScale = autoExp;
+            }
+        }
+
+        float luma = dot(linearColor, float3(0.3f, 0.59f, 0.11f)) * exposureScale;
         amount = saturate((luma - root.Threshold) * 0.5f);
     }
 

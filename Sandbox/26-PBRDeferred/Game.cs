@@ -25,6 +25,7 @@ internal sealed class Game : GameEngine
     private readonly Texture? _offscreen;
     private readonly RenderingMemoryStats _preSceneMemory;
     private readonly List<double> _flyRecordMs = [];
+    private readonly float[] _autoExposurePlot = new float[64];
     private BistroImporter? _importer;
     private LargeWorldStressScene? _largeWorld;
     private ImGUISystem? _imGui;
@@ -66,6 +67,7 @@ internal sealed class Game : GameEngine
             scene.VolumetricLight.Enabled = options.VolLightEnabled;
             scene.Ssr.Enabled = options.SsrEnabled;
             scene.Forward.Enabled = options.ForwardEnabled;
+            scene.AutoExposure.Enabled = options.AutoExposureEnabled;
             scene.VoxelGi.BootstrapFullVolumeOnReset = options.BootstrapGi || (options.Frames.HasValue && !options.FlyStress);
             if (options.RsmEnabled.HasValue)
                 scene.Shadows.Rsm.Enabled = options.RsmEnabled.Value;
@@ -165,6 +167,7 @@ internal sealed class Game : GameEngine
                     UpdateFlyStressCamera(_renderedFrames);
             }
             _largeWorld?.PrepareFrame(in _camera, _renderedFrames);
+            _scene.AutoExposure.TelemetryEnabled = hasImGuiFrame && _showImGui && _scene.AutoExposure.Enabled;
             long startStamp = Stopwatch.GetTimestamp();
             if (!TryRecordFrame(output, _offscreen != null ? RGUsage.TransferRead : RGUsage.ColorAttachment, delta))
             {
@@ -279,6 +282,8 @@ internal sealed class Game : GameEngine
 
             if (ImGui.CollapsingHeader("Lighting", ImGuiTreeNodeFlags.DefaultOpen))
                 DrawLightingControls();
+            if (ImGui.CollapsingHeader("Auto Exposure", ImGuiTreeNodeFlags.DefaultOpen))
+                DrawAutoExposureControls();
             if (ImGui.CollapsingHeader("VoxelGI (Clipmap)", ImGuiTreeNodeFlags.DefaultOpen))
                 DrawVoxelGiControls();
             if (ImGui.CollapsingHeader("Occlusion (Hi-Z)", ImGuiTreeNodeFlags.DefaultOpen))
@@ -326,6 +331,95 @@ internal sealed class Game : GameEngine
         }
         if (changed)
             _scene.Lighting = lighting with { SunIntensity = sunlight, SkyExposure = exposure, AmbientFloor = ambient };
+    }
+
+    private void DrawAutoExposureControls()
+    {
+        World3DAutoExposureSettings ae = _scene.AutoExposure;
+        bool enabled = ae.Enabled;
+        bool awareBloom = ae.ExposureAwareBloom;
+        if (ImGui.Checkbox("Auto exposure", ref enabled))
+            ae.Enabled = enabled;
+        ImGui.SameLine();
+        if (ImGui.Checkbox("Exposure-aware bloom", ref awareBloom))
+            ae.ExposureAwareBloom = awareBloom;
+
+        bool halfRes = ae.HalfResolution;
+        bool ignoreDark = ae.IgnoreDarkFloor;
+        if (ImGui.Checkbox("Half-res metering", ref halfRes))
+            ae.HalfResolution = halfRes;
+        ImGui.SameLine();
+        if (ImGui.Checkbox("Ignore dark floor", ref ignoreDark))
+            ae.IgnoreDarkFloor = ignoreDark;
+        ImGui.SameLine();
+        if (ImGui.Button("Reset AE"))
+            _scene.ResetAutoExposure();
+
+        int metering = (int)ae.MeteringMode;
+        if (ImGui.Combo("Metering mode", ref metering, "Uniform\0Center-Weighted\0Spot\0"))
+            ae.MeteringMode = (AutoExposureMeteringMode)metering;
+        if (ae.MeteringMode != AutoExposureMeteringMode.Uniform)
+        {
+            float radius = ae.CenterWeightRadius;
+            if (ImGui.SliderFloat("Center radius", ref radius, 0.1f, 1.5f, "%.2f", ImGuiSliderFlags.AlwaysClamp))
+                ae.CenterWeightRadius = radius;
+        }
+
+        float compensation = ae.ExposureCompensation;
+        float keyValue = ae.KeyValue;
+        float minEv = ae.MinEV;
+        float maxEv = ae.MaxEV;
+        float lowPct = ae.LowPercent;
+        float highPct = ae.HighPercent;
+        float speedUp = ae.SpeedUp;
+        float speedDown = ae.SpeedDown;
+
+        if (ImGui.SliderFloat("EV compensation", ref compensation, -4f, 4f, "%.2f", ImGuiSliderFlags.AlwaysClamp))
+            ae.ExposureCompensation = compensation;
+        if (ImGui.SliderFloat("Key value", ref keyValue, 0.04f, 0.60f, "%.3f", ImGuiSliderFlags.AlwaysClamp))
+            ae.KeyValue = keyValue;
+        if (ImGui.SliderFloat("Min EV", ref minEv, -8f, 4f, "%.2f", ImGuiSliderFlags.AlwaysClamp))
+            ae.MinEV = MathF.Min(minEv, ae.MaxEV);
+        if (ImGui.SliderFloat("Max EV", ref maxEv, -2f, 12f, "%.2f", ImGuiSliderFlags.AlwaysClamp))
+            ae.MaxEV = MathF.Max(maxEv, ae.MinEV);
+        if (ImGui.SliderFloat("Low percent", ref lowPct, 0f, 0.95f, "%.2f", ImGuiSliderFlags.AlwaysClamp))
+            ae.LowPercent = MathF.Min(lowPct, ae.HighPercent);
+        if (ImGui.SliderFloat("High percent", ref highPct, 0.05f, 1f, "%.2f", ImGuiSliderFlags.AlwaysClamp))
+            ae.HighPercent = MathF.Max(highPct, ae.LowPercent);
+        if (ImGui.SliderFloat("Speed up", ref speedUp, 0.1f, 12f, "%.2f", ImGuiSliderFlags.AlwaysClamp))
+            ae.SpeedUp = speedUp;
+        if (ImGui.SliderFloat("Speed down", ref speedDown, 0.1f, 12f, "%.2f", ImGuiSliderFlags.AlwaysClamp))
+            ae.SpeedDown = speedDown;
+
+        World3DAutoExposureStats stats = _scene.LastRecordedAutoExposure;
+        if (stats.HasTelemetry)
+        {
+            ImGui.Text(FormattableString.Invariant(
+                $"Exposure: {stats.Exposure:F3}x  AdaptedEV: {stats.AdaptedEV:F2}  TargetEV: {stats.TargetEV:F2}  AvgLum: {stats.AverageLuminance:F3}"));
+
+            ReadOnlySpan<uint> hist = _scene.LastAutoExposureHistogram;
+            if (hist.Length == RGNode_AutoExposure.BinCount)
+            {
+                float maxVal = 1f;
+                for (int i = 0; i < _autoExposurePlot.Length; ++i)
+                {
+                    int b = i * 4;
+                    float sum = (float)hist[b] + hist[b + 1] + hist[b + 2] + hist[b + 3];
+                    _autoExposurePlot[i] = sum;
+                    if (sum > maxVal)
+                        maxVal = sum;
+                }
+                ImGui.PlotHistogram(
+                    "##AutoExposureHist",
+                    ref _autoExposurePlot[0],
+                    _autoExposurePlot.Length,
+                    0,
+                    "Log2 Luminance Histogram",
+                    0f,
+                    maxVal,
+                    new Vector2(-1f, 64f));
+            }
+        }
     }
 
     private void DrawOcclusionControls()
@@ -740,6 +834,17 @@ internal sealed class Game : GameEngine
             $"clouds=({cloudStats.Enabled}, shadow={cloudStats.CastShadows}, hist={cloudStats.TemporalHistoryValid}), " +
             $"volLight=({vlStats.Enabled}, {vlStats.TraceExtent.X}x{vlStats.TraceExtent.Y}), " +
             $"ssr=({ssrStats.Enabled}, hiz={ssrStats.HiZActive}, hist={ssrStats.TemporalHistoryValid})");
+        if (GraphicsDevice.ActiveBackend != GraphicsBackend.NoGPU && _scene.AutoExposure.Enabled &&
+            _scene.TryReadAutoExposureState(out AutoExposureState aeState))
+        {
+            World3DAutoExposureStats aeStats = _scene.LastRecordedAutoExposure;
+            Log.Info($"World3D AutoExposure: enabled={aeStats.Enabled}, exp={aeState.Exposure:F3}, " +
+                $"adaptedEV={aeState.AdaptedEV:F2}, targetEV={aeState.TargetEV:F2}, avgLum={aeState.AverageLuminance:F3}");
+        }
+        else
+        {
+            Log.Info($"World3D AutoExposure: enabled={_scene.LastRecordedAutoExposure.Enabled}");
+        }
         if (_options.FlyStress && _flyRecordMs.Count > 0)
         {
             _flyRecordMs.Sort();

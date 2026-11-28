@@ -589,6 +589,7 @@ public sealed class TestWorld3DPhase2
                 Scene.VolumetricClouds.Enabled = false;
                 Scene.VolumetricLight.Enabled = false;
                 Scene.Ssr.Enabled = false;
+                Scene.AutoExposure.Enabled = false;
             }
             catch
             {
