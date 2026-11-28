@@ -9,8 +9,73 @@ namespace Alco;
 /// </summary>
 public abstract class SerializeWriteNode : SerializeNode
 {
+    /// <summary>
+    /// Scoped temporary buffer writer borrowed from the active encoder session.
+    /// Must be disposed in strict LIFO order.
+    /// </summary>
+    public readonly struct ScratchBufferScope : IDisposable
+    {
+        private readonly ArrayBufferWriter<byte> _writer;
+        private readonly IDisposable? _releaser;
+
+        /// <summary>Initializes a scratch buffer scope wrapping <paramref name="writer"/>.</summary>
+        /// <param name="writer">The underlying array buffer writer.</param>
+        /// <param name="releaser">Optional disposable invoked when the scope ends.</param>
+        public ScratchBufferScope(ArrayBufferWriter<byte> writer, IDisposable? releaser = null)
+        {
+            ArgumentNullException.ThrowIfNull(writer);
+            _writer = writer;
+            _releaser = releaser;
+        }
+
+        /// <summary>Gets the scratch buffer writer.</summary>
+        public ArrayBufferWriter<byte> Writer => _writer;
+
+        /// <summary>Gets the bytes written to the scratch buffer.</summary>
+        public ReadOnlySpan<byte> WrittenSpan => _writer.WrittenSpan;
+
+        /// <summary>Gets the memory view of bytes written to the scratch buffer.</summary>
+        public ReadOnlyMemory<byte> WrittenMemory => _writer.WrittenMemory;
+
+        /// <summary>Gets the number of bytes written to the scratch buffer.</summary>
+        public int WrittenCount => _writer.WrittenCount;
+
+        /// <inheritdoc />
+        public void Dispose() => _releaser?.Dispose();
+    }
+
     /// <summary>Gets whether this node only probes for non-default state without writing serialized bytes.</summary>
     public virtual bool IsProbeOnly => false;
+
+    /// <summary>
+    /// Rents a temporary scratch buffer reused from the active write session when supported.
+    /// Callers must dispose returned scopes in strict LIFO order.
+    /// </summary>
+    public virtual ScratchBufferScope RentScratchBuffer() => new(new ArrayBufferWriter<byte>(), releaser: null);
+
+    /// <summary>
+    /// Writes raw binary bytes under <paramref name="key"/> without requiring an owned <see cref="ReadOnlyMemory{T}"/>.
+    /// </summary>
+    /// <param name="key">The key identifying the binary field.</param>
+    /// <param name="data">The bytes to write.</param>
+    public virtual void SetBinary(string key, ReadOnlySpan<byte> data)
+    {
+        ReadOnlyMemory<byte> copy = data.ToArray();
+        BindBinary(key, ref copy);
+    }
+
+    /// <summary>
+    /// Attempts to reserve a contiguous <see cref="PackedTag.Binary"/> payload slot directly in the backing write buffer.
+    /// </summary>
+    /// <param name="key">The key identifying the binary field.</param>
+    /// <param name="byteLength">The exact payload length in bytes to reserve and write into <paramref name="destination"/>.</param>
+    /// <param name="destination">When <see langword="true"/>, receives the writable span of length <paramref name="byteLength"/>.</param>
+    /// <returns><see langword="true"/> if direct reservation is supported; otherwise <see langword="false"/>.</returns>
+    public virtual bool TryReserveBinary(string key, int byteLength, out Span<byte> destination)
+    {
+        destination = default;
+        return false;
+    }
 
     /// <summary>
     /// Encodes a nested standalone document into <paramref name="destination"/>, reusing encoder scratch when supported.

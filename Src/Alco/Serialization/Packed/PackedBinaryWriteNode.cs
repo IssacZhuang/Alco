@@ -79,11 +79,12 @@ internal sealed class PackedBinaryWriteNode : SerializeWriteNode
     public override void SetNullableValue<T>(string key, T? value)
     {
         WriteFieldHeader(key, GetKeyId(key), PackedTag.Nullable);
-        PackedWire.WriteByte(_frame.Bytes, value.HasValue ? (byte)1 : (byte)0);
+        RewindableByteBuffer body = _session.Body;
+        PackedWire.WriteByte(body, value.HasValue ? (byte)1 : (byte)0);
         if (value.HasValue)
         {
             T item = value.GetValueOrDefault();
-            PackedWire.WriteLengthPrefixed(_frame.Bytes, ValueBytes(in item));
+            PackedWire.WriteLengthPrefixed(body, ValueBytes(in item));
         }
         _fieldCount++;
     }
@@ -94,17 +95,36 @@ internal sealed class PackedBinaryWriteNode : SerializeWriteNode
         int keyId = GetKeyId(key);
         int valueId = _session.Strings.GetOrAdd(value);
         WriteFieldHeader(key, keyId, PackedTag.StringId);
-        PackedWire.WriteVarUInt(_frame.Bytes, valueId);
+        PackedWire.WriteVarUInt(_session.Body, valueId);
         _fieldCount++;
+    }
+
+    /// <inheritdoc/>
+    public override ScratchBufferScope RentScratchBuffer() => _session.RentScratchScope();
+
+    /// <inheritdoc/>
+    public override void SetBinary(string key, ReadOnlySpan<byte> data)
+    {
+        WriteFieldHeader(key, GetKeyId(key), PackedTag.Binary);
+        PackedWire.WriteLengthPrefixed(_session.Body, data);
+        _fieldCount++;
+    }
+
+    /// <inheritdoc/>
+    public override bool TryReserveBinary(string key, int byteLength, out Span<byte> destination)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(byteLength);
+        WriteFieldHeader(key, GetKeyId(key), PackedTag.Binary);
+        PackedWire.WriteVarUInt(_session.Body, byteLength);
+        destination = _session.Body.Reserve(byteLength);
+        _fieldCount++;
+        return true;
     }
 
     /// <inheritdoc/>
     public override void BindBinary(string key, ref ReadOnlyMemory<byte> data)
     {
-        ReadOnlySpan<byte> bytes = data.Span;
-        WriteFieldHeader(key, GetKeyId(key), PackedTag.Binary);
-        PackedWire.WriteLengthPrefixed(_frame.Bytes, bytes);
-        _fieldCount++;
+        SetBinary(key, data.Span);
     }
 
     /// <inheritdoc/>
@@ -115,22 +135,62 @@ internal sealed class PackedBinaryWriteNode : SerializeWriteNode
     public override void BindCollection<T>(string key, ICollection<T> value)
     {
         int keyId = GetKeyId(key);
-        using Frame items = _session.RentFrame();
+        int stride = Unsafe.SizeOf<T>();
+        if (stride > byte.MaxValue)
+        {
+            using ScratchBufferScope items = _session.RentScratchScope();
+            int largeCount = 0;
+            foreach (T item in value)
+            {
+                items.Writer.Write(ValueBytes(in item));
+                largeCount++;
+            }
+
+            WriteUnmanagedArray(key, keyId, largeCount, stride, items.WrittenSpan);
+            return;
+        }
+
+        WriteFieldHeader(key, keyId, PackedTag.PrimitiveArray);
+        RewindableByteBuffer body = _session.Body;
+        int headerPos = body.WrittenCount;
+        body.Reserve(2);
+        int contentStart = headerPos + 2;
+
         int count = 0;
         foreach (T item in value)
         {
-            items.Bytes.Write(ValueBytes(in item));
+            body.Write(ValueBytes(in item));
             count++;
         }
 
-        WriteUnmanagedArray(key, keyId, count, Unsafe.SizeOf<T>(), items.Bytes.WrittenSpan);
+        int countLen = PackedWire.VarUIntSize(count);
+        if (countLen == 1)
+        {
+            Span<byte> header = body.RawSpan.Slice(headerPos, 2);
+            header[0] = (byte)count;
+            header[1] = (byte)stride;
+        }
+        else
+        {
+            body.ShiftRight(contentStart, body.WrittenCount - contentStart, countLen - 1);
+            Span<byte> header = body.RawSpan.Slice(headerPos, countLen + 1);
+            int written = WriteVarUIntToSpan(header, count);
+            header[written] = (byte)stride;
+        }
+
+        _fieldCount++;
     }
 
     /// <inheritdoc/>
     public override void BindCollection(string key, ICollection<string> value)
     {
         int keyId = GetKeyId(key);
-        using Frame items = _session.RentFrame();
+        WriteFieldHeader(key, keyId, PackedTag.StringArray);
+        RewindableByteBuffer body = _session.Body;
+        int headerPos = body.WrittenCount;
+        body.Reserve(1);
+        int contentStart = headerPos + 1;
+
         int count = 0;
         int index = -1;
         foreach (string item in value)
@@ -147,11 +207,22 @@ internal sealed class PackedBinaryWriteNode : SerializeWriteNode
                 continue;
             }
 
-            PackedWire.WriteVarUInt(items.Bytes, id);
+            PackedWire.WriteVarUInt(body, id);
             count++;
         }
 
-        WriteArrayField(key, keyId, PackedTag.StringArray, count, items.Bytes.WrittenSpan);
+        int countLen = PackedWire.VarUIntSize(count);
+        if (countLen == 1)
+        {
+            body.RawSpan[headerPos] = (byte)count;
+        }
+        else
+        {
+            body.ShiftRight(contentStart, body.WrittenCount - contentStart, countLen - 1);
+            WriteVarUIntToSpan(body.RawSpan.Slice(headerPos, countLen), count);
+        }
+
+        _fieldCount++;
     }
 
     /// <inheritdoc/>
@@ -174,27 +245,29 @@ internal sealed class PackedBinaryWriteNode : SerializeWriteNode
     public override void BindArraySerializable<T>(string key, IReadOnlyList<T> value)
     {
         int keyId = GetKeyId(key);
-        using Frame items = _session.RentFrame();
+        RewindableByteBuffer body = _session.Body;
+        int rollbackPos = body.WrittenCount;
+        WriteFieldHeader(key, keyId, PackedTag.TableArray);
+
         int count = value.Count;
+        PackedWire.WriteVarUInt(body, count);
         for (int i = 0; i < count; i++)
         {
-            using Frame frame = _session.RentFrame();
-            PackedBinaryWriteNode child;
             try
             {
-                child = SaveChild(frame, value[i]);
+                WriteSizedChild(value[i]);
             }
             catch (Exception ex) when (_session.Errors.CanReport(ex))
             {
                 // Dropping just this item would change the position of every later item.
+                body.Rewind(rollbackPos);
+                _frame.RemoveKey(keyId);
                 _session.Errors.Report($"Failed to bind array serializable '{key}' at index {i}: {ex}");
                 return;
             }
-
-            child.WriteSizedTable(items.Bytes);
         }
 
-        WriteArrayField(key, keyId, PackedTag.TableArray, count, items.Bytes.WrittenSpan);
+        _fieldCount++;
     }
 
     /// <inheritdoc/>
@@ -215,7 +288,12 @@ internal sealed class PackedBinaryWriteNode : SerializeWriteNode
     public override void BindDictionary<TValue>(string key, IDictionary<string, TValue> value)
     {
         int keyId = GetKeyId(key);
-        using Frame entries = _session.RentFrame();
+        using Frame entriesFrame = _session.RentFrame();
+        int stride = Unsafe.SizeOf<TValue>();
+        int strideLen = PackedWire.VarUIntSize(stride);
+        RewindableByteBuffer body = _session.Body;
+
+        BeginMapField(key, keyId, strideLen, out int headerPos, out int reservedHeaderLen, out int contentStart);
         int count = 0;
         foreach (var entry in value)
         {
@@ -230,20 +308,23 @@ internal sealed class PackedBinaryWriteNode : SerializeWriteNode
                 continue;
             }
 
-            WriteUniqueKey(entries, entry.Key, entryId);
+            WriteUniqueKey(entriesFrame, entry.Key, entryId);
             TValue item = entry.Value;
-            entries.Bytes.Write(ValueBytes(in item));
+            body.Write(ValueBytes(in item));
             count++;
         }
 
-        WriteMapField(key, keyId, PackedMapKind.Unmanaged, count, entries, Unsafe.SizeOf<TValue>());
+        EndMapField(PackedMapKind.Unmanaged, count, headerPos, reservedHeaderLen, contentStart, stride, strideLen);
     }
 
     /// <inheritdoc/>
     public override void BindDictionary(string key, IDictionary<string, string> value)
     {
         int keyId = GetKeyId(key);
-        using Frame entries = _session.RentFrame();
+        using Frame entriesFrame = _session.RentFrame();
+        RewindableByteBuffer body = _session.Body;
+
+        BeginMapField(key, keyId, strideLen: 0, out int headerPos, out int reservedHeaderLen, out int contentStart);
         int count = 0;
         foreach (var entry in value)
         {
@@ -260,19 +341,22 @@ internal sealed class PackedBinaryWriteNode : SerializeWriteNode
                 continue;
             }
 
-            WriteUniqueKey(entries, entry.Key, entryId);
-            PackedWire.WriteVarUInt(entries.Bytes, valueId);
+            WriteUniqueKey(entriesFrame, entry.Key, entryId);
+            PackedWire.WriteVarUInt(body, valueId);
             count++;
         }
 
-        WriteMapField(key, keyId, PackedMapKind.StringId, count, entries);
+        EndMapField(PackedMapKind.StringId, count, headerPos, reservedHeaderLen, contentStart);
     }
 
     /// <inheritdoc/>
     public override void BindDictionary(string key, IDictionary<string, ReadOnlyMemory<byte>> value)
     {
         int keyId = GetKeyId(key);
-        using Frame entries = _session.RentFrame();
+        using Frame entriesFrame = _session.RentFrame();
+        RewindableByteBuffer body = _session.Body;
+
+        BeginMapField(key, keyId, strideLen: 0, out int headerPos, out int reservedHeaderLen, out int contentStart);
         int count = 0;
         foreach (var entry in value)
         {
@@ -289,12 +373,12 @@ internal sealed class PackedBinaryWriteNode : SerializeWriteNode
                 continue;
             }
 
-            WriteUniqueKey(entries, entry.Key, entryId);
-            PackedWire.WriteLengthPrefixed(entries.Bytes, bytes);
+            WriteUniqueKey(entriesFrame, entry.Key, entryId);
+            PackedWire.WriteLengthPrefixed(body, bytes);
             count++;
         }
 
-        WriteMapField(key, keyId, PackedMapKind.Binary, count, entries);
+        EndMapField(PackedMapKind.Binary, count, headerPos, reservedHeaderLen, contentStart);
     }
 
     /// <inheritdoc/>
@@ -312,66 +396,83 @@ internal sealed class PackedBinaryWriteNode : SerializeWriteNode
     private void BindChild<T>(string key, T value, bool optional) where T : ISerializable
     {
         int keyId = GetKeyId(key);
-        using Frame frame = _session.RentFrame();
-        PackedBinaryWriteNode child;
+        RewindableByteBuffer body = _session.Body;
+        int rollbackPos = body.WrittenCount;
+        WriteFieldHeader(key, keyId, PackedTag.Table);
         try
         {
-            child = SaveChild(frame, value);
+            WriteSizedChild(value);
         }
         catch (Exception ex) when (_session.Errors.CanReport(ex))
         {
+            body.Rewind(rollbackPos);
+            _frame.RemoveKey(keyId);
             string kind = optional ? "optional serializable" : "serializable";
             _session.Errors.Report($"Failed to bind {kind} '{key}': {ex}");
             return;
         }
 
-        WriteFieldHeader(key, keyId, PackedTag.Table);
-        child.WriteSizedTable(_frame.Bytes);
         _fieldCount++;
     }
 
     private void BindSerializableCollection<T>(string key, ICollection<T> value) where T : ISerializable
     {
         int keyId = GetKeyId(key);
-        using Frame items = _session.RentFrame();
+        WriteFieldHeader(key, keyId, PackedTag.TableArray);
+        RewindableByteBuffer body = _session.Body;
+        int headerPos = body.WrittenCount;
+        body.Reserve(1);
+        int contentStart = headerPos + 1;
+
         int count = 0;
         int index = -1;
         foreach (T item in value)
         {
             index = checked(index + 1);
-            using Frame frame = _session.RentFrame();
-            PackedBinaryWriteNode child;
+            int itemStart = body.WrittenCount;
             try
             {
-                child = SaveChild(frame, item);
+                WriteSizedChild(item);
             }
             catch (Exception ex) when (_session.Errors.CanReport(ex))
             {
+                body.Rewind(itemStart);
                 _session.Errors.Report($"Failed to bind serializable list item at index {index} for key '{key}': {ex}");
                 continue;
             }
 
-            child.WriteSizedTable(items.Bytes);
             count++;
         }
 
-        WriteArrayField(key, keyId, PackedTag.TableArray, count, items.Bytes.WrittenSpan);
+        int countLen = PackedWire.VarUIntSize(count);
+        if (countLen == 1)
+        {
+            body.RawSpan[headerPos] = (byte)count;
+        }
+        else
+        {
+            body.ShiftRight(contentStart, body.WrittenCount - contentStart, countLen - 1);
+            WriteVarUIntToSpan(body.RawSpan.Slice(headerPos, countLen), count);
+        }
+
+        _fieldCount++;
     }
 
     private void BindSerializableMap<T>(string key, IDictionary<string, T> value) where T : ISerializable
     {
         int keyId = GetKeyId(key);
-        using Frame entries = _session.RentFrame();
+        using Frame entriesFrame = _session.RentFrame();
+        RewindableByteBuffer body = _session.Body;
+
+        BeginMapField(key, keyId, strideLen: 0, out int headerPos, out int reservedHeaderLen, out int contentStart);
         int count = 0;
         foreach (var entry in value)
         {
-            using Frame frame = _session.RentFrame();
+            int entryStart = body.WrittenCount;
             int entryId;
-            PackedBinaryWriteNode child;
             try
             {
                 entryId = GetKeyId(entry.Key);
-                child = SaveChild(frame, entry.Value);
             }
             catch (Exception ex) when (_session.Errors.CanReport(ex))
             {
@@ -379,12 +480,24 @@ internal sealed class PackedBinaryWriteNode : SerializeWriteNode
                 continue;
             }
 
-            WriteUniqueKey(entries, entry.Key, entryId);
-            child.WriteSizedTable(entries.Bytes);
+            WriteUniqueKey(entriesFrame, entry.Key, entryId);
+
+            try
+            {
+                WriteSizedChild(entry.Value);
+            }
+            catch (Exception ex) when (_session.Errors.CanReport(ex))
+            {
+                body.Rewind(entryStart);
+                entriesFrame.RemoveKey(entryId);
+                _session.Errors.Report($"Failed to bind serializable dictionary item key '{entry.Key}' for key '{key}': {ex}");
+                continue;
+            }
+
             count++;
         }
 
-        WriteMapField(key, keyId, PackedMapKind.Table, count, entries);
+        EndMapField(PackedMapKind.Table, count, headerPos, reservedHeaderLen, contentStart);
     }
 
     private void Save<T>(T value) where T : ISerializable
@@ -398,14 +511,99 @@ internal sealed class PackedBinaryWriteNode : SerializeWriteNode
         value.OnSerialize(this, SerializeMode.Save);
     }
 
-    private PackedBinaryWriteNode SaveChild<T>(Frame frame, T value) where T : ISerializable
+    private void WriteSizedChild<T>(T value) where T : ISerializable
     {
         if (_depth >= PackedWire.MaxDepth)
             throw new InvalidOperationException($"Packed binary tables cannot exceed depth {PackedWire.MaxDepth}.");
 
-        PackedBinaryWriteNode child = frame.PrepareNode(_depth + 1);
-        child.Save(value);
-        return child;
+        RewindableByteBuffer body = _session.Body;
+        int headerPos = body.WrittenCount;
+        body.Reserve(2);
+        int contentStart = headerPos + 2;
+
+        int childFieldCount;
+        using (Frame frame = _session.RentFrame())
+        {
+            PackedBinaryWriteNode child = frame.PrepareNode(_depth + 1);
+            child.Save(value);
+            childFieldCount = child._fieldCount;
+        }
+
+        int contentLen = body.WrittenCount - contentStart;
+        int fieldCountLen = PackedWire.VarUIntSize(childFieldCount);
+        int tableByteLen = checked(fieldCountLen + contentLen);
+        int sizePrefixLen = PackedWire.VarUIntSize(tableByteLen);
+        int actualHeaderLen = checked(sizePrefixLen + fieldCountLen);
+
+        if (actualHeaderLen == 2)
+        {
+            Span<byte> header = body.RawSpan.Slice(headerPos, 2);
+            header[0] = (byte)tableByteLen;
+            header[1] = (byte)childFieldCount;
+            return;
+        }
+
+        body.ShiftRight(contentStart, contentLen, actualHeaderLen - 2);
+        Span<byte> expanded = body.RawSpan.Slice(headerPos, actualHeaderLen);
+        int offset = WriteVarUIntToSpan(expanded, tableByteLen);
+        WriteVarUIntToSpan(expanded[offset..], childFieldCount);
+    }
+
+    private void BeginMapField(
+        string key,
+        int keyId,
+        int strideLen,
+        out int headerPos,
+        out int reservedHeaderLen,
+        out int contentStart)
+    {
+        WriteFieldHeader(key, keyId, PackedTag.Map);
+        RewindableByteBuffer body = _session.Body;
+        headerPos = body.WrittenCount;
+        reservedHeaderLen = 3 + strideLen;
+        body.Reserve(reservedHeaderLen);
+        contentStart = headerPos + reservedHeaderLen;
+    }
+
+    private void EndMapField(
+        PackedMapKind kind,
+        int count,
+        int headerPos,
+        int reservedHeaderLen,
+        int contentStart,
+        int stride = 0,
+        int strideLen = 0)
+    {
+        RewindableByteBuffer body = _session.Body;
+        int entriesLen = body.WrittenCount - contentStart;
+        int countLen = PackedWire.VarUIntSize(count);
+        int mapBodyLen = checked(countLen + 1 + strideLen + entriesLen);
+        int mapLenPrefixLen = PackedWire.VarUIntSize(mapBodyLen);
+        int actualHeaderLen = checked(mapLenPrefixLen + countLen + 1 + strideLen);
+
+        if (actualHeaderLen > reservedHeaderLen)
+            body.ShiftRight(contentStart, entriesLen, actualHeaderLen - reservedHeaderLen);
+
+        Span<byte> header = body.RawSpan.Slice(headerPos, actualHeaderLen);
+        int offset = WriteVarUIntToSpan(header, mapBodyLen);
+        offset += WriteVarUIntToSpan(header[offset..], count);
+        header[offset++] = (byte)kind;
+        if (kind == PackedMapKind.Unmanaged)
+            WriteVarUIntToSpan(header[offset..], stride);
+
+        _fieldCount++;
+    }
+
+    private static int WriteVarUIntToSpan(Span<byte> dest, int value)
+    {
+        int size = 0;
+        while (value >= 0x80)
+        {
+            dest[size++] = (byte)(value | 0x80);
+            value >>= 7;
+        }
+        dest[size++] = (byte)value;
+        return size;
     }
 
     private static ReadOnlySpan<byte> ValueBytes<T>(in T value) where T : unmanaged =>
@@ -415,10 +613,11 @@ internal sealed class PackedBinaryWriteNode : SerializeWriteNode
     {
         PackedTag tag = PackedWire.GetScalarTag(Unsafe.SizeOf<T>());
         WriteFieldHeader(key, GetKeyId(key), tag);
+        RewindableByteBuffer body = _session.Body;
         if (tag == PackedTag.Binary)
-            PackedWire.WriteLengthPrefixed(_frame.Bytes, ValueBytes(in value));
+            PackedWire.WriteLengthPrefixed(body, ValueBytes(in value));
         else
-            _frame.Bytes.Write(ValueBytes(in value));
+            body.Write(ValueBytes(in value));
         _fieldCount++;
     }
 
@@ -429,40 +628,19 @@ internal sealed class PackedBinaryWriteNode : SerializeWriteNode
         _ = checked(PackedWire.VarUIntSize(count) + sizeBytes + bytes.Length);
 
         WriteFieldHeader(key, keyId, isPrimitive ? PackedTag.PrimitiveArray : PackedTag.BinaryArray);
-        PackedWire.WriteVarUInt(_frame.Bytes, count);
+        RewindableByteBuffer body = _session.Body;
+        PackedWire.WriteVarUInt(body, count);
         if (isPrimitive)
         {
-            PackedWire.WriteByte(_frame.Bytes, (byte)stride);
+            PackedWire.WriteByte(body, (byte)stride);
         }
         else
         {
             // All element lengths precede the contiguous payload in the binary array.
             for (int i = 0; i < count; i++)
-                PackedWire.WriteVarUInt(_frame.Bytes, stride);
+                PackedWire.WriteVarUInt(body, stride);
         }
-        _frame.Bytes.Write(bytes);
-        _fieldCount++;
-    }
-
-    private void WriteArrayField(string key, int keyId, PackedTag tag, int count, ReadOnlySpan<byte> items)
-    {
-        WriteFieldHeader(key, keyId, tag);
-        PackedWire.WriteVarUInt(_frame.Bytes, count);
-        _frame.Bytes.Write(items);
-        _fieldCount++;
-    }
-
-    private void WriteMapField(string key, int keyId, PackedMapKind kind, int count, Frame entries, int stride = 0)
-    {
-        int length = checked(PackedWire.VarUIntSize(count) + 1 + entries.Bytes.WrittenCount +
-            (kind == PackedMapKind.Unmanaged ? PackedWire.VarUIntSize(stride) : 0));
-        WriteFieldHeader(key, keyId, PackedTag.Map);
-        PackedWire.WriteVarUInt(_frame.Bytes, length);
-        PackedWire.WriteVarUInt(_frame.Bytes, count);
-        PackedWire.WriteByte(_frame.Bytes, (byte)kind);
-        if (kind == PackedMapKind.Unmanaged)
-            PackedWire.WriteVarUInt(_frame.Bytes, stride);
-        _frame.Bytes.Write(entries.Bytes.WrittenSpan);
+        body.Write(bytes);
         _fieldCount++;
     }
 
@@ -475,32 +653,18 @@ internal sealed class PackedBinaryWriteNode : SerializeWriteNode
         return _session.Strings.GetOrAdd(key);
     }
 
-    private static void WriteUniqueKey(Frame frame, string key, int id)
+    private void WriteUniqueKey(Frame frame, string key, int id)
     {
         if (!frame.TryAddKey(id))
             throw new ArgumentException($"An entry with the same key has already been written: '{key}'.", nameof(key));
 
-        PackedWire.WriteVarUInt(frame.Bytes, id);
+        PackedWire.WriteVarUInt(_session.Body, id);
     }
 
     private void WriteFieldHeader(string key, int keyId, PackedTag tag)
     {
         WriteUniqueKey(_frame, key, keyId);
-        PackedWire.WriteByte(_frame.Bytes, (byte)tag);
-    }
-
-    private int GetTableByteLength() => checked(PackedWire.VarUIntSize(_fieldCount) + _frame.Bytes.WrittenCount);
-
-    private void WriteCountedTable(IBufferWriter<byte> destination)
-    {
-        PackedWire.WriteVarUInt(destination, _fieldCount);
-        destination.Write(_frame.Bytes.WrittenSpan);
-    }
-
-    private void WriteSizedTable(IBufferWriter<byte> destination)
-    {
-        PackedWire.WriteVarUInt(destination, GetTableByteLength());
-        WriteCountedTable(destination);
+        PackedWire.WriteByte(_session.Body, (byte)tag);
     }
 
     /// <summary>
@@ -519,22 +683,117 @@ internal sealed class PackedBinaryWriteNode : SerializeWriteNode
     public static void EncodeTo(WriteSession session, IBufferWriter<byte> destination, ISerializable root)
     {
         PackedWire.RequireLittleEndian();
-        using Frame frame = session.RentFrame();
-        PackedBinaryWriteNode node = frame.PrepareNode(depth: 0);
-        node.Save(root);
+        session.Body.Rewind(0);
+        int fieldCount;
+        using (Frame frame = session.RentFrame())
+        {
+            PackedBinaryWriteNode node = frame.PrepareNode(depth: 0);
+            node.Save(root);
+            fieldCount = node._fieldCount;
+        }
 
-        int stringOffset = checked(PackedWire.HeaderSize + node.GetTableByteLength());
+        int tableByteLength = checked(PackedWire.VarUIntSize(fieldCount) + session.Body.WrittenCount);
+        int stringOffset = checked(PackedWire.HeaderSize + tableByteLength);
         PackedWire.WriteHeader(destination, session.ElideDefaults, stringOffset, session.Strings.Count);
-        node.WriteCountedTable(destination);
+        PackedWire.WriteVarUInt(destination, fieldCount);
+        destination.Write(session.Body.WrittenSpan);
         session.Strings.WriteTo(destination);
+    }
+
+    internal sealed class RewindableByteBuffer(int initialCapacity = 16384) : IBufferWriter<byte>
+    {
+        private byte[] _buffer = new byte[Math.Max(256, initialCapacity)];
+        private int _written;
+
+        public int WrittenCount => _written;
+
+        public ReadOnlySpan<byte> WrittenSpan => _buffer.AsSpan(0, _written);
+
+        public Span<byte> RawSpan => _buffer.AsSpan();
+
+        public void Rewind(int position) => _written = position;
+
+        public void Reset(int maxRetainedBytes)
+        {
+            _written = 0;
+            if (_buffer.Length > maxRetainedBytes)
+                _buffer = new byte[16384];
+        }
+
+        public Span<byte> Reserve(int count)
+        {
+            EnsureCapacity(count);
+            Span<byte> span = _buffer.AsSpan(_written, count);
+            _written += count;
+            return span;
+        }
+
+        public void ShiftRight(int contentStart, int contentLength, int shift)
+        {
+            if (shift <= 0)
+                return;
+
+            EnsureCapacity(shift);
+            if (contentLength > 0)
+                _buffer.AsSpan(contentStart, contentLength).CopyTo(_buffer.AsSpan(contentStart + shift, contentLength));
+
+            _written += shift;
+        }
+
+        public void Write(ReadOnlySpan<byte> source)
+        {
+            if (source.IsEmpty)
+                return;
+
+            EnsureCapacity(source.Length);
+            source.CopyTo(_buffer.AsSpan(_written));
+            _written += source.Length;
+        }
+
+        public Span<byte> GetSpan(int sizeHint = 0)
+        {
+            EnsureCapacity(Math.Max(1, sizeHint));
+            return _buffer.AsSpan(_written);
+        }
+
+        public Memory<byte> GetMemory(int sizeHint = 0)
+        {
+            EnsureCapacity(Math.Max(1, sizeHint));
+            return _buffer.AsMemory(_written);
+        }
+
+        public void Advance(int count)
+        {
+            if ((uint)count > (uint)(_buffer.Length - _written))
+                throw new ArgumentOutOfRangeException(nameof(count));
+
+            _written += count;
+        }
+
+        private void EnsureCapacity(int required)
+        {
+            int needed = _written + required;
+            if (needed <= _buffer.Length)
+                return;
+
+            int newSize = _buffer.Length;
+            while (newSize < needed)
+                newSize = newSize <= Array.MaxLength / 2 ? newSize * 2 : Array.MaxLength;
+
+            Array.Resize(ref _buffer, newSize);
+        }
     }
 
     public sealed class WriteSession(PackedErrors errors, int initialStringCapacity = 32, PackedBinaryEncoder? owner = null)
     {
         private readonly List<Frame> _frames = new();
+        private readonly List<ScratchSlot> _scratchSlots = new();
         private int _rentedCount;
+        private int _rentedScratchCount;
 
         public PackedBinaryEncoder? Owner { get; } = owner;
+
+        public RewindableByteBuffer Body { get; } = new(16384);
 
         public PackedStringTable.Writer Strings { get; } = new(initialStringCapacity);
 
@@ -554,26 +813,58 @@ internal sealed class PackedBinaryWriteNode : SerializeWriteNode
 
         public void ReturnFrame() => _rentedCount--;
 
+        public ScratchBufferScope RentScratchScope()
+        {
+            if (_rentedScratchCount == _scratchSlots.Count)
+                _scratchSlots.Add(new ScratchSlot(this));
+
+            ScratchSlot slot = _scratchSlots[_rentedScratchCount++];
+            return new ScratchBufferScope(slot.Writer, slot);
+        }
+
+        private void ReturnScratchSlot() => _rentedScratchCount--;
+
         public void Reset(ReferenceContext? refCtx, bool elideDefaults, PackedErrors errors, int maxRetainedFrameBytes = 262_144)
         {
             ReferenceContext = refCtx;
             ElideDefaults = elideDefaults;
             Errors = errors;
+            Body.Reset(maxRetainedFrameBytes);
             Strings.Reset();
             _rentedCount = 0;
+            _rentedScratchCount = 0;
 
-            for (int i = 0; i < _frames.Count; i++)
-                _frames[i].TrimIfNeeded(maxRetainedFrameBytes);
+            for (int i = 0; i < _scratchSlots.Count; i++)
+                _scratchSlots[i].TrimIfNeeded(maxRetainedFrameBytes);
+        }
+
+        private sealed class ScratchSlot(WriteSession session) : IDisposable
+        {
+            public ArrayBufferWriter<byte> Writer { get; private set; } = new(1024);
+
+            public void TrimIfNeeded(int maxRetainedBytes)
+            {
+                if (Writer.Capacity > maxRetainedBytes)
+                    Writer = new ArrayBufferWriter<byte>(1024);
+                else
+                    Writer.ResetWrittenCount();
+            }
+
+            public void Dispose()
+            {
+                Writer.ResetWrittenCount();
+                session.ReturnScratchSlot();
+            }
         }
     }
 
     public sealed class Frame : IDisposable
     {
         private readonly WriteSession _session;
-        private readonly HashSet<int> _keyIds = new();
         private readonly PackedBinaryWriteNode _node;
-
-        public ArrayBufferWriter<byte> Bytes { get; private set; } = new();
+        private ulong _smallKeyBits;
+        private HashSet<int>? _overflowKeyIds;
+        private bool _hasOverflowKeys;
 
         public Frame(WriteSession session)
         {
@@ -587,18 +878,45 @@ internal sealed class PackedBinaryWriteNode : SerializeWriteNode
             return _node;
         }
 
-        public bool TryAddKey(int id) => _keyIds.Add(id);
-
-        public void TrimIfNeeded(int maxRetainedBytes)
+        public bool TryAddKey(int id)
         {
-            if (Bytes.Capacity > maxRetainedBytes)
-                Bytes = new ArrayBufferWriter<byte>();
+            if ((uint)id < 64u)
+            {
+                ulong bit = 1UL << id;
+                if ((_smallKeyBits & bit) != 0UL)
+                    return false;
+
+                _smallKeyBits |= bit;
+                return true;
+            }
+
+            _overflowKeyIds ??= new HashSet<int>();
+            if (!_overflowKeyIds.Add(id))
+                return false;
+
+            _hasOverflowKeys = true;
+            return true;
+        }
+
+        public void RemoveKey(int id)
+        {
+            if ((uint)id < 64u)
+            {
+                _smallKeyBits &= ~(1UL << id);
+                return;
+            }
+
+            _overflowKeyIds?.Remove(id);
         }
 
         public void Dispose()
         {
-            Bytes.ResetWrittenCount();
-            _keyIds.Clear();
+            _smallKeyBits = 0UL;
+            if (_hasOverflowKeys)
+            {
+                _overflowKeyIds!.Clear();
+                _hasOverflowKeys = false;
+            }
             _session.ReturnFrame();
         }
     }

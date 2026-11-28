@@ -217,7 +217,7 @@ public sealed class ChunkPayloadBuilder
 
     private sealed class SectionBufferWriter : IBufferWriter<byte>
     {
-        private byte[] _buffer = new byte[4096];
+        private byte[] _buffer = new byte[32768];
         private int _written;
 
         public int WrittenCount => _written;
