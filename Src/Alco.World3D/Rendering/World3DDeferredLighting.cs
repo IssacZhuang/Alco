@@ -15,7 +15,7 @@ public readonly record struct World3DLighting
     public Vector3 DirectionToSun { get; init; } = ProceduralSkyUtility.GetDirectionToSun(10.0f);
 
     /// <summary>Linear RGB tint multiplied by atmospheric sun transmittance.</summary>
-    public Vector3 SunColor { get; init; } = Vector3.One;
+    public Vector3 SunColor { get; init; } = new(1.0f, 1.0f, 0.94f);
 
     /// <summary>Direct sunlight intensity before twilight fading.</summary>
     public float SunIntensity { get; init; } = 8.0f;
@@ -44,8 +44,14 @@ public readonly record struct World3DLighting
     /// <summary>Strength of the diffuse ground and sky bounce floor.</summary>
     public float AmbientFloor { get; init; } = 0.25f;
 
-    /// <summary>Filtered sky saturation for diffuse ambient light, from zero (gray) to one (full color).</summary>
-    public float AmbientSaturation { get; init; } = 0.6f;
+    /// <summary>Linear RGB tint of the daylight skylight's horizon, without changing luminance.</summary>
+    public Vector3 SkylightHorizonTint { get; init; } = new(1.50f, 1.12f, 1.0f);
+
+    /// <summary>Linear RGB tint of the daylight skylight's zenith, without changing luminance.</summary>
+    public Vector3 SkylightZenithTint { get; init; } = new(0.84f, 0.74f, 1.0f);
+
+    /// <summary>Filtered sky saturation for ambient light, from zero (gray) to one (full color).</summary>
+    public float AmbientSaturation { get; init; } = 1.0f;
 
     /// <summary>Cosine of the visible sun disc's angular radius.</summary>
     public float SunDiscCosRadius { get; init; } = 0.9995f;
@@ -374,9 +380,22 @@ public sealed partial class World3DScene
         ProceduralSkyUtility.GetSkyRadianceGradient(directionToSun, lighting.RayleighScale, lighting.MieScale,
             lighting.SkyExposure, lighting.NightFloor, lighting.SunRadianceScale, out Vector3 rawHorizon, out Vector3 rawZenith);
 
-        Vector3 luminanceWeights = new(0.2126f, 0.7152f, 0.0722f);
+        float daylight = EasingUtility.SmoothStep(Math.Clamp(directionToSun.Z / 0.25f, 0.0f, 1.0f));
+        Vector3 horizonTint = Vector3.Lerp(Vector3.One, lighting.SkylightHorizonTint, daylight);
+        Vector3 zenithTint = Vector3.Lerp(Vector3.One, lighting.SkylightZenithTint, daylight);
         float saturation = Math.Clamp(lighting.AmbientSaturation, 0.0f, 1.0f);
-        horizon = Vector3.Lerp(new Vector3(Vector3.Dot(rawHorizon, luminanceWeights)), rawHorizon, saturation);
-        zenith = Vector3.Lerp(new Vector3(Vector3.Dot(rawZenith, luminanceWeights)), rawZenith, saturation);
+        horizon = GradeSkylight(rawHorizon, horizonTint, saturation);
+        zenith = GradeSkylight(rawZenith, zenithTint, saturation);
+    }
+
+    private static Vector3 GradeSkylight(Vector3 radiance, Vector3 tint, float saturation)
+    {
+        Vector3 luminanceWeights = new(0.2126f, 0.7152f, 0.0722f);
+        float luminance = Vector3.Dot(radiance, luminanceWeights);
+        Vector3 tinted = radiance * tint;
+        float tintedLuminance = Vector3.Dot(tinted, luminanceWeights);
+        if (tintedLuminance <= 0.0f)
+            return Vector3.Zero;
+        return Vector3.Lerp(new Vector3(luminance), tinted * (luminance / tintedLuminance), saturation);
     }
 }
