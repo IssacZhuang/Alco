@@ -117,7 +117,7 @@ public enum World3DLightingDebugView
     GiSpecular = 8,
     /// <summary>Visualizes resolved VoxelGI directional ambient visibility.</summary>
     GiVisibility = 9,
-    /// <summary>Visualizes raw noisy half-res VoxelGI diffuse trace output prior to spatial demosaic.</summary>
+    /// <summary>Visualizes raw noisy VoxelGI diffuse trace output prior to spatial demosaic.</summary>
     GiRawDiffuseTrace = 10,
     /// <summary>Visualizes volumetric cloud column opacity and cloud shadow density.</summary>
     CloudOpacity = 11,

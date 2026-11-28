@@ -245,8 +245,10 @@ public sealed class TestWorld3DPhase3
         using Texture outDbgSpec = harness.CreateOutput(size, size);
         using Texture outDbgVis = harness.CreateOutput(size, size);
         using Texture outDbgRaw = harness.CreateOutput(size, size);
+        using Texture outHalfRes = harness.CreateOutput(size, size);
 
         World3DScene scene = harness.Scene;
+        Assert.That(scene.VoxelGi.HalfResolutionTrace, Is.False, "VoxelGI should default to full-resolution tracing.");
         scene.Shadows.Enabled = false;
         scene.Lighting = scene.Lighting with { SunIntensity = 0f, SkyExposure = 0f, AmbientFloor = 0f };
         scene.VoxelGi.Resolution = 64;
@@ -305,6 +307,19 @@ public sealed class TestWorld3DPhase3
         Assert.That(MaxChannel(ReadPixels(harness.System, outDbgSpec, size)), Is.GreaterThan(10));
         Assert.That(MaxChannel(ReadPixels(harness.System, outDbgVis, size)), Is.GreaterThan(100));
         Assert.That(MaxChannel(ReadPixels(harness.System, outDbgRaw, size)), Is.GreaterThan(20));
+
+        // 5. Verify opt-in half-resolution tracing and runtime toggling back to full resolution.
+        scene.LightingDebugView = World3DLightingDebugView.None;
+        scene.VoxelGi.HalfResolutionTrace = true;
+        for (int i = 0; i < 3; ++i)
+            harness.SubmitFrame(outHalfRes, cam);
+        double avgFloorHalf = AverageRegionLuma(ReadPixels(harness.System, outHalfRes, size), size, size / 2 - 12, size / 2 + 12, (int)(size * 0.72), (int)(size * 0.85));
+        Assert.That(avgFloorHalf, Is.GreaterThan(avgFloorOff + 18.0), "Opt-in half-res VoxelGI must still illuminate shaded Cornell floor.");
+
+        scene.VoxelGi.HalfResolutionTrace = false;
+        harness.SubmitFrame(outGiOn, cam);
+        double avgFloorFullBack = AverageRegionLuma(ReadPixels(harness.System, outGiOn, size), size, size / 2 - 12, size / 2 + 12, (int)(size * 0.72), (int)(size * 0.85));
+        Assert.That(avgFloorFullBack, Is.GreaterThan(avgFloorOff + 18.0), "Toggling back to full-res VoxelGI must continue illuminating shaded Cornell floor.");
     }
 
     /// <summary>Verifies custom IVoxelFeedSurface voxelization and dynamic instance GI movement with zero residual ghosts.</summary>

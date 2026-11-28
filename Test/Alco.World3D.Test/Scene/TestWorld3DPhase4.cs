@@ -69,6 +69,7 @@ public sealed class TestWorld3DPhase4
             "World3DForwardSnapshot",
             "World3DForward",
             "World3DSsrBlueNoise",
+            "World3DSsrColorMip",
             "World3DSsrTrace",
             "World3DSsrResolve",
             "World3DSsrComposite",
@@ -106,6 +107,7 @@ public sealed class TestWorld3DPhase4
             ("World3DForwardEmitArgs", 40),
             ("World3DForwardSnapshot", 24),
             ("World3DSsrBlueNoise", 20),
+            ("World3DSsrColorMip", 32),
             ("World3DSsrTrace", 96),
             ("World3DSsrResolve", 52),
             ("World3DSsrComposite", 80),
@@ -519,6 +521,92 @@ public sealed class TestWorld3DPhase4
         h.SubmitFrame(output, farCam);
         byte[] farPx = ReadPixels(h.System, output, 256);
         Assert.That(MaxChannel(farPx), Is.GreaterThan(40));
+    }
+
+    /// <summary>Verifies the prefiltered SSR color pyramid blurs reflections smoothly as roughness grows and skips matte surfaces.</summary>
+    [Test]
+    public void VulkanCompact_Ssr_PrefilteredBlurScalesWithRoughness_And_MatteSkipsSsr()
+    {
+        using SceneHarness h = new(GraphicsBackend.VulkanCompact, textureHeapMb: 128);
+        World3DScene scene = h.Scene;
+        scene.Occlusion.Enabled = false;
+        scene.Shadows.Enabled = false;
+        scene.VoxelGi.Enabled = false;
+        scene.VolumetricClouds.Enabled = false;
+        scene.VolumetricLight.Enabled = false;
+        scene.Forward.Enabled = false;
+        scene.AutoExposure.Enabled = false;
+        scene.Ssr.Enabled = true;
+        scene.Ssr.HalfResolution = false;
+        scene.Ssr.TemporalBlend = 0f;
+        Assert.That(scene.Ssr.MaxRoughness, Is.EqualTo(1.0f));
+
+        Assert.That(scene.TryAttachSector(out WorldSectorHandle sector), Is.True);
+        WorldGeometryHandle geom = UploadBoxGeometry(h.System, scene);
+
+        var floorDesc = new World3DMaterialDesc
+        {
+            BaseColor = new Vector4(0.06f, 0.06f, 0.07f, 1f),
+            Metallic = 0.85f,
+            Roughness = 0.04f,
+        };
+        Assert.That(scene.TryRegisterMaterial(in floorDesc, out WorldMaterialHandle floorMat), Is.True);
+        Assert.That(scene.TryRegisterMaterial(new World3DMaterialDesc
+        {
+            BaseColor = new Vector4(0.02f, 0.02f, 0.025f, 1f),
+            Roughness = 0.9f,
+        }, out WorldMaterialHandle darkWallMat), Is.True);
+        Assert.That(scene.TryRegisterMaterial(new World3DMaterialDesc
+        {
+            BaseColor = new Vector4(1f, 0.6f, 0.15f, 1f),
+            Emissive = new Vector3(14f, 5f, 0.8f),
+            Roughness = 0.9f,
+        }, out WorldMaterialHandle brightBarMat), Is.True);
+
+        Assert.That(scene.TryAddInstance(new World3DInstanceDesc(sector, geom, floorMat,
+            new World3DTransform(new World3DPosition(10, 0, -0.25), Quaternion.Identity, new Vector3(24, 16, 0.25f))), out _), Is.True);
+        Assert.That(scene.TryAddInstance(new World3DInstanceDesc(sector, geom, darkWallMat,
+            new World3DTransform(new World3DPosition(15, 0, 2.5), Quaternion.Identity, new Vector3(0.5f, 12f, 2.5f))), out _), Is.True);
+        Assert.That(scene.TryAddInstance(new World3DInstanceDesc(sector, geom, brightBarMat,
+            new World3DTransform(new World3DPosition(14, 0, 2.5), Quaternion.Identity, new Vector3(0.2f, 0.45f, 2.5f))), out _), Is.True);
+
+        World3DCamera cam = LookAt(new Vector3(0, 0, 2.2f), new Vector3(11, 0, -0.1f));
+        using Texture output = h.CreateOutput(256, 256);
+
+        scene.LightingDebugView = World3DLightingDebugView.SsrReflection;
+        h.SubmitFrame(output, cam);
+        byte[] sharpPx = ReadPixels(h.System, output, 256);
+        double sharpCenter = AverageRegionLuma(sharpPx, 256, 120, 136, 155, 220);
+        double sharpFlanks = 0.5 * (AverageRegionLuma(sharpPx, 256, 64, 96, 155, 220) + AverageRegionLuma(sharpPx, 256, 160, 192, 155, 220));
+        double sharpContrast = sharpCenter - sharpFlanks;
+        Assert.That(sharpCenter, Is.GreaterThan(40.0));
+        Assert.That(sharpContrast, Is.GreaterThan(25.0));
+
+        Assert.That(scene.TryUpdateMaterial(floorMat, floorDesc with { Roughness = 0.30f }), Is.True);
+        h.SubmitFrame(output, cam);
+        h.SubmitFrame(output, cam);
+        byte[] roughPx = ReadPixels(h.System, output, 256);
+        double roughCenter = AverageRegionLuma(roughPx, 256, 120, 136, 155, 220);
+        double roughFlanks = 0.5 * (AverageRegionLuma(roughPx, 256, 64, 96, 155, 220) + AverageRegionLuma(roughPx, 256, 160, 192, 155, 220));
+        double roughContrast = roughCenter - roughFlanks;
+        Assert.That(roughCenter, Is.GreaterThan(5.0));
+        Assert.That(roughContrast, Is.LessThan(sharpContrast * 0.75), "Prefiltered SSR pyramid must blur rough reflections across mip levels.");
+
+        Assert.That(scene.TryUpdateMaterial(floorMat, floorDesc with { Roughness = 1.0f }), Is.True);
+        scene.LightingDebugView = World3DLightingDebugView.SsrConfidence;
+        h.SubmitFrame(output, cam);
+        h.SubmitFrame(output, cam);
+        byte[] matteConfPx = ReadPixels(h.System, output, 256);
+        double matteFloorConf = AverageRegionLuma(matteConfPx, 256, 70, 186, 155, 220);
+        Assert.That(matteFloorConf, Is.LessThan(2.0), "Fully rough surfaces at MaxRoughness = 1.0 must have zero SSR confidence.");
+
+        scene.Ssr.MaxRoughness = 0.5f;
+        Assert.That(scene.TryUpdateMaterial(floorMat, floorDesc with { Roughness = 0.65f }), Is.True);
+        h.SubmitFrame(output, cam);
+        h.SubmitFrame(output, cam);
+        byte[] cutoffConfPx = ReadPixels(h.System, output, 256);
+        double cutoffFloorConf = AverageRegionLuma(cutoffConfPx, 256, 70, 186, 155, 220);
+        Assert.That(cutoffFloorConf, Is.LessThan(2.0), "Surfaces above custom MaxRoughness must have zero SSR confidence.");
     }
 
     /// <summary>Regression test verifying all Phase 4 features enabled together preserve opaque lighting cleanly across Forward snapshot and SSR.</summary>

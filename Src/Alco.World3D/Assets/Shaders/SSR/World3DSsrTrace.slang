@@ -12,8 +12,8 @@ public struct SsrTraceRoot
     public float4 SsrParams;            // x = maxDistance, y = thickness, z = maxRoughness, w = edgeFade
     public float4 ScreenAndStepParams;  // x = traceWidth, y = traceHeight, z = hizMipCount, w = maxSteps
     public GPUBufferView Views;
-    public GPUBufferView ShadowFrame;
     public GPUTextureId HdrInTex;
+    public GPUTextureId ColorPyramidTex;
     public GPUTextureId NormalTex;
     public GPUTextureId MaterialTex;
     public GPUTextureId DepthTex;
@@ -24,28 +24,13 @@ public struct SsrTraceRoot
     public uint FrameIndex;
     public uint HiZActive;
     public uint RejectBackface;
+    public uint ColorPyramidMipCount;
     public uint Reserved0;
 };
 
 float ssrLinearViewZ(float nearPlane, float depth)
 {
     return nearPlane / max(depth, 1e-6);
-}
-
-float ssrLuma(float3 c)
-{
-    return dot(c, float3(0.2126, 0.7152, 0.0722));
-}
-
-float3 ssrToTonemap(float3 c)
-{
-    float3 clamped = max(c, float3(0.0));
-    return clamped / (1.0 + ssrLuma(clamped));
-}
-
-float3 ssrFromTonemap(float3 c)
-{
-    return c / max(1.0 - ssrLuma(c), 1e-3);
 }
 
 [shader("compute")]
@@ -380,44 +365,54 @@ public void csMain(uint3 id : SV_DispatchThreadID)
 
     Texture2D<float4> hdrIn = gpu_texture<Texture2D<float4>>(root.HdrInTex.index);
     float3 cCenter = hdrIn.SampleLevel(shared_sampler_linear_clamp(), hitUv, 0.0).rgb;
+
+    float projScaleY = length(float3(view.CameraVP[0].y, view.CameraVP[1].y, view.CameraVP[2].y));
+    float coneTanHalf = roughness * roughness * 1.25;
+    float coneRadiusPx = hitWorldDist * coneTanHalf * (0.5 * float(fullDims.y) * projScaleY) / max(finalSceneLinZ, 0.25);
+    float minRoughLod = roughness * roughness * 3.5;
+    float targetLod = max(log2(max(coneRadiusPx, 1.0)), minRoughLod);
+    float maxTotalLod = float(root.ColorPyramidMipCount);
+    float clampedLod = clamp(targetLod, 0.0, maxTotalLod);
+
     float3 hitColor = cCenter;
-
-    if (roughness > 0.06)
+    if (root.ColorPyramidMipCount > 0u && root.ColorPyramidTex.index != 0u && clampedLod > 0.01)
     {
-        float blurPx = clamp(roughness * roughness * (hitWorldDist / max(finalSceneLinZ, 0.5)) * 24.0, 0.0, 10.0);
-        if (blurPx > 0.75)
+        Texture2D<float4> colorPyr = gpu_texture<Texture2D<float4>>(root.ColorPyramidTex.index);
+        SamplerState clampSampler = shared_sampler_linear_clamp();
+        if (clampedLod < 1.0)
         {
-            static const float2 diskOffsets[4] = {
-                float2( 0.85,  0.25),
-                float2(-0.25,  0.85),
-                float2(-0.85, -0.25),
-                float2( 0.25, -0.85)
-            };
-            float3 tmAccum = ssrToTonemap(cCenter);
-            float wAccum = 1.0;
-            float depthTol = max(finalSceneLinZ * 0.12, 0.35);
-            float2 minUv = view.ViewportSizeInvSize.zw * 0.5;
-            float2 maxUv = 1.0 - minUv;
+            float3 mip0Color = colorPyr.SampleLevel(clampSampler, hitUv, 0.0).rgb;
+            hitColor = lerp(cCenter, mip0Color, clampedLod);
+        }
+        else
+        {
+            float pyrLod = min(clampedLod - 1.0, max(maxTotalLod - 1.0, 0.0));
+            float3 pyrCenter = colorPyr.SampleLevel(clampSampler, hitUv, pyrLod).rgb;
+            hitColor = pyrCenter;
 
-            [unroll]
-            for (uint ti = 0u; ti < 4u; ++ti)
+            float overflow = targetLod - maxTotalLod;
+            if (overflow > 0.15)
             {
-                float2 rotOff = float2(
-                    diskOffsets[ti].x * bn.z - diskOffsets[ti].y * bn.w,
-                    diskOffsets[ti].x * bn.w + diskOffsets[ti].y * bn.z);
-                float2 tapUv = clamp(hitUv + rotOff * blurPx * view.ViewportSizeInvSize.zw, minUv, maxUv);
-                int2 tapPx = clamp(int2(tapUv * float2(fullDims)), int2(0, 0), maxFull);
-                float tapDepth = depthTex.Load(int3(tapPx, 0));
-                if (tapDepth <= 0.0)
-                    continue;
-
-                float tapLinZ = ssrLinearViewZ(nearPlane, tapDepth);
-                float w = exp(-abs(tapLinZ - finalSceneLinZ) / depthTol);
-                float3 tapRgb = hdrIn.SampleLevel(shared_sampler_linear_clamp(), tapUv, 0.0).rgb;
-                tmAccum += ssrToTonemap(tapRgb) * w;
-                wAccum += w;
+                static const float2 diskOffsets[4] = {
+                    float2( 0.85,  0.25),
+                    float2(-0.25,  0.85),
+                    float2(-0.85, -0.25),
+                    float2( 0.25, -0.85)
+                };
+                float2 mipTexelUv = float2(float(1u << min(root.ColorPyramidMipCount, 12u))) * view.ViewportSizeInvSize.zw;
+                float2 tapRadiusUv = mipTexelUv * clamp(exp2(min(overflow, 2.0)) - 1.0, 0.0, 2.5);
+                float3 accum = pyrCenter;
+                [unroll]
+                for (uint ti = 0u; ti < 4u; ++ti)
+                {
+                    float2 rotOff = float2(
+                        diskOffsets[ti].x * bn.z - diskOffsets[ti].y * bn.w,
+                        diskOffsets[ti].x * bn.w + diskOffsets[ti].y * bn.z);
+                    float2 tapUv = clamp(hitUv + rotOff * tapRadiusUv, float2(0.002), float2(0.998));
+                    accum += colorPyr.SampleLevel(clampSampler, tapUv, pyrLod).rgb;
+                }
+                hitColor = accum * 0.2;
             }
-            hitColor = ssrFromTonemap(tmAccum / max(wAccum, 1e-4));
         }
     }
 

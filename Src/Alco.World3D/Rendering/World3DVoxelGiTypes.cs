@@ -44,8 +44,8 @@ public sealed class World3DVoxelGiSettings
     /// <summary>Gets or sets the temporal convergence rate (1/s) used when demosaicing traced diffuse GI.</summary>
     public float TemporalBlendSpeed { get; set; } = 8.0f;
 
-    /// <summary>Gets or sets whether diffuse cone tracing runs on checkerboard half resolution before demosaicing.</summary>
-    public bool HalfResolutionTrace { get; set; } = true;
+    /// <summary>Gets or sets whether GI cone tracing runs at checkerboard half resolution instead of full resolution.</summary>
+    public bool HalfResolutionTrace { get; set; }
 
     /// <summary>Gets or sets the maximum number of dynamic point lights uploaded to VoxelGI and deferred lighting.</summary>
     public int MaxPointLights { get; set; } = 64;

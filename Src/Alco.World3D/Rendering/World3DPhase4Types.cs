@@ -189,7 +189,7 @@ public sealed class World3DSsrSettings
     public float MaxDistanceMeters { get; set; } = 60f;
 
     /// <summary>Gets or sets roughness threshold above which surfaces smoothly skip SSR and keep VoxelGI specular.</summary>
-    public float MaxRoughness { get; set; } = 0.6f;
+    public float MaxRoughness { get; set; } = 1.0f;
 
     /// <summary>Gets or sets intensity multiplier applied to resolved SSR radiance.</summary>
     public float Intensity { get; set; } = 1.0f;

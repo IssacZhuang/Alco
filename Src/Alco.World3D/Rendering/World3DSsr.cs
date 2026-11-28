@@ -7,11 +7,14 @@ namespace Alco.World3D;
 public sealed partial class World3DScene
 {
     private const int SsrBlueNoiseSize = 128;
+    private const uint MaxSsrColorMips = 6;
 
     private Texture? _ssrBlueNoiseTex;
+    private Texture? _ssrColorPyramidTex;
     private readonly Texture?[] _ssrHistoryTex = new Texture?[2];
 
     private Shader? _ssrBlueNoiseShader;
+    private Shader? _ssrColorMipShader;
     private Shader? _ssrTraceShader;
     private Shader? _ssrResolveShader;
     private Shader? _ssrCompositeShader;
@@ -19,6 +22,8 @@ public sealed partial class World3DScene
     private bool _ssrBlueNoiseDirty = true;
 
     private Extent2D _ssrHistoryExtent;
+    private Extent2D _ssrColorPyramidMip0;
+    private uint _ssrColorPyramidMips;
     private int _submittedSsrHistoryIndex = -1;
     private ulong _submittedSsrDiscardVersion;
     private uint _ssrFrameCounter;
@@ -29,6 +34,8 @@ public sealed partial class World3DScene
     private int _recordedCurrSsrHistoryIndex = -1;
     private int _recordedPrevSsrHistoryIndex = -1;
     private Extent2D _recordedSsrTraceExtent;
+    private Extent2D _recordedSsrColorPyramidMip0;
+    private uint _recordedSsrColorPyramidMips;
     private int _recordedSsrMaxSteps;
     private BufferSlice _recordedSsrViews;
     private World3DView _ssrPrevView;
@@ -47,6 +54,8 @@ public sealed partial class World3DScene
         _recordedCurrSsrHistoryIndex = -1;
         _recordedPrevSsrHistoryIndex = -1;
         _recordedSsrTraceExtent = default;
+        _recordedSsrColorPyramidMip0 = default;
+        _recordedSsrColorPyramidMips = 0;
         _recordedSsrMaxSteps = 0;
         _recordedSsrViews = default;
 
@@ -60,7 +69,8 @@ public sealed partial class World3DScene
 
         EnsureSsrShaders();
         EnsureSsrTextures(settings, viewport, context.DiscardVersion,
-            out Extent2D traceExtent, out bool historyValid, out int prevIdx, out int currIdx);
+            out Extent2D traceExtent, out Extent2D pyramidMip0, out uint pyramidMips,
+            out bool historyValid, out int prevIdx, out int currIdx);
 
         ++_ssrFrameCounter;
         Span<World3DView> views = stackalloc World3DView[2];
@@ -74,6 +84,8 @@ public sealed partial class World3DScene
         _recordedCurrSsrHistoryIndex = currIdx;
         _recordedPrevSsrHistoryIndex = prevIdx;
         _recordedSsrTraceExtent = traceExtent;
+        _recordedSsrColorPyramidMip0 = pyramidMip0;
+        _recordedSsrColorPyramidMips = pyramidMips;
         _recordedSsrMaxSteps = Math.Clamp(settings.MaxSteps, 8, 128);
 
         LastRecordedSsr = new World3DSsrStats(
@@ -102,6 +114,7 @@ public sealed partial class World3DScene
     private void DisposeSsr()
     {
         _ssrBlueNoiseTex?.Dispose(); _ssrBlueNoiseTex = null;
+        _ssrColorPyramidTex?.Dispose(); _ssrColorPyramidTex = null;
         for (int i = 0; i < _ssrHistoryTex.Length; ++i)
         {
             _ssrHistoryTex[i]?.Dispose();
@@ -109,6 +122,8 @@ public sealed partial class World3DScene
         }
         _ssrBlueNoiseDirty = true;
         _ssrHistoryExtent = default;
+        _ssrColorPyramidMip0 = default;
+        _ssrColorPyramidMips = 0;
         _submittedSsrHistoryIndex = -1;
     }
 
@@ -118,6 +133,7 @@ public sealed partial class World3DScene
             return;
 
         _ssrBlueNoiseShader = LoadSceneCompute<SsrBlueNoiseRoot>("World3DSsrBlueNoise");
+        _ssrColorMipShader = LoadSceneCompute<SsrColorMipRoot>("World3DSsrColorMip");
         _ssrTraceShader = LoadSceneCompute<SsrTraceRoot>("World3DSsrTrace");
         _ssrResolveShader = LoadSceneCompute<SsrResolveRoot>("World3DSsrResolve");
         _ssrCompositeShader = LoadSceneCompute<SsrCompositeRoot>("World3DSsrComposite");
@@ -125,7 +141,8 @@ public sealed partial class World3DScene
     }
 
     private void EnsureSsrTextures(World3DSsrSettings settings, Extent2D viewport, ulong discardVersion,
-        out Extent2D traceExtent, out bool historyValid, out int prevIdx, out int currIdx)
+        out Extent2D traceExtent, out Extent2D pyramidMip0, out uint pyramidMips,
+        out bool historyValid, out int prevIdx, out int currIdx)
     {
         if (_ssrBlueNoiseTex == null)
         {
@@ -140,6 +157,26 @@ public sealed partial class World3DScene
             });
             _ssrBlueNoiseDirty = true;
         }
+
+        Extent2D nextPyramidMip0 = new(Math.Max(1u, viewport.X >> 1), Math.Max(1u, viewport.Y >> 1));
+        uint nextPyramidMips = Math.Min(ComputeMipCount(nextPyramidMip0), MaxSsrColorMips);
+        if (!_ssrColorPyramidMip0.Equals(nextPyramidMip0) || _ssrColorPyramidMips != nextPyramidMips || _ssrColorPyramidTex == null)
+        {
+            _ssrColorPyramidTex?.Dispose();
+            _ssrColorPyramidTex = _system.CreateTexture(new TextureDesc
+            {
+                Type = TextureType.TwoD,
+                Extent = new Extent3D(nextPyramidMip0.X, nextPyramidMip0.Y, 1),
+                MipLevels = nextPyramidMips,
+                LayerCount = 1,
+                Format = Format.Rgba16Float,
+                Usage = TextureUsage.Sampled | TextureUsage.Storage,
+            });
+            _ssrColorPyramidMip0 = nextPyramidMip0;
+            _ssrColorPyramidMips = nextPyramidMips;
+        }
+        pyramidMip0 = _ssrColorPyramidMip0;
+        pyramidMips = _ssrColorPyramidMips;
 
         traceExtent = settings.HalfResolution
             ? new Extent2D(Math.Max(1u, (viewport.X + 1u) >> 1), Math.Max(1u, (viewport.Y + 1u) >> 1))
@@ -177,10 +214,12 @@ public sealed partial class World3DScene
         private const int PassTrace = 1;
         private const int PassResolve = 2;
         private const int PassComposite = 3;
+        private const int PassColorMipBase = 10;
 
         private readonly World3DScene _scene = scene;
         private readonly RenderChain _chain = chain;
         private RGTexture _blueNoiseRG;
+        private RGTexture _colorPyramidRG;
         private RGTexture _rawColorRG;
         private RGTexture _metaRG;
         private RGTexture _historyInRG;
@@ -191,6 +230,7 @@ public sealed partial class World3DScene
         void IRenderGraphNode.Setup(RenderGraphBuilder builder)
         {
             _blueNoiseRG = default;
+            _colorPyramidRG = default;
             _rawColorRG = default;
             _metaRG = default;
             _historyInRG = default;
@@ -216,6 +256,22 @@ public sealed partial class World3DScene
                 bnPass.Write(_blueNoiseRG, RGUsage.ComputeWrite);
             }
 
+            _colorPyramidRG = builder.ImportTexture(_scene._ssrColorPyramidTex!, "World3D.Ssr.ColorPyramid");
+            uint colorMips = _scene._recordedSsrColorPyramidMips;
+            for (uint mip = 0; mip < colorMips; ++mip)
+            {
+                RenderGraphPassBuilder mipPass = builder.AddPass($"World3D.Ssr.ColorMip{mip}", PassColorMipBase + (int)mip);
+                if (mip == 0)
+                {
+                    mipPass.Read(_hdrInRG, RGUsage.ComputeRead);
+                    mipPass.Write(_colorPyramidRG, RGUsage.ComputeWrite);
+                }
+                else
+                {
+                    mipPass.ReadWrite(_colorPyramidRG, RGUsage.ComputeReadWrite);
+                }
+            }
+
             Extent2D trace = _scene._recordedSsrTraceExtent;
             Extent3D traceExt3 = new(trace.X, trace.Y, 1u);
             _rawColorRG = builder.CreateTexture(new RGTextureDesc { Name = "World3D.Ssr.RawColor", Extent = traceExt3, Format = Format.Rgba16Float });
@@ -226,9 +282,8 @@ public sealed partial class World3DScene
             RGBuffer ssrViews = builder.ImportBuffer(_scene._recordedSsrViews.Buffer!, "World3D.SsrViews");
             RenderGraphPassBuilder tracePass = builder.AddPass("World3D.Ssr.Trace", PassTrace);
             tracePass.Read(views, RGUsage.ComputeRead);
-            if (!_scene._frameShadowData.IsEmpty)
-                tracePass.Read(builder.ImportBuffer(_scene._frameShadowData.Buffer!, "World3D.ShadowFrame"), RGUsage.ComputeRead);
             tracePass.Read(_hdrInRG, RGUsage.ComputeRead);
+            tracePass.Read(_colorPyramidRG, RGUsage.ComputeRead);
             tracePass.Read(gb.Normal, RGUsage.ComputeRead);
             tracePass.Read(gb.Material, RGUsage.ComputeRead);
             tracePass.Read(gb.Depth, RGUsage.ComputeRead);
@@ -286,6 +341,29 @@ public sealed partial class World3DScene
                 return;
             }
 
+            if (passId >= PassColorMipBase)
+            {
+                uint mip = (uint)(passId - PassColorMipBase);
+                Texture pyramid = _scene._ssrColorPyramidTex!;
+                Extent3D hdrExtent = context.GetExtent(_hdrInRG);
+                Extent2D mip0 = _scene._recordedSsrColorPyramidMip0;
+                uint srcW = mip == 0 ? hdrExtent.X : Math.Max(1u, mip0.X >> (int)(mip - 1));
+                uint srcH = mip == 0 ? hdrExtent.Y : Math.Max(1u, mip0.Y >> (int)(mip - 1));
+                uint dstW = Math.Max(1u, mip0.X >> (int)mip);
+                uint dstH = Math.Max(1u, mip0.Y >> (int)mip);
+                SsrColorMipRoot mipRoot = new(
+                    mip == 0 ? GPUTextureId.FromSampled(context.GetTexture(_hdrInRG)) : GPUTextureId.FromSampled(pyramid),
+                    pyramid.GetStorageId(mip),
+                    srcW,
+                    srcH,
+                    dstW,
+                    dstH,
+                    mip == 0 ? 0u : mip - 1u,
+                    mip == 0 ? 1u : 0u);
+                compute.Dispatch(_scene._ssrColorMipShader!, in mipRoot, new Extent3D((dstW + 7u) / 8u, (dstH + 7u) / 8u, 1u));
+                return;
+            }
+
             GBufferTargets gb = _scene._gbufferTargets;
             World3DSsrSettings settings = _scene.Ssr;
             Extent2D trace = _scene._recordedSsrTraceExtent;
@@ -299,8 +377,8 @@ public sealed partial class World3DScene
                         Math.Clamp(settings.MaxRoughness, 0.05f, 1f), Math.Clamp(settings.EdgeFade, 0.01f, 0.5f)),
                     new Vector4(trace.X, trace.Y, hizActive ? _scene._recordedHiZMipCount : 0u, _scene._recordedSsrMaxSteps),
                     _scene._frameViews.View,
-                    _scene._frameShadowData.View,
                     GPUTextureId.FromSampled(context.GetTexture(_hdrInRG)),
+                    GPUTextureId.FromSampled(context.GetTexture(_colorPyramidRG)),
                     GPUTextureId.FromSampled(context.GetTexture(gb.Normal)),
                     GPUTextureId.FromSampled(context.GetTexture(gb.Material)),
                     GPUTextureId.FromSampled(context.GetTexture(gb.Depth)),
@@ -311,6 +389,7 @@ public sealed partial class World3DScene
                     _scene._ssrFrameCounter,
                     hizActive ? 1u : 0u,
                     settings.RejectBackfaceHits ? 1u : 0u,
+                    _scene._recordedSsrColorPyramidMips,
                     0u);
                 compute.Dispatch(_scene._ssrTraceShader!, in traceRoot, traceGroups);
                 return;
@@ -335,6 +414,9 @@ public sealed partial class World3DScene
                 compute.Dispatch(_scene._ssrResolveShader!, in resolveRoot, traceGroups);
                 return;
             }
+
+            if (passId != PassComposite)
+                return;
 
             Extent3D full = context.GetExtent(_hdrOutRG);
             bool giSpecValid = _scene._recordedVoxelGiEnabled && _scene._frameGiOutputSpecularRG.IsValid;
@@ -369,13 +451,24 @@ public sealed partial class World3DScene
         uint Reserved1,
         uint Reserved2);
 
+    [StructLayout(LayoutKind.Sequential, Size = 32)]
+    private readonly record struct SsrColorMipRoot(
+        GPUTextureId SrcTex,
+        GPUTextureId DstTex,
+        uint SrcWidth,
+        uint SrcHeight,
+        uint DstWidth,
+        uint DstHeight,
+        uint SrcMip,
+        uint UseKarisWeight);
+
     [StructLayout(LayoutKind.Sequential, Size = 96)]
     private readonly record struct SsrTraceRoot(
         Vector4 SsrParams,
         Vector4 ScreenAndStepParams,
         GPUBufferView Views,
-        GPUBufferView ShadowFrame,
         GPUTextureId HdrInTex,
+        GPUTextureId ColorPyramidTex,
         GPUTextureId NormalTex,
         GPUTextureId MaterialTex,
         GPUTextureId DepthTex,
@@ -386,6 +479,7 @@ public sealed partial class World3DScene
         uint FrameIndex,
         uint HiZActive,
         uint RejectBackface,
+        uint ColorPyramidMipCount,
         uint Reserved0);
 
     [StructLayout(LayoutKind.Sequential, Size = 52)]

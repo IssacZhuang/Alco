@@ -186,7 +186,10 @@ internal sealed partial class BistroImporter
 
     private sealed class MaterialReader(JsonElement root, TextureCatalog textures)
     {
+        private const float BlenderUniformRoughnessArtifact = 0.5527864f;
+        private const float BlenderRoughnessArtifactTolerance = 1e-4f;
         private readonly Dictionary<int, MaterialPlan?> _materials = new();
+        private readonly bool _ignoreUniformRoughnessArtifact = HasUniformBlenderRoughnessArtifact(root);
 
         public bool LegacyMetallic { get; init; }
         public List<MaterialPlan> DrawMaterials { get; } = [];
@@ -231,7 +234,7 @@ internal sealed partial class BistroImporter
             {
                 BaseColor = ReadVector4(Property(pbr, "baseColorFactor"), Vector4.One),
                 Metallic = Scalar(pbr, "metallicFactor", LegacyMetallic && roughness != null ? 0 : 1),
-                Roughness = Scalar(pbr, "roughnessFactor", 1),
+                Roughness = _ignoreUniformRoughnessArtifact ? 1f : Scalar(pbr, "roughnessFactor", 1),
                 Emissive = ReadVector3(Property(value, "emissiveFactor"), Vector3.Zero),
                 AlphaMode = alphaMode,
                 AlphaCutoff = alpha == "BLEND" ? 0.5f : Scalar(value, "alphaCutoff", 0.5f),
@@ -266,6 +269,27 @@ internal sealed partial class BistroImporter
             if (!normal && plan.Family == DdsDecoder.BcFamily.BC5)
                 throw new InvalidDataException($"BC5 is only supported for a normal slot: '{uri}'.");
             return plan;
+        }
+
+        private static bool HasUniformBlenderRoughnessArtifact(JsonElement root)
+        {
+            JsonElement materials = Property(root, "materials");
+            if (materials.ValueKind != JsonValueKind.Array || materials.GetArrayLength() < 2)
+                return false;
+
+            foreach (JsonElement material in materials.EnumerateArray())
+            {
+                JsonElement pbr = Property(material, "pbrMetallicRoughness");
+                if (pbr.ValueKind != JsonValueKind.Object ||
+                    !pbr.TryGetProperty("roughnessFactor", out JsonElement roughnessElement) ||
+                    roughnessElement.ValueKind != JsonValueKind.Number)
+                    return false;
+
+                float factor = roughnessElement.GetSingle();
+                if (!(MathF.Abs(factor - BlenderUniformRoughnessArtifact) <= BlenderRoughnessArtifactTolerance))
+                    return false;
+            }
+            return true;
         }
     }
 

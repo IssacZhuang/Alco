@@ -158,7 +158,7 @@ public void csMain(uint3 id : SV_DispatchThreadID)
         ? sampleBilateralSsr(ssrTex, normalTex, depthTex, view, uint2(root.TraceWidth, root.TraceHeight), int2(fullDims), uv, n, depth, roughness)
         : ssrTex.Load(int3(id.xy, 0));
 
-    float roughFade = 1.0 - smoothstep(root.MaxRoughness * 0.65, root.MaxRoughness, roughness);
+    float roughFade = 1.0 - smoothstep(root.MaxRoughness * 0.45, root.MaxRoughness, roughness);
     float conf = saturate(ssr.a * roughFade);
 
     if (shadowFrame.DebugView == 12u)

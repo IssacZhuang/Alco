@@ -5,13 +5,13 @@ using NUnit.Framework;
 namespace Alco.World3D.Test;
 
 /// <summary>
-/// Compiles all 51 embedded Alco.World3D shader modules and composed ISurface variants across Spirv, SpirvCompact, Dxil, and MetalSource.
+/// Compiles all 52 embedded Alco.World3D shader modules and composed ISurface variants across Spirv, SpirvCompact, Dxil, and MetalSource.
 /// </summary>
 [Category("NoGPU")]
 [TestFixture]
 public sealed class ValidateShader
 {
-    private const int ExpectedEmbeddedShaderCount = 51;
+    private const int ExpectedEmbeddedShaderCount = 52;
 
     private static readonly string[] s_libraryModules =
     [
@@ -68,12 +68,13 @@ public sealed class ValidateShader
         ("World3DForwardSnapshot", 24u),
         // SSR
         ("World3DSsrBlueNoise", 20u),
+        ("World3DSsrColorMip", 32u),
         ("World3DSsrTrace", 96u),
         ("World3DSsrResolve", 52u),
         ("World3DSsrComposite", 80u),
     ];
 
-    /// <summary>Verifies that all 51 embedded shaders exist without duplicates and are covered by validation.</summary>
+    /// <summary>Verifies that all 52 embedded shaders exist without duplicates and are covered by validation.</summary>
     [Test]
     public void EmbeddedShaderManifest_MatchesExpectedSet()
     {
